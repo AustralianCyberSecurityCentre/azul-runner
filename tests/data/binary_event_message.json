@@ -1,0 +1,70 @@
+[
+  {
+    "model_version": 5,
+    "kafka_key": "fakey-mkfakeface",
+    "author": {
+      "category": "user",
+      "name": "anony-moose"
+    },
+    "dequeued": "generated-dummy-dequeued-id",
+    "action": "sourced",
+    "timestamp": "2020-07-20T10:31:40.738362+00:00",
+    "entity": {
+      "datastreams": [
+        {
+          "label": "content",
+          "sha512": "7b12298582d8d98747505982c9f6a6673bfd47e5ada8a8108fd0d8160e71a54f8222b133a97e64f0fd5b5cea186a5e4078cffaf322856373866f7badf9cd64d5",
+          "sha256": "dac804f3662b2228e43af80f6e0769614bf53d6c8ea16241c80d779de1308c20",
+          "sha1": "a1e25a8c7498b39863166ee5bcd4616a8098892d",
+          "md5": "97c2e3618064b1cca21f5a8eb782a1e3",
+          "mime": "text/plain",
+          "magic": "ASCII text",
+          "file_format_legacy": "Text",
+          "size": 121
+        }
+      ],
+      "sha512": "7b12298582d8d98747505982c9f6a6673bfd47e5ada8a8108fd0d8160e71a54f8222b133a97e64f0fd5b5cea186a5e4078cffaf322856373866f7badf9cd64d5",
+      "sha256": "dac804f3662b2228e43af80f6e0769614bf53d6c8ea16241c80d779de1308c20",
+      "sha1": "a1e25a8c7498b39863166ee5bcd4616a8098892d",
+      "md5": "97c2e3618064b1cca21f5a8eb782a1e3",
+      "size": 121,
+      "file_format_legacy": "Text",
+      "features": []
+    },
+    "source": {
+      "name": "user",
+      "timestamp": "2020-02-02T14:11:03.200000-07:00",
+      "references": {
+        "a": "b"
+      },
+      "path": [
+        {
+          "author": {
+            "category": "user",
+            "name": "anony-moose"
+          },
+          "action": "sourced",
+          "timestamp": "2020-07-20T10:31:40.738362+00:00",
+          "sha256": "dac804f3662b2228e43af80f6e0769614bf53d6c8ea16241c80d779de1308c20",
+
+          "filename": "a.txt",
+          "size": 121,
+          "file_format_legacy": "Text"
+        },
+        {
+          "author": {
+            "category": "user",
+            "name": "anony-moose"
+          },
+          "action": "enriched",
+          "timestamp": "2020-07-20T10:31:41.738362+00:00",
+          "sha256": "dac804f3662b2228e43af80f6e0769614bf53d6c8ea16241c80d779de1308c21",
+
+          "filename": "a.txt",
+          "size": 121,
+          "file_format_legacy": "Text"
+        }
+      ]
+    }
+  }
+]

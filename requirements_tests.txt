@@ -1,0 +1,9 @@
+azul-bedrock[test_utils]
+black
+fastapi
+pytest
+tox
+uvicorn[standard]
+pytest-timeout
+yara-x
+urllib3
