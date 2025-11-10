@@ -487,7 +487,9 @@ class Monitor:
                         # Perform memory checks if enabled
                         if self._cfg.enable_mem_limits:
                             if not self._are_memory_limits_good(monitor_task):
+                                # prevent temp file buildup.
                                 self._kill_child_processes(concurrent_task_list)
+                                self.delete_tempfiles()
                                 child_process = self._create_and_start_child_process(
                                     start_child_process_func, job_limit, queue, logging_queue
                                 )
@@ -495,6 +497,8 @@ class Monitor:
                         # Check for timeout and raise heartbeat if required.
                         if not self._is_healthy_heartbeat_and_memory_checks(monitor_task):
                             self._kill_child_processes(concurrent_task_list)
+                            # prevent temp file buildup.
+                            self.delete_tempfiles()
                             child_process = self._create_and_start_child_process(
                                 start_child_process_func, job_limit, queue, logging_queue
                             )
