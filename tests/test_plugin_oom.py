@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import datetime
 import json
-import logging
 import tempfile
 import time
 import unittest
 from typing import ClassVar
-from unittest.mock import patch
 
 import httpx
 import pytest
@@ -64,7 +62,6 @@ class TestPluginOom(unittest.TestCase):
 
     mock_server: ClassVar[md.MockDispatcher]
     server: ClassVar[str]  # Endpoint to the mock server, suitable for passing to a plugin's config['server']
-    _orig_plugin_logger: logging.Logger  # Saves the original value of azul_runner.plugin.logging to restore later
     dummy_log_handler: sup.DummyLogHandler  # Set for each instance in setUp()
     maxDiff = None
 
