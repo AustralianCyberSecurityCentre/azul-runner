@@ -13,6 +13,7 @@ import multiprocessing
 import multiprocessing.sharedctypes
 import multiprocessing.util
 import queue as queueLib
+import signal
 import subprocess  # noqa: S404 # nosec B404
 import sys
 import time
@@ -37,6 +38,12 @@ QUEUE_PUT_TIMEOUT = 0.5
 
 class CriticalError(Exception):
     """Something has gone wrong that indicates the plugin needs to exit."""
+
+    pass
+
+
+class SigTermExitError(Exception):
+    """Sig term has been provided to the process and it is not exiting."""
 
     pass
 
@@ -135,6 +142,10 @@ class Coordinator:
             raise ValueError("Config should be a Settings object not a dictionary!")
         self._cfg = config
 
+        self.is_signalled_to_exit = False
+        signal.signal(signal.SIGINT, self.set_signal_exit)
+        signal.signal(signal.SIGTERM, self.set_signal_exit)
+
         self._watchdog: Any | None = None
         self._watched: WatchPath | None = None
 
@@ -149,6 +160,10 @@ class Coordinator:
             self._watchdog.schedule(self._watched, self._cfg.watch_path, recursive=True)
             self._watchdog.start()
         self._recreate_plugin()
+
+    def set_signal_exit(self, *args):
+        """Set the option to exit the plugin based on a signal (SIGINT, SIGTERM...)."""
+        self.is_signalled_to_exit = True
 
     @property
     def plugin(self):
@@ -218,6 +233,10 @@ class Coordinator:
             # Set current job to None to indicate fetching a job.
             with contextlib.suppress(queueLib.Full):
                 queue.put(None, block=False)
+
+            # Exit gracefully when a SIGTERM Or SIGINT is provided. (placed after queue.put for testing reasons)
+            if self.is_signalled_to_exit:
+                raise SigTermExitError()
 
             event = self._network.fetch_job()
             # Put task immediately to account for time spend fetching a file.

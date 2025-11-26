@@ -22,6 +22,7 @@ from azul_runner.coordinator import (
     Coordinator,
     CriticalError,
     RecreateException,
+    SigTermExitError,
     get_git_version_suffix,
 )
 from azul_runner.log_setup import AddLoggingQueueListener, LogLevel, setup_logger
@@ -175,6 +176,9 @@ def _start_loop_coordinator(
         exit(TaskExitCodeEnum.COMPLETED)
     except CriticalError:
         logger.info("closing program after critical error.")
+        exit(TaskExitCodeEnum.TERMINATE)
+    except SigTermExitError:
+        logger.info("closing program after SigTerm recieved error.")
         exit(TaskExitCodeEnum.TERMINATE)
     except RecreateException:
         # Kill process tree to remove any bad child processes launched with subprocess module.
@@ -387,6 +391,15 @@ class Monitor:
         """Run a plugin in an infinite loop or until the job limit is reached."""
         self._run(_start_loop_coordinator, job_limit)
 
+    def propagate_termination_signal(self, tasks: list[MonitorTask], send_sig: signal.Signals):
+        """Setup a function to propagate the termination of this process to the child process."""
+
+        def func_terminate_all_child_processes(*args):
+            for t in tasks:
+                t.child_process.terminate()
+
+        signal.signal(send_sig, func_terminate_all_child_processes)
+
     def _run(
         self,
         start_child_process_func: Callable[
@@ -419,6 +432,9 @@ class Monitor:
                         start_child_process_func, job_limit, queue, logging_queue
                     )
                     concurrent_task_list.append(MonitorTask(child_process, queue))
+                # Ensure SIGINT and SIGTERM cause the child process to terminate.
+                self.propagate_termination_signal(concurrent_task_list, signal.SIGINT)
+                self.propagate_termination_signal(concurrent_task_list, signal.SIGTERM)
 
                 while True:
                     # Sleep only if the job_limit isn't set and if the limit is set start waiting once you have
