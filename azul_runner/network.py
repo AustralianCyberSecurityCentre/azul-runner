@@ -45,6 +45,7 @@ class Network:
     def post_registrations(self):
         """Post all registration events to dispatcher."""
         for row in network_transform.get_registrations(self.plugin):
+            logger.info(f"Registering plugin {row.author.name}-{row.author.version if row.author.version else ''}")
             self.api.submit_events([row], model=azm.ModelType.Plugin)
 
     def fetch_job(self) -> azm.BinaryEvent:
