@@ -425,6 +425,7 @@ class TestPlugin(unittest.TestCase):
         submission_settings: Optional[dict] = None,
         provided_coordinator: Optional[Coordinator] = None,
         no_multiprocessing: Optional[bool] = False,
+        check_consistent_augmented_stream: bool = True,
     ) -> JobResult:
         """Calls the plugin's execute method and returns the results.
 
@@ -457,6 +458,10 @@ class TestPlugin(unittest.TestCase):
 
         `no_multiprocessing`: bypass running as a multiprocess, this should be used sparingly and is useful
         when mocking restapi's with libraries like respx.
+
+        `check_consistent_augmented_stream`: re-runs the plugin if streams (augmented or child) are produced.
+        This is to ensure a stable interface but disabling this will half the run time for those tests.
+
         """
         if feats_in is None:
             feats_in = []
@@ -559,6 +564,20 @@ class TestPlugin(unittest.TestCase):
         else:
             results = monitor_m_or_coord.run_once(event, datastreams, test_dir_name)
 
+        results2: dict[str, JobResult] | None = None
+        is_result2_expected = False
+        if check_consistent_augmented_stream:
+            does_result_have_data = any([len(r.data) > 0 for r in results.values()])
+            if does_result_have_data:
+                is_result2_expected = True
+                # reset all input streams
+                for stream in datastreams:
+                    stream.seek(0)
+                if isinstance(monitor_m_or_coord, Coordinator):
+                    results2 = monitor_m_or_coord.run_once(event, datastreams)
+                else:
+                    results2 = monitor_m_or_coord.run_once(event, datastreams, test_dir_name)
+
         # generate status event that would be sent over network
         # during plugin execution errors at this step cause the plugin to crash
         for multiplugin, run in results.items():
@@ -591,6 +610,19 @@ class TestPlugin(unittest.TestCase):
                 res.date_end = None
             if not keep_feature_types:
                 res.feature_types = []
+
+        if is_result2_expected:
+            self.assertIsNotNone(
+                results2, "Result 2 should not be none as there is augmented or child streams present."
+            )
+            # Verify all the streams for each multiplugin are equal.
+            for m_plugin, result in results.items():
+                self.assertCountEqual(
+                    list(results2[m_plugin].data.keys()),
+                    list(result.data.keys()),
+                    "Inconsistent data streams, your plugin should return the same results when it's re-run.",
+                )
+
         # handle simple plugin results (backwards compatibility)
         if len(results) == 1:
             # return single results dict
