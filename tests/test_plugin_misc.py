@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+import uuid
+from typing import Any
 
 from azul_bedrock import exceptions as azbe
 from azul_bedrock import models_network as azm
@@ -17,6 +19,7 @@ from azul_runner import (
     add_settings,
     settings,
 )
+from azul_runner.models import EventParent
 
 from . import plugin_support as sup
 
@@ -276,6 +279,130 @@ class TestPluginOutputStream(TestPlugin):
                     ),
                 ],
             ),
+        )
+
+    def test_mutating_augmented_stream(self):
+        """Test that the test case fails if you mutate the augmented streams.
+
+        Important to limit data produced by plugins.
+        """
+
+        # Plugin that generates random sha256's
+        class DP(sup.DummyPlugin):
+
+            def execute(self, job):
+                unique_id_1 = str(uuid.uuid4())
+                self.add_data(azm.DataLabel.TEST, {}, unique_id_1.encode())
+
+        # Verify assertion error is raised with inconsistent outputs
+        with self.assertRaises(AssertionError):
+            self.do_execution(
+                plugin_class=DP,
+            )
+
+        # Verify bypassing the check is possible.
+        result = self.do_execution(
+            plugin_class=DP,
+            check_consistent_augmented_stream=False,
+        )
+        self.assertJobResult(
+            result,
+            JobResult(
+                state=State(State.Label.COMPLETED),
+                events=[Event(sha256="test_entity", data=[EventData(hash="0", label="test")])],
+                data={"0": b""},
+            ),
+            strip_hash=True,
+        )
+
+    def test_mutating_child_stream(self):
+        """Test that the test case fails if you mutate the child streams.
+
+        Important to limit data produced by plugins.
+        """
+
+        # Plugin that generates random sha256's
+        class DP(sup.DummyPlugin):
+
+            def execute(self, job):
+                unique_id_1 = str(uuid.uuid4())
+                self.add_child_with_data({"action": "extracted"}, unique_id_1.encode())
+
+        # Verify assertion error is raised with inconsistent outputs
+        with self.assertRaises(AssertionError):
+            self.do_execution(
+                plugin_class=DP,
+            )
+
+        # Verify bypassing the check is possible.
+        result = self.do_execution(
+            plugin_class=DP,
+            check_consistent_augmented_stream=False,
+        )
+        self.assertJobResult(
+            result,
+            JobResult(
+                state=State(State.Label.COMPLETED),
+                events=[
+                    Event(
+                        sha256="0",
+                        parent=EventParent(sha256="test_entity"),
+                        relationship={"action": "extracted"},
+                        data=[EventData(hash="0", label="content")],
+                    )
+                ],
+                data={"0": b""},
+            ),
+            strip_hash=True,
+        )
+
+    def test_mutating_multiplugin_stream(self):
+        """Test that the test case fails if you mutate the augmented/child streams with a multi-plugin.
+
+        Important to limit data produced by plugins.
+        """
+
+        # Plugin that generates random sha256's
+        class DP(sup.DummyPlugin):
+            def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
+                super().__init__(config)
+                self._multiplugins = {}  # remove parent plugins
+                self.register_multiplugin(None, None, lambda x: self.execute(x))
+                self.register_multiplugin(None, None, lambda x: self.execute(x))
+
+            def execute(self, job):
+                unique_id_1 = str(uuid.uuid4())
+                self.add_child_with_data({"action": "extracted"}, unique_id_1.encode())
+                unique_id_2 = str(uuid.uuid4())
+                self.add_data(azm.DataLabel.TEST, {}, unique_id_2.encode())
+
+        # Verify assertion error is raised with inconsistent outputs
+        with self.assertRaises(AssertionError):
+            self.do_execution(
+                plugin_class=DP,
+            )
+
+        # Verify bypassing the check is possible.
+        result = self.do_execution(
+            plugin_class=DP,
+            check_consistent_augmented_stream=False,
+        )
+        self.assertJobResult(
+            result,
+            JobResult(
+                state=State(State.Label.COMPLETED),
+                events=[
+                    Event(sha256="test_entity", data=[EventData(hash="1", label="test")]),
+                    Event(
+                        sha256="0",
+                        parent=EventParent(sha256="test_entity"),
+                        relationship={"action": "extracted"},
+                        data=[EventData(hash="0", label="content")],
+                    ),
+                ],
+                data={"0": b"", "1": b""},
+            ),
+            strip_hash=True,
         )
 
 

@@ -425,6 +425,7 @@ class TestPlugin(unittest.TestCase):
         submission_settings: Optional[dict] = None,
         provided_coordinator: Optional[Coordinator] = None,
         no_multiprocessing: Optional[bool] = False,
+        check_consistent_augmented_stream: bool = True,
     ) -> JobResult:
         """Calls the plugin's execute method and returns the results.
 
@@ -457,6 +458,10 @@ class TestPlugin(unittest.TestCase):
 
         `no_multiprocessing`: bypass running as a multiprocess, this should be used sparingly and is useful
         when mocking restapi's with libraries like respx.
+
+        `check_consistent_augmented_stream`: re-runs the plugin if streams (augmented or child) are produced.
+        This is to ensure a stable interface but disabling this will half the run time for those tests.
+
         """
         if feats_in is None:
             feats_in = []
@@ -534,63 +539,91 @@ class TestPlugin(unittest.TestCase):
                     file_info=local.gen_api_content(io.BytesIO(data), label=label),
                 )
             )
-
-        # if no_timeout_or_heartbeat_coordinator:
-        if provided_coordinator:
-            monitor_m_or_coord = provided_coordinator
-        elif no_multiprocessing:
-            monitor_m_or_coord = coordinator.Coordinator(plugin_class, settings.parse_config(plugin_class, config))
-        else:
-            monitor_m_or_coord = monitor.Monitor(plugin_class, config)
-        # Verify that the specified data actually matches the provided test input
-        if verify_input_content:
-            local.validate_streams(datastreams, monitor_m_or_coord._plugin.cfg)
-
         try:
-            test_dir_name = self.test_multi_process_temp_dir.name
-        except AttributeError as e:
-            raise AttributeError(
-                "Have you overridden setUpClass or tearDownClass without calling 'super().setUpClass()'."
-                + f" Missing test_multi_process_temp_dir with error - {e}"
-            )
+            # if no_timeout_or_heartbeat_coordinator:
+            if provided_coordinator:
+                monitor_m_or_coord = provided_coordinator
+            elif no_multiprocessing:
+                monitor_m_or_coord = coordinator.Coordinator(plugin_class, settings.parse_config(plugin_class, config))
+            else:
+                monitor_m_or_coord = monitor.Monitor(plugin_class, config)
+            # Verify that the specified data actually matches the provided test input
+            if verify_input_content:
+                local.validate_streams(datastreams, monitor_m_or_coord._plugin.cfg)
 
-        if isinstance(monitor_m_or_coord, Coordinator):
-            results = monitor_m_or_coord.run_once(event, datastreams)
-        else:
-            results = monitor_m_or_coord.run_once(event, datastreams, test_dir_name)
-
-        # generate status event that would be sent over network
-        # during plugin execution errors at this step cause the plugin to crash
-        for multiplugin, run in results.items():
-            monitor_m_or_coord._network.api.submit_binary = lambda x, y, z: local.gen_api_content(z, label=y)
-            mm = monitor_m_or_coord._network.api.submit_events = mock.MagicMock()
-            monitor_m_or_coord._network.ack_job(event, run, multiplugin)
-            # append result to tearDown list
-            self._results.append(run)
-            status = mm.call_args[0][0][0]
-            if (eventlen := len(status.model_dump_json(exclude_defaults=True).encode())) > dispatcher.MAX_MESSAGE_SIZE:
-                raise azbe.NetworkDataException(
-                    f"event produced by plugin was too large: {eventlen}b" + f" > {dispatcher.MAX_MESSAGE_SIZE}b"
+            try:
+                test_dir_name = self.test_multi_process_temp_dir.name
+            except AttributeError as e:
+                raise AttributeError(
+                    "Have you overridden setUpClass or tearDownClass without calling 'super().setUpClass()'."
+                    + f" Missing test_multi_process_temp_dir with error - {e}"
                 )
 
-            self.assertTrue(status)
+            if isinstance(monitor_m_or_coord, Coordinator):
+                results = monitor_m_or_coord.run_once(event, datastreams)
+            else:
+                results = monitor_m_or_coord.run_once(event, datastreams, test_dir_name)
 
-        for ds in datastreams:
-            if not ds.closed:
-                ds.close()
+            # generate status event that would be sent over network
+            # during plugin execution errors at this step cause the plugin to crash
+            for multiplugin, run in results.items():
+                monitor_m_or_coord._network.api.submit_binary = lambda x, y, z: local.gen_api_content(z, label=y)
+                mm = monitor_m_or_coord._network.api.submit_events = mock.MagicMock()
+                monitor_m_or_coord._network.ack_job(event, run, multiplugin)
+                # append result to tearDown list
+                self._results.append(run)
+                status = mm.call_args[0][0][0]
+                if (
+                    eventlen := len(status.model_dump_json(exclude_defaults=True).encode())
+                ) > dispatcher.MAX_MESSAGE_SIZE:
+                    raise azbe.NetworkDataException(
+                        f"event produced by plugin was too large: {eventlen}b" + f" > {dispatcher.MAX_MESSAGE_SIZE}b"
+                    )
 
-        # Checks that the time-sensitive values of results are within tolerance, then discards them.
-        # End date of overall plugin should be within a few seconds of now (upped from 3 to 5 seconds due to timeouts)
-        self.assertLess((datetime.datetime.now(datetime.timezone.utc) - results[None].date_end).total_seconds(), 10)
-        for res in results.values():
-            # Runtime should be within 1s due to int rounding
-            self.assertAlmostEqual(res.runtime, (res.date_end - res.date_start).total_seconds(), delta=1)
-            if not keep_times:
-                res.runtime = None
-                res.date_start = None
-                res.date_end = None
-            if not keep_feature_types:
-                res.feature_types = []
+                self.assertTrue(status)
+
+            # Checks that the time-sensitive values of results are within tolerance, then discards them.
+            # End date of overall plugin should be within a few seconds of now (upped from 3 to 5 seconds for timeouts)
+            self.assertLess(
+                (datetime.datetime.now(datetime.timezone.utc) - results[None].date_end).total_seconds(), 10
+            )
+            for res in results.values():
+                # Runtime should be within 1s due to int rounding
+                self.assertAlmostEqual(res.runtime, (res.date_end - res.date_start).total_seconds(), delta=1)
+                if not keep_times:
+                    res.runtime = None
+                    res.date_start = None
+                    res.date_end = None
+                if not keep_feature_types:
+                    res.feature_types = []
+
+            # Verify that the plugin gives consistent and child/augmented streams on repetitive runs.
+            if check_consistent_augmented_stream:
+                does_result_have_data = any([len(r.data) > 0 for r in results.values()])
+                if does_result_have_data:
+                    # reset all input streams
+                    for stream in datastreams:
+                        stream.seek(0)
+                    if isinstance(monitor_m_or_coord, Coordinator):
+                        results2 = monitor_m_or_coord.run_once(event, datastreams)
+                    else:
+                        results2 = monitor_m_or_coord.run_once(event, datastreams, test_dir_name)
+
+                    self.assertIsNotNone(
+                        results2, "Result 2 should not be none as there is augmented or child streams present."
+                    )
+                    # Verify all the streams for each multiplugin are equal.
+                    for m_plugin, result in results.items():
+                        self.assertCountEqual(
+                            list(results2[m_plugin].data.keys()),
+                            list(result.data.keys()),
+                            "Inconsistent data streams, your plugin should return the same results when it's re-run.",
+                        )
+        finally:
+            for ds in datastreams:
+                if not ds.closed:
+                    ds.close()
+
         # handle simple plugin results (backwards compatibility)
         if len(results) == 1:
             # return single results dict
