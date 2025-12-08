@@ -80,7 +80,11 @@ class TestPlugin(unittest.TestCase):
 
         Use self.assertJobResult(x, y) instead.
         """
-        warnings.warn("deprecated call to without_data - this does nothing.", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "deprecated call to without_data - this does nothing.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return result
 
     def _strip_hash(self, result: JobResult):
@@ -129,7 +133,9 @@ class TestPlugin(unittest.TestCase):
     def setUpClass(cls) -> None:
         """Unittest method."""
         if cls is TestPlugin:
-            raise unittest.SkipTest("Template class for plugin tests cannot be run directly")
+            raise unittest.SkipTest(
+                "Template class for plugin tests cannot be run directly"
+            )
         # Create a temporary directory for storing results that are transferred by monitor back to the parent process.
         cls.test_multi_process_temp_dir = tempfile.TemporaryDirectory(
             prefix="test_multi_process_temp_dir", ignore_cleanup_errors=True
@@ -149,7 +155,9 @@ class TestPlugin(unittest.TestCase):
         # Tried to do this with just a setUpClass method, but for some reason unittest doesn't seem to run
         #  setUpClass when the class is imported to another file... but still tries to run the tests.
         if self.__class__ is TestPlugin:
-            raise unittest.SkipTest("Template class for plugin tests cannot be run directly")
+            raise unittest.SkipTest(
+                "Template class for plugin tests cannot be run directly"
+            )
 
         self._results = []
 
@@ -256,7 +264,12 @@ class TestPlugin(unittest.TestCase):
         self.assertReprEqual(actual, expected)
 
     def assertJobResult(
-        self, actual: JobResult, expected: JobResult, *, inspect_data: bool = False, strip_hash: bool = False
+        self,
+        actual: JobResult,
+        expected: JobResult,
+        *,
+        inspect_data: bool = False,
+        strip_hash: bool = False,
     ):
         """Compare two JobResult objects for compatibility.
 
@@ -269,7 +282,10 @@ class TestPlugin(unittest.TestCase):
         if you don't care for exact matches.
         """
         actual, expected = self._baseAssertJobResult(
-            {None: actual}, {None: expected}, inspect_data=inspect_data, strip_hash=strip_hash
+            {None: actual},
+            {None: expected},
+            inspect_data=inspect_data,
+            strip_hash=strip_hash,
         )
         self.assertReprEqual(actual[None], expected[None])
 
@@ -292,7 +308,9 @@ class TestPlugin(unittest.TestCase):
                     v.seek(0, 2)
                     size = v.tell()
                     if size > 10_000:
-                        raise Exception(f"result data {k=} is too large to inspect {size=}")
+                        raise Exception(
+                            f"result data {k=} is too large to inspect {size=}"
+                        )
                     v.seek(0)
                     data2[k] = v.read()
                     # reset pointer in case another thing wants to read the file
@@ -359,19 +377,25 @@ class TestPlugin(unittest.TestCase):
 
     def test_00_registration_info(self):
         """Check that the required plugin metadata (registration info) is present."""
-        found_features: set[str] = set()  # Record of feature names seen, to track duplicates
+        found_features: set[str] = (
+            set()
+        )  # Record of feature names seen, to track duplicates
 
         def make_feature_assertions(f: Feature):
             self.assertIsInstance(f, Feature)
             self.assertIsInstance(f.name, str)
             self.assertNotEqual(f.name, "")
-            self.assertNotIn(f.name, found_features, "Duplicate feature defined: %s" % f.name)
+            self.assertNotIn(
+                f.name, found_features, "Duplicate feature defined: %s" % f.name
+            )
             found_features.add(f.name)
             self.assertIsInstance(f.desc, str)
             self.assertNotEqual(f.desc, "")
 
         for a in ("VERSION", "FEATURES"):
-            self.assertTrue(hasattr(self.PLUGIN_TO_TEST, a), "Plugin requires %s attribute" % a)
+            self.assertTrue(
+                hasattr(self.PLUGIN_TO_TEST, a), "Plugin requires %s attribute" % a
+            )
 
         try:
             # Use object getattribute for this one to bypass the parent-class accumulation in Plugin's getattr
@@ -389,7 +413,10 @@ class TestPlugin(unittest.TestCase):
         req_content = plugin.cfg.filter_data_types
 
         # SECURITY_LEVEL doesn't have to be present, but if it is it must be None or a string
-        self.assertIsInstance(getattr(self.PLUGIN_TO_TEST, "SECURITY_LEVEL", None), (type(None), str, list, dict))
+        self.assertIsInstance(
+            getattr(self.PLUGIN_TO_TEST, "SECURITY_LEVEL", None),
+            (type(None), str, list, dict),
+        )
 
         self.assertIsInstance(self.PLUGIN_TO_TEST.VERSION, str)
 
@@ -495,7 +522,9 @@ class TestPlugin(unittest.TestCase):
                     break
 
         # generate the event
-        entity = azm.BinaryEvent.Entity(sha256=ent_id, datastreams=input_data, features=feats_in, **entity_attrs)
+        entity = azm.BinaryEvent.Entity(
+            sha256=ent_id, datastreams=input_data, features=feats_in, **entity_attrs
+        )
 
         # fill in properties from data
         if input_data:
@@ -544,7 +573,9 @@ class TestPlugin(unittest.TestCase):
             if provided_coordinator:
                 monitor_m_or_coord = provided_coordinator
             elif no_multiprocessing:
-                monitor_m_or_coord = coordinator.Coordinator(plugin_class, settings.parse_config(plugin_class, config))
+                monitor_m_or_coord = coordinator.Coordinator(
+                    plugin_class, settings.parse_config(plugin_class, config)
+                )
             else:
                 monitor_m_or_coord = monitor.Monitor(plugin_class, config)
             # Verify that the specified data actually matches the provided test input
@@ -567,25 +598,42 @@ class TestPlugin(unittest.TestCase):
             # generate status event that would be sent over network
             # during plugin execution errors at this step cause the plugin to crash
             for multiplugin, run in results.items():
-                monitor_m_or_coord._network.api.submit_binary = lambda x, y, z: local.gen_api_content(z, label=y)
+                monitor_m_or_coord._network.api.submit_binary = (
+                    lambda x, y, z: local.gen_api_content(z, label=y)
+                )
                 mm = monitor_m_or_coord._network.api.submit_events = mock.MagicMock()
                 monitor_m_or_coord._network.ack_job(event, run, multiplugin)
                 # append result to tearDown list
                 self._results.append(run)
                 status = mm.call_args[0][0][0]
-                if (eventlen := len(status.model_dump_json(exclude_defaults=True).encode())) > dispatcher.MAX_MESSAGE_SIZE:
+                if (
+                    eventlen := len(
+                        status.model_dump_json(exclude_defaults=True).encode()
+                    )
+                ) > dispatcher.MAX_MESSAGE_SIZE:
                     raise azbe.NetworkDataException(
-                        f"event produced by plugin was too large: {eventlen}b" + f" > {dispatcher.MAX_MESSAGE_SIZE}b"
+                        f"event produced by plugin was too large: {eventlen}b"
+                        + f" > {dispatcher.MAX_MESSAGE_SIZE}b"
                     )
 
                 self.assertTrue(status)
 
             # Checks that the time-sensitive values of results are within tolerance, then discards them.
             # End date of overall plugin should be within a few seconds of now (upped from 3 to 5 seconds due to timeouts)
-            self.assertLess((datetime.datetime.now(datetime.timezone.utc) - results[None].date_end).total_seconds(), 10)
+            self.assertLess(
+                (
+                    datetime.datetime.now(datetime.timezone.utc)
+                    - results[None].date_end
+                ).total_seconds(),
+                10,
+            )
             for res in results.values():
                 # Runtime should be within 1s due to int rounding
-                self.assertAlmostEqual(res.runtime, (res.date_end - res.date_start).total_seconds(), delta=1)
+                self.assertAlmostEqual(
+                    res.runtime,
+                    (res.date_end - res.date_start).total_seconds(),
+                    delta=1,
+                )
                 if not keep_times:
                     res.runtime = None
                     res.date_start = None
@@ -603,10 +651,13 @@ class TestPlugin(unittest.TestCase):
                     if isinstance(monitor_m_or_coord, Coordinator):
                         results2 = monitor_m_or_coord.run_once(event, datastreams)
                     else:
-                        results2 = monitor_m_or_coord.run_once(event, datastreams, test_dir_name)
+                        results2 = monitor_m_or_coord.run_once(
+                            event, datastreams, test_dir_name
+                        )
 
                     self.assertIsNotNone(
-                        results2, "Result 2 should not be none as there is augmented or child streams present."
+                        results2,
+                        "Result 2 should not be none as there is augmented or child streams present.",
                     )
                     # Verify all the streams for each multiplugin are equal.
                     for m_plugin, result in results.items():
@@ -616,10 +667,10 @@ class TestPlugin(unittest.TestCase):
                             "Inconsistent data streams, your plugin should return the same results when it's re-run.",
                         )
         finally:
-          for ds in datastreams:
-              if not ds.closed:
-                  ds.close()
-      
+            for ds in datastreams:
+                if not ds.closed:
+                    ds.close()
+
         # handle simple plugin results (backwards compatibility)
         if len(results) == 1:
             # return single results dict
