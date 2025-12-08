@@ -583,7 +583,7 @@ class TestPlugin(unittest.TestCase):
                 self.assertTrue(status)
 
             # Checks that the time-sensitive values of results are within tolerance, then discards them.
-            # End date of overall plugin should be within a few seconds of now (upped from 3 to 5 seconds due to timeouts)
+            # End date of overall plugin should be within a few seconds of now (upped from 3 to 5 seconds for timeouts)
             self.assertLess(
                 (datetime.datetime.now(datetime.timezone.utc) - results[None].date_end).total_seconds(), 10
             )
