@@ -69,7 +69,7 @@ class TestBasePluginLive(unittest.TestCase):
             try:
                 _ = httpx.get(cls.server + "/mock/get_var/fetch_count")
                 break  # Exit loop if successful
-            except httpx.TimeoutException:
+            except (httpx.TimeoutException, httpx.ConnectError):
                 if tries > 20:  # Time out after about 4 seconds
                     raise RuntimeError("Timed out waiting for mock server to be ready")
         # Dummy shared memory queue and ctype
@@ -709,7 +709,7 @@ class TestBasePluginLive(unittest.TestCase):
 
         loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
         entity = azm.BinaryEvent.Entity(sha256="id", datastreams=[], features=[], info={})
-        _ = loop.run_once(local.gen_event(entity))[None]
+        _ = loop.run_once(local.gen_event(entity))
         dt = datetime.datetime.now(datetime.timezone.utc)
         event = loop._network.fetch_job()
         text_stream = b"Text data stream"
