@@ -38,7 +38,7 @@ class TestMockFileServer(unittest.TestCase):
             try:
                 _ = httpx.get(cls.server + "/mock/get_var/fetch_count")
                 break  # Exit loop if successful
-            except httpx.TimeoutException:
+            except (httpx.TimeoutException, httpx.ConnectError):
                 if tries > 20:  # Time out after about 4 seconds
                     raise RuntimeError("Timed out waiting for mock server to be ready")
         cls.editor = md.Editor(cls.server)
