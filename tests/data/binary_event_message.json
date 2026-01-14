@@ -1,6 +1,6 @@
 [
   {
-    "model_version": 5,
+    "model_version": azm.CURRENT_MODEL_VERSION,
     "kafka_key": "fakey-mkfakeface",
     "author": {
       "category": "user",
@@ -19,7 +19,6 @@
           "md5": "97c2e3618064b1cca21f5a8eb782a1e3",
           "mime": "text/plain",
           "magic": "ASCII text",
-          "file_format_legacy": "Text",
           "size": 121
         }
       ],
@@ -28,7 +27,6 @@
       "sha1": "a1e25a8c7498b39863166ee5bcd4616a8098892d",
       "md5": "97c2e3618064b1cca21f5a8eb782a1e3",
       "size": 121,
-      "file_format_legacy": "Text",
       "features": []
     },
     "source": {
@@ -48,8 +46,7 @@
           "sha256": "dac804f3662b2228e43af80f6e0769614bf53d6c8ea16241c80d779de1308c20",
 
           "filename": "a.txt",
-          "size": 121,
-          "file_format_legacy": "Text"
+          "size": 121
         },
         {
           "author": {
@@ -61,8 +58,7 @@
           "sha256": "dac804f3662b2228e43af80f6e0769614bf53d6c8ea16241c80d779de1308c21",
 
           "filename": "a.txt",
-          "size": 121,
-          "file_format_legacy": "Text"
+          "size": 121
         }
       ]
     }

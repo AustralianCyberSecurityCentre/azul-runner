@@ -346,7 +346,7 @@ Feature key:
                 shared_list[2] = job.event.entity.sha1
                 shared_list[3] = job.event.entity.md5
                 shared_list[4] = job.event.entity.size
-                shared_list[5] = job.event.entity.file_format_legacy
+                shared_list[5] = job.event.entity.file_format
 
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
@@ -363,7 +363,7 @@ Feature key:
                 "job.event.entity.sha1": shared_list[2],
                 "job.event.entity.md5": shared_list[3],
                 "job.event.entity.size": shared_list[4],
-                "job.event.entity.file_format_legacy": shared_list[5],
+                "job.event.entity.file_format": shared_list[5],
             }
             print(result_dict)
             self.assertEqual(
@@ -377,7 +377,6 @@ Feature key:
             self.assertEqual(result_dict["job.event.entity.sha1"], "5bf1fd927dfb8679496a2e6cf00cbe50c1c87145")
             self.assertEqual(result_dict["job.event.entity.md5"], "6f1ed002ab5595859014ebf0951522d9")
             self.assertEqual(result_dict["job.event.entity.size"], 4)
-            self.assertEqual(result_dict["job.event.entity.file_format_legacy"], "Text")
             # Close shared memory
             shared_list.shm.close()
 

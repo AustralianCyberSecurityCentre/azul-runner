@@ -40,7 +40,7 @@ Feature names shouldn't refer to the tool used to perform the extraction. This i
 from Azul 2 where non-authored features were named after the plugin. In Azul 3 all features
 are authored/reusable between plugins.
 
-Including a short file_format_legacy or malware name as a prefix is acceptable if wanting to feature
+Including a short file_format or malware name as a prefix is acceptable if wanting to feature
 separate from others. Noting this may limit correlation across families. Ask yourself, if
 there was another plugin or malware family with the same metadata, would you want to correlate
 with it?

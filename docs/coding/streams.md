@@ -18,7 +18,7 @@ main = job.get_data().read(0)
 Data streams have a `tags` property, which is a dict of key:value pairs describing the data stream.
 
 Currently, the tags will contain at least 'sha1', 'sha256', 'md5', 'mime', 'magic' (`file` output),
-and 'file_format_legacy' (categorised type of the file such as 'RAR' or 'Win32 DLL').
+and 'file_format' (categorised type of the file such as 'RAR' or 'Win32 DLL').
 
 ### Non-Content Streams
 
@@ -27,7 +27,7 @@ different file types.
 
 The Azul framework identifies the file type of data streams and allows you to filter on them.
 
-The 'file_format_legacy' is intended to match with the types from virustotal. Types are listed in identify.py in azul-bedrock.
+The 'file_format_virustotal' is intended to match with the types from virustotal. Types are listed in identify.py in azul-bedrock.
 
 ```python
 class MyPlugin(BinaryPlugin):
@@ -38,11 +38,11 @@ class MyPlugin(BinaryPlugin):
     def execute(self, job: Job):
         # get_data returns None if no stream has matching label
         single = job.get_data(label="invalid")
-        # get_data cannot match on specific file_format_legacy
+        # get_data cannot match on specific file_format
         single = job.get_data(label=azm.DataLabel.CONTENT)
         # get_data raises Exception if multiple streams have matching label
         blobby = job.get_data(label=azm.DataLabel.TEXT)
-        # get_all_data returns a list of streams with matching label and/or file_format_legacy
+        # get_all_data returns a list of streams with matching file_format label
         files = job.get_all_data(file_format="executable/windows/dos")
         blobs = job.get_all_data(label=azm.DataLabel.TEXT)
         gzips = job.get_all_data(file_format="archive/gzip")

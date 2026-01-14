@@ -60,7 +60,7 @@ def gen_api_content(binaryio: typing.BinaryIO, label: azm.DataLabel = azm.DataLa
     size = binaryio.tell()
     binaryio.seek(0)
 
-    magic, mime, file_format, file_format_legacy, file_extension = identify.from_buffer(binaryio.read())
+    magic, mime, file_format, file_extension = identify.from_buffer(binaryio.read())
     binaryio.seek(0)
     return azm.Datastream(
         label=label,
@@ -71,7 +71,6 @@ def gen_api_content(binaryio: typing.BinaryIO, label: azm.DataLabel = azm.DataLa
         sha512=storage.calc_stream_hash(binaryio, hashlib.sha512),
         mime=mime,
         magic=magic,
-        file_format_legacy=file_format_legacy,
         file_format=file_format,
         file_extension=file_extension,
     )

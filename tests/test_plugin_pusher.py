@@ -96,7 +96,6 @@ class TestPusherLive(unittest.TestCase):
                 azm.FeatureValue(name="example_raw", type=azm.FeatureType.Binary, value="dGVzdC1maWxlMQ=="),
                 azm.FeatureValue(name="example_string", type=azm.FeatureType.String, value="dummy string"),
                 azm.FeatureValue(name="file_format", type=azm.FeatureType.String, value="#TEST/ONLY"),
-                azm.FeatureValue(name="file_format_legacy", type=azm.FeatureType.String, value="#TESTONLY"),
                 azm.FeatureValue(name="file_extension", type=azm.FeatureType.String, value="tonly"),
                 azm.FeatureValue(name="magic", type=azm.FeatureType.String, value="#TESTONLY"),
                 azm.FeatureValue(name="mime", type=azm.FeatureType.String, value="#TESTONLY"),
@@ -123,7 +122,6 @@ class TestPusherLive(unittest.TestCase):
                 ),
                 azm.FeatureValue(name="example_string", type=azm.FeatureType.String, value="dummy string"),
                 azm.FeatureValue(name="file_format", type=azm.FeatureType.String, value="#TEST/ONLY"),
-                azm.FeatureValue(name="file_format_legacy", type=azm.FeatureType.String, value="#TESTONLY"),
                 azm.FeatureValue(name="file_extension", type=azm.FeatureType.String, value="tonly"),
                 azm.FeatureValue(name="magic", type=azm.FeatureType.String, value="#TESTONLY"),
                 azm.FeatureValue(name="mime", type=azm.FeatureType.String, value="#TESTONLY"),
@@ -139,13 +137,13 @@ class TestPusherLive(unittest.TestCase):
         self.assertEqual(
             status,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "timestamp": "2023-10-10T10:10:10+00:00",
                 "author": {"category": "plugin", "name": "DummyPluginWithFeats", "version": "1.0"},
                 "entity": {
                     "input": {
-                        "model_version": 5,
+                        "model_version": azm.CURRENT_MODEL_VERSION,
                         "kafka_key": "DummyPluginWithFeats-placeholder",
                         "timestamp": "2023-10-10T10:10:10+00:00",
                         "author": {
@@ -160,7 +158,6 @@ class TestPusherLive(unittest.TestCase):
                             "sha1": "b8f17c427f04225815f1e2fa1050e3d24c96e550",
                             "md5": "a548bfb3e683426097217764db88e07a",
                             "size": 21,
-                            "file_format_legacy": "#TESTONLY",
                             "file_format": "#TEST/ONLY",
                             "file_extension": "tonly",
                             "mime": "#TESTONLY",
@@ -180,7 +177,6 @@ class TestPusherLive(unittest.TestCase):
                                         "version": "1.0",
                                         "security": "OFFICIAL",
                                     },
-                                    "file_format_legacy": "#TESTONLY",
                                     "file_format": "#TEST/ONLY",
                                     "size": 21,
                                     "filename": "random-diff-data",
@@ -196,7 +192,7 @@ class TestPusherLive(unittest.TestCase):
                     "runtime": 0.0,
                     "results": [
                         {
-                            "model_version": 5,
+                            "model_version": azm.CURRENT_MODEL_VERSION,
                             "kafka_key": "runner-placeholder",
                             "timestamp": "2023-10-10T10:10:10+00:00",
                             "author": {"category": "plugin", "name": "DummyPluginWithFeats", "version": "1.0"},
@@ -206,7 +202,6 @@ class TestPusherLive(unittest.TestCase):
                                 "sha1": "b8f17c427f04225815f1e2fa1050e3d24c96e550",
                                 "md5": "a548bfb3e683426097217764db88e07a",
                                 "size": 21,
-                                "file_format_legacy": "#TESTONLY",
                                 "file_format": "#TEST/ONLY",
                                 "file_extension": "tonly",
                                 "mime": "#TESTONLY",
@@ -215,7 +210,6 @@ class TestPusherLive(unittest.TestCase):
                                     {"name": "example_raw", "type": "binary", "value": "cmFuZG9tLWRpZmZlcmVudC1kYXRh"},
                                     {"name": "example_string", "type": "string", "value": "dummy string"},
                                     {"name": "file_format", "type": "string", "value": "#TEST/ONLY"},
-                                    {"name": "file_format_legacy", "type": "string", "value": "#TESTONLY"},
                                     {"name": "file_extension", "type": "string", "value": "tonly"},
                                     {"name": "magic", "type": "string", "value": "#TESTONLY"},
                                     {"name": "mime", "type": "string", "value": "#TESTONLY"},
@@ -228,7 +222,6 @@ class TestPusherLive(unittest.TestCase):
                                         "sha1": "b8f17c427f04225815f1e2fa1050e3d24c96e550",
                                         "md5": "a548bfb3e683426097217764db88e07a",
                                         "size": 21,
-                                        "file_format_legacy": "#TESTONLY",
                                         "file_format": "#TEST/ONLY",
                                         "file_extension": "tonly",
                                         "mime": "#TESTONLY",
@@ -252,7 +245,6 @@ class TestPusherLive(unittest.TestCase):
                                             "version": "1.0",
                                             "security": "OFFICIAL",
                                         },
-                                        "file_format_legacy": "#TESTONLY",
                                         "file_format": "#TEST/ONLY",
                                         "size": 21,
                                         "filename": "random-diff-data",
@@ -300,7 +292,6 @@ class TestPusherLive(unittest.TestCase):
                 sha512="dummy-sha512",
                 size=1,
                 file_format="text/plain",
-                file_format_legacy="Text",
             ),
             source_info=source_info,
             filename="random-file-name1",
@@ -314,7 +305,6 @@ class TestPusherLive(unittest.TestCase):
                 azm.FeatureValue(name="example_string", type=azm.FeatureType.String, value="dummy string"),
                 azm.FeatureValue(name="filename", type=azm.FeatureType.Filepath, value="random-file-name1"),
                 azm.FeatureValue(name="file_format", type=azm.FeatureType.String, value="text/plain"),
-                azm.FeatureValue(name="file_format_legacy", type=azm.FeatureType.String, value="Text"),
             ],
         )
 
@@ -334,7 +324,6 @@ class TestPusherLive(unittest.TestCase):
                     security="OFFICIAL",
                 ),
                 file_format="text/plain",
-                file_format_legacy="TEXT",
             )
         )
         pusher.push_once_mapped(
@@ -343,7 +332,6 @@ class TestPusherLive(unittest.TestCase):
                 sha512="dummy-sha512",
                 size=1,
                 file_format="text/plain",
-                file_format_legacy="Text",
             ),
             source_info=source_info,
             security="OFFICIAL",
@@ -359,7 +347,6 @@ class TestPusherLive(unittest.TestCase):
                 azm.FeatureValue(name="example_string", type=azm.FeatureType.String, value="dummy string"),
                 azm.FeatureValue(name="filename", type=azm.FeatureType.Filepath, value="random-file-name1"),
                 azm.FeatureValue(name="file_format", type=azm.FeatureType.String, value="text/plain"),
-                azm.FeatureValue(name="file_format_legacy", type=azm.FeatureType.String, value="Text"),
             ],
         )
 
@@ -372,13 +359,13 @@ class TestPusherLive(unittest.TestCase):
         self.assertEqual(
             status,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "timestamp": "2023-10-10T10:10:10+00:00",
                 "author": {"category": "plugin", "name": "DummyPluginWithFeats", "version": "1.0"},
                 "entity": {
                     "input": {
-                        "model_version": 5,
+                        "model_version": azm.CURRENT_MODEL_VERSION,
                         "kafka_key": "DummyPluginWithFeats-placeholder",
                         "timestamp": "2023-10-10T10:10:10+00:00",
                         "author": {
@@ -391,7 +378,6 @@ class TestPusherLive(unittest.TestCase):
                             "sha256": "dummy-sha256",
                             "sha512": "dummy-sha512",
                             "size": 1,
-                            "file_format_legacy": "Text",
                             "file_format": "text/plain",
                         },
                         "action": "mapped",
@@ -406,7 +392,6 @@ class TestPusherLive(unittest.TestCase):
                                     "action": "sourced",
                                     "timestamp": "2023-10-10T10:10:10+00:00",
                                     "author": {"category": "User", "name": "user1", "security": "OFFICIAL"},
-                                    "file_format_legacy": "TEXT",
                                     "file_format": "text/plain",
                                 },
                                 {
@@ -420,7 +405,6 @@ class TestPusherLive(unittest.TestCase):
                                         "security": "OFFICIAL",
                                     },
                                     "relationship": {"Asssemblyline_reingest": "Reingested from Assemblyline"},
-                                    "file_format_legacy": "Text",
                                     "file_format": "text/plain",
                                     "size": 1,
                                     "filename": "random-file-name1",
@@ -433,7 +417,7 @@ class TestPusherLive(unittest.TestCase):
                     "runtime": 0.0,
                     "results": [
                         {
-                            "model_version": 5,
+                            "model_version": azm.CURRENT_MODEL_VERSION,
                             "kafka_key": "runner-placeholder",
                             "timestamp": "2023-10-10T10:10:10+00:00",
                             "author": {"category": "plugin", "name": "DummyPluginWithFeats", "version": "1.0"},
@@ -441,12 +425,10 @@ class TestPusherLive(unittest.TestCase):
                                 "sha256": "dummy-sha256",
                                 "sha512": "dummy-sha512",
                                 "size": 1,
-                                "file_format_legacy": "Text",
                                 "file_format": "text/plain",
                                 "features": [
                                     {"name": "example_string", "type": "string", "value": "dummy string"},
                                     {"name": "file_format", "type": "string", "value": "text/plain"},
-                                    {"name": "file_format_legacy", "type": "string", "value": "Text"},
                                     {"name": "filename", "type": "filepath", "value": "random-file-name1"},
                                 ],
                             },
@@ -462,7 +444,6 @@ class TestPusherLive(unittest.TestCase):
                                         "action": "sourced",
                                         "timestamp": "2023-10-10T10:10:10+00:00",
                                         "author": {"category": "User", "name": "user1", "security": "OFFICIAL"},
-                                        "file_format_legacy": "TEXT",
                                         "file_format": "text/plain",
                                     },
                                     {
@@ -476,7 +457,6 @@ class TestPusherLive(unittest.TestCase):
                                             "security": "OFFICIAL",
                                         },
                                         "relationship": {"Asssemblyline_reingest": "Reingested from Assemblyline"},
-                                        "file_format_legacy": "Text",
                                         "file_format": "text/plain",
                                         "size": 1,
                                         "filename": "random-file-name1",
@@ -517,7 +497,7 @@ class TestPusherLive(unittest.TestCase):
             label=azm.DataLabel.TEST,
             hash=hashlib.sha256(alt_content).hexdigest(),
             init_data=alt_content,
-            file_info=azm.Datastream(label=azm.DataLabel.TEST, file_format_legacy="Text", file_format="text/plain"),
+            file_info=azm.Datastream(label=azm.DataLabel.TEST, file_format="text/plain"),
             allow_unbounded_read=True,
         ) as meta_spf:
             with storage.StorageProxyFile(
@@ -525,9 +505,7 @@ class TestPusherLive(unittest.TestCase):
                 label=azm.DataLabel.CONTENT,
                 hash=hashlib.sha256(binary_data).hexdigest(),
                 init_data=binary_data,
-                file_info=azm.Datastream(
-                    label=azm.DataLabel.CONTENT, file_format_legacy="Text", file_format="text/plain"
-                ),
+                file_info=azm.Datastream(label=azm.DataLabel.CONTENT, file_format="text/plain"),
                 allow_unbounded_read=True,
             ) as spf:
                 pusher.push_once_sourced(
@@ -550,7 +528,6 @@ class TestPusherLive(unittest.TestCase):
                 ),
                 azm.FeatureValue(name="example_raw", type=azm.FeatureType.Binary, value="dGVzdC1maWxlMQ=="),
                 azm.FeatureValue(name="file_format", type=azm.FeatureType.String, value="#TEST/ONLY"),
-                azm.FeatureValue(name="file_format_legacy", type=azm.FeatureType.String, value="#TESTONLY"),
                 azm.FeatureValue(name="file_extension", type=azm.FeatureType.String, value="tonly"),
                 azm.FeatureValue(name="magic", type=azm.FeatureType.String, value="#TESTONLY"),
                 azm.FeatureValue(name="mime", type=azm.FeatureType.String, value="#TESTONLY"),

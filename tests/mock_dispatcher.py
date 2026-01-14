@@ -163,7 +163,6 @@ async def get_events_switchable(
                     sha512="512",
                     mime="mt",
                     magic="mm",
-                    file_format_legacy="ft",
                     file_format="#TEST/ONLY",
                 ),
                 azm.Datastream(
@@ -178,7 +177,6 @@ async def get_events_switchable(
                     sha512="512",
                     mime="mt",
                     magic="mm",
-                    file_format_legacy="ft",
                     file_format="#TEST/ONLY",
                 ),
             ]

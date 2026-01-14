@@ -249,7 +249,6 @@ class EventBase(azm.FileInfo):
             ("entity_id", "sha256"),
             ("parent_hash", "parent_sha256"),
             ("entity_type", "model"),
-            ("file_type", "file_format_legacy"),
             ("file_type_al", "file_format"),
             ("mime_type", "mime"),
             ("mime_magic", "magic"),
@@ -541,9 +540,7 @@ class Job(BaseModelStrict):
             raise ValueError(f'more than one "{label}" stream for entity {self.id}')
         return streams[0] if streams else None
 
-    def get_all_data(
-        self, label: azm.DataLabel = None, file_format: str = None, file_format_legacy: str = None
-    ) -> list[storage.StorageProxyFile]:
+    def get_all_data(self, label: azm.DataLabel = None, file_format: str = None) -> list[storage.StorageProxyFile]:
         """Return data streams, optionally filtered by label and/or file_format."""
         if not self._streams:
             return []
@@ -552,8 +549,6 @@ class Job(BaseModelStrict):
             streams = [ds for ds in streams if ds.file_info.label == label]
         if file_format:
             streams = [ds for ds in streams if ds.file_info.file_format == file_format]
-        if file_format_legacy:
-            streams = [ds for ds in streams if ds.file_info.file_format_legacy == file_format_legacy]
         return streams
 
 

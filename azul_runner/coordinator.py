@@ -276,10 +276,10 @@ class Coordinator:
         Useful if a certain multiplugin exceeds max memory and crashes the process.
         """
         logger.info(
-            "received plugin=%s file_format_legacy=%s size=%s sha256=%s"
+            "received plugin=%s file_format=%s size=%s sha256=%s"
             % (
                 self._plugin.NAME,
-                event.entity.file_format_legacy,
+                event.entity.file_format,
                 event.entity.size,
                 event.entity.sha256,
             )
@@ -374,12 +374,12 @@ class Coordinator:
             raise
 
         logger.info(
-            "finish plugin=%s mp=%s state=%s file_format_legacy=%s size=%s sha256=%s"
+            "finish plugin=%s mp=%s state=%s file_format=%s size=%s sha256=%s"
             % (
                 self._plugin.NAME,
                 multiplugin,
                 result.state.label.name,
-                job.event.entity.file_format_legacy,
+                job.event.entity.file_format,
                 job.event.entity.size,
                 job.event.entity.sha256,
             )

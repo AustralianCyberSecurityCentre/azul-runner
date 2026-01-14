@@ -253,7 +253,6 @@ def _gen_event_extracted(
                 author=author,
                 relationship=c.relationship,
                 sha256=c.sha256,
-                file_format_legacy=pc.file_format_legacy,
                 file_format=pc.file_format,
                 size=pc.size,
                 filename=c.filename,

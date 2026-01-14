@@ -95,7 +95,6 @@ class Pusher(Coordinator):
                 author=author,
                 relationship=relationship,
                 file_format=input_entity.file_format,
-                file_format_legacy=input_entity.file_format_legacy,
                 size=input_entity.size,
                 filename=filename if filename else None,
             )
@@ -164,7 +163,6 @@ class Pusher(Coordinator):
                         filename=filename if filename else None,
                         size=input_entity.size,
                         file_format=input_entity.file_format,
-                        file_format_legacy=input_entity.file_format_legacy,
                     )
                 ],
                 security=security,

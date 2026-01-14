@@ -35,7 +35,6 @@ def gen_api_content(x, label: azm.DataLabel = azm.DataLabel.CONTENT):
         sha512=x,
         mime="mime",
         magic="magic",
-        file_format_legacy="filetype",
         file_format="file/type",
         file_extension="ft",
         ssdeep="12:some:thing",
@@ -99,7 +98,7 @@ class TestGenEvents(unittest.TestCase):
         self.assertEqual(
             res,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "source": {
                     "references": {"keen": "eye"},
@@ -154,7 +153,7 @@ class TestGenEvents(unittest.TestCase):
         self.assertEqual(
             res,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "timestamp": "2010-01-01T00:00:00+00:00",
                 "author": {"category": "plugin", "name": "generic", "version": "1"},
@@ -175,7 +174,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -191,7 +189,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -242,7 +239,7 @@ class TestGenEvents(unittest.TestCase):
         self.assertEqual(
             res,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "timestamp": "2010-01-01T00:00:00+00:00",
                 "author": {"category": "plugin", "name": "generic", "version": "1"},
@@ -264,7 +261,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -280,7 +276,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -334,7 +329,7 @@ class TestGenEvents(unittest.TestCase):
         self.assertEqual(
             res,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "timestamp": "2010-01-01T00:00:00+00:00",
                 "author": {"category": "plugin", "name": "generic", "version": "1"},
@@ -350,7 +345,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -366,7 +360,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -409,7 +402,7 @@ class TestGenEvents(unittest.TestCase):
         self.assertEqual(
             res,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "source": {
                     "references": {"keen": "eye"},
@@ -441,7 +434,6 @@ class TestGenEvents(unittest.TestCase):
                             "size": 5,
                             "sha1": "hash",
                             "sha256": "hash",
-                            "file_format_legacy": "filetype",
                             "md5": "hash",
                             "magic": "magic",
                             "mime": "mime",
@@ -458,7 +450,6 @@ class TestGenEvents(unittest.TestCase):
                             "size": 5,
                             "sha1": "hash2",
                             "sha256": "hash2",
-                            "file_format_legacy": "filetype",
                             "md5": "hash2",
                             "magic": "magic",
                             "mime": "mime",
@@ -510,7 +501,7 @@ class TestGenEvents(unittest.TestCase):
             {
                 "kafka_key": "runner-placeholder",
                 "action": "extracted",
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "timestamp": "2010-01-01T00:00:00+00:00",
                 "source": {
                     "name": "sauce",
@@ -527,7 +518,6 @@ class TestGenEvents(unittest.TestCase):
                             "timestamp": "2010-01-01T00:00:00+00:00",
                             "author": {"category": "plugin", "name": "generic", "version": "1"},
                             "relationship": {"decoded": "rot26"},
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "size": 5,
                             "filename": "a.exe",
@@ -545,7 +535,6 @@ class TestGenEvents(unittest.TestCase):
                     "ssdeep": "12:some:thing",
                     "tlsh": "T1xxxxxxx",
                     "size": 5,
-                    "file_format_legacy": "filetype",
                     "file_format": "file/type",
                     "file_extension": "ft",
                     "mime": "mime",
@@ -553,7 +542,6 @@ class TestGenEvents(unittest.TestCase):
                     "info": {"test": "data"},
                     "features": [
                         {"name": "file_format", "type": "string", "value": "file/type"},
-                        {"name": "file_format_legacy", "type": "string", "value": "filetype"},
                         {"name": "file_extension", "type": "string", "value": "ft"},
                         {"name": "magic", "type": "string", "value": "magic"},
                         {"name": "mime", "type": "string", "value": "mime"},
@@ -573,7 +561,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -590,7 +577,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -645,7 +631,7 @@ class TestGenEvents(unittest.TestCase):
             {
                 "kafka_key": "runner-placeholder",
                 "action": "extracted",
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "timestamp": "2010-01-01T00:00:00+00:00",
                 "source": {
                     "name": "sauce",
@@ -661,7 +647,6 @@ class TestGenEvents(unittest.TestCase):
                             "action": "extracted",
                             "timestamp": "2010-01-01T00:00:00+00:00",
                             "author": {"category": "plugin", "name": "generic", "version": "1"},
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "size": 5,
                             "filename": "trouble.exe",
@@ -671,7 +656,6 @@ class TestGenEvents(unittest.TestCase):
                             "action": "extracted",
                             "timestamp": "2010-01-01T00:00:00+00:00",
                             "author": {"category": "plugin", "name": "generic", "version": "1"},
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "size": 5,
                             "filename": "double.exe",
@@ -682,7 +666,6 @@ class TestGenEvents(unittest.TestCase):
                             "timestamp": "2010-01-01T00:00:00+00:00",
                             "author": {"category": "plugin", "name": "generic", "version": "1"},
                             "relationship": {"decoded": "rot26"},
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "size": 5,
                             "filename": "a.exe",
@@ -700,7 +683,6 @@ class TestGenEvents(unittest.TestCase):
                     "ssdeep": "12:some:thing",
                     "tlsh": "T1xxxxxxx",
                     "size": 5,
-                    "file_format_legacy": "filetype",
                     "file_format": "file/type",
                     "file_extension": "ft",
                     "mime": "mime",
@@ -708,7 +690,6 @@ class TestGenEvents(unittest.TestCase):
                     "info": {"test": "data"},
                     "features": [
                         {"name": "file_format", "type": "string", "value": "file/type"},
-                        {"name": "file_format_legacy", "type": "string", "value": "filetype"},
                         {"name": "file_extension", "type": "string", "value": "ft"},
                         {"name": "magic", "type": "string", "value": "magic"},
                         {"name": "mime", "type": "string", "value": "mime"},
@@ -728,7 +709,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -745,7 +725,6 @@ class TestGenEvents(unittest.TestCase):
                             "ssdeep": "12:some:thing",
                             "tlsh": "T1xxxxxxx",
                             "size": 5,
-                            "file_format_legacy": "filetype",
                             "file_format": "file/type",
                             "file_extension": "ft",
                             "mime": "mime",
@@ -778,14 +757,14 @@ class TestGenEvents(unittest.TestCase):
         self.assertEqual(
             res,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "author": {"category": "plugin", "version": "1", "name": "generic"},
                 "entity": {
                     "status": "completed",
                     "results": [
                         {
-                            "model_version": 5,
+                            "model_version": azm.CURRENT_MODEL_VERSION,
                             "kafka_key": "runner-placeholder",
                             "source": {
                                 "path": [
@@ -849,7 +828,7 @@ class TestGenEvents(unittest.TestCase):
         self.assertEqual(
             res,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "author": {"version": "1", "category": "plugin", "name": "generic"},
                 "entity": {
@@ -857,11 +836,9 @@ class TestGenEvents(unittest.TestCase):
                         {
                             "author": {"version": "1", "category": "plugin", "name": "generic"},
                             "entity": {
-                                "file_format_legacy": "filetype",
                                 "datastreams": [
                                     {
                                         "identify_version": 1,
-                                        "file_format_legacy": "filetype",
                                         "sha256": "hash3",
                                         "mime": "mime",
                                         "sha512": "hash3",
@@ -881,21 +858,19 @@ class TestGenEvents(unittest.TestCase):
                                 "features": [
                                     {"type": "string", "value": "mime", "name": "mime"},
                                     {"type": "string", "value": "magic", "name": "magic"},
-                                    {"type": "string", "value": "filetype", "name": "file_format_legacy"},
                                 ],
                                 "sha512": "hash3",
                                 "sha1": "hash3",
                                 "size": 5,
                                 "md5": "hash3",
                                 "file_extension": "ft",
-                                "file_format_legacy": "filetype",
                                 "file_format": "file/type",
                                 "ssdeep": "12:some:thing",
                                 "tlsh": "T1xxxxxxx",
                             },
                             "action": "extracted",
                             "timestamp": "2010-01-01T00:00:00+00:00",
-                            "model_version": 5,
+                            "model_version": azm.CURRENT_MODEL_VERSION,
                             "kafka_key": "",
                             "source": {
                                 "timestamp": "2000-01-01T00:00:00+00:00",
@@ -912,7 +887,6 @@ class TestGenEvents(unittest.TestCase):
                                         "sha256": "hash3",
                                         "action": "extracted",
                                         "timestamp": "2010-01-01T00:00:00+00:00",
-                                        "file_format_legacy": "filetype",
                                         "size": 5,
                                         "relationship": {"decoded": "rot26"},
                                     },
@@ -945,7 +919,6 @@ class TestGenEvents(unittest.TestCase):
             md5="md5",
             sha512="sha512",
             size=5454,
-            file_format_legacy="octets",
         )
         now = datetime.datetime(year=2010, month=1, day=1, tzinfo=datetime.timezone.utc)
         result = JobResult(state=State(), events=[event], runtime=5)
@@ -957,51 +930,48 @@ class TestGenEvents(unittest.TestCase):
         self.assertEqual(
             res,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "timestamp": "2010-01-01T00:00:00+00:00",
-                "author": {"version": "1", "category": "plugin", "name": "generic"},
+                "author": {"category": "plugin", "name": "generic", "version": "1"},
                 "entity": {
-                    "runtime": 5.0,
                     "status": "completed",
+                    "runtime": 5.0,
                     "results": [
                         {
-                            "model_version": 5,
+                            "model_version": azm.CURRENT_MODEL_VERSION,
                             "kafka_key": "runner-placeholder",
                             "timestamp": "2010-01-01T00:00:00+00:00",
-                            "source": {
-                                "name": "sauce",
-                                "timestamp": "2000-01-01T00:00:00+00:00",
-                                "path": [
-                                    {
-                                        "timestamp": "2000-01-01T00:00:00+00:00",
-                                        "author": {"version": "1", "category": "plugin", "name": "system"},
-                                        "sha256": "hash",
-                                        "action": "extracted",
-                                    },
-                                    {
-                                        "relationship": {"decoded": "rot26"},
-                                        "timestamp": "2010-01-01T00:00:00+00:00",
-                                        "author": {"version": "1", "category": "plugin", "name": "generic"},
-                                        "sha256": "hash3",
-                                        "action": "extracted",
-                                        "file_format_legacy": "octets",
-                                        "size": 5454,
-                                    },
-                                ],
-                                "references": {"keen": "eye"},
-                            },
-                            "author": {"version": "1", "category": "plugin", "name": "generic"},
+                            "author": {"category": "plugin", "name": "generic", "version": "1"},
                             "entity": {
                                 "sha256": "hash3",
                                 "sha512": "sha512",
-                                "info": {"test": "data"},
-                                "features": [{"type": "string", "value": "octets", "name": "file_format_legacy"}],
                                 "md5": "md5",
                                 "size": 5454,
-                                "file_format_legacy": "octets",
+                                "info": {"test": "data"},
                             },
                             "action": "extracted",
+                            "source": {
+                                "name": "sauce",
+                                "timestamp": "2000-01-01T00:00:00+00:00",
+                                "references": {"keen": "eye"},
+                                "path": [
+                                    {
+                                        "sha256": "hash",
+                                        "action": "extracted",
+                                        "timestamp": "2000-01-01T00:00:00+00:00",
+                                        "author": {"category": "plugin", "name": "system", "version": "1"},
+                                    },
+                                    {
+                                        "sha256": "hash3",
+                                        "action": "extracted",
+                                        "timestamp": "2010-01-01T00:00:00+00:00",
+                                        "author": {"category": "plugin", "name": "generic", "version": "1"},
+                                        "relationship": {"decoded": "rot26"},
+                                        "size": 5454,
+                                    },
+                                ],
+                            },
                         }
                     ],
                 },
