@@ -586,12 +586,12 @@ class TestPluginExecutionWrapper(TestPlugin):
                 data = job.event.entity.datastreams[0]
                 assert data.sha256 == "1669594220a92d73d62727293e988b4213b5b4829de36c3afe43c9b4f3ddf35e"
                 assert data.size == 17
-                assert data.file_format_legacy == "Text"
+                assert data.file_format == "text/plain"
                 assert data.magic == "ASCII text, with no line terminators"
                 assert data.mime == "text/plain"
                 assert job.event.entity.sha256 == "1669594220a92d73d62727293e988b4213b5b4829de36c3afe43c9b4f3ddf35e"
                 assert job.event.entity.size == 17
-                assert job.event.entity.file_format_legacy == "Text"
+                assert job.event.entity.file_format == "text/plain"
 
         result = self.do_execution(plugin_class=DP, data_in=[("content", b"this is some text")])
         self.assertJobResult(result, JobResult(state=State(State.Label.COMPLETED_EMPTY)))

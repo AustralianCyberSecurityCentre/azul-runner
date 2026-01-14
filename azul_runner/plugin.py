@@ -56,7 +56,6 @@ class Plugin:
         # these features are set from bedrock code as part of generating the binary entity
         Feature(name="file_extension", desc="File extension of the 'content' stream.", type=FeatureType.String),
         Feature(name="file_format", desc="Assemblyline file type of the 'content' stream.", type=FeatureType.String),
-        Feature(name="file_format_legacy", desc="Azul file type of the 'content' stream.", type=FeatureType.String),
         Feature(name="filename", desc="Name on disk of the 'content' stream.", type=FeatureType.Filepath),
         Feature(name="magic", desc="File magic found for the 'content' stream.", type=FeatureType.String),
         Feature(name="mime", desc="Mimetype found for the 'content' stream.", type=FeatureType.String),

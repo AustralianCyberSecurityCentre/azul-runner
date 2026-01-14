@@ -205,7 +205,6 @@ def process_file(plugin_class: Type[Plugin], m_loop: Monitor, filepath, args: Ar
     ent_sha512 = None
     ent_sha1 = None
     ent_md5 = None
-    file_format_legacy = None
     file_format = None
     file_extension = None
     size = None
@@ -225,7 +224,7 @@ def process_file(plugin_class: Type[Plugin], m_loop: Monitor, filepath, args: Ar
         ent_sha512 = hashlib.sha512(data).hexdigest()
         ent_sha1 = hashlib.sha1(data).hexdigest()  # nosec B324
         ent_md5 = hashlib.md5(data).hexdigest()  # nosec B324
-        _, _, file_format, file_format_legacy, file_extension = identify.from_buffer(data)
+        _, _, file_format, file_extension = identify.from_buffer(data)
 
         size = len(data)
 
@@ -280,7 +279,6 @@ def process_file(plugin_class: Type[Plugin], m_loop: Monitor, filepath, args: Ar
     entity = azm.BinaryEvent.Entity(
         size=size,
         datastreams=fileinfo_in,
-        file_format_legacy=file_format_legacy,
         file_format=file_format,
         file_extension=file_extension,
         sha256=sha256,

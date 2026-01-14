@@ -161,7 +161,7 @@ class TestBasePluginLive(unittest.TestCase):
             out_event,
             {
                 "kafka_key": "runner-placeholder",
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "author": {
                     "category": "plugin",
                     "name": "DP-ASuffix",
@@ -191,11 +191,6 @@ class TestBasePluginLive(unittest.TestCase):
                         {
                             "name": "file_format",
                             "desc": "Assemblyline file type of the 'content' stream.",
-                            "type": "string",
-                        },
-                        {
-                            "name": "file_format_legacy",
-                            "desc": "Azul file type of the 'content' stream.",
                             "type": "string",
                         },
                         {"name": "filename", "desc": "Name on disk of the 'content' stream.", "type": "filepath"},
@@ -257,7 +252,7 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertEqual(
             out_event,
             {
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "kafka_key": "runner-placeholder",
                 "author": {"category": "plugin", "name": "DummyPluginFeatureInheritance", "version": "2.0"},
                 "entity": {
@@ -286,11 +281,6 @@ class TestBasePluginLive(unittest.TestCase):
                         {
                             "name": "file_format",
                             "desc": "Assemblyline file type of the 'content' stream.",
-                            "type": "string",
-                        },
-                        {
-                            "name": "file_format_legacy",
-                            "desc": "Azul file type of the 'content' stream.",
                             "type": "string",
                         },
                         {"name": "filename", "desc": "Name on disk of the 'content' stream.", "type": "filepath"},
@@ -357,7 +347,7 @@ class TestBasePluginLive(unittest.TestCase):
             out_event,
             {
                 "kafka_key": "runner-placeholder",
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "author": {
                     "category": "plugin",
                     "name": "DummyPluginSecurity",
@@ -386,11 +376,6 @@ class TestBasePluginLive(unittest.TestCase):
                         {
                             "name": "file_format",
                             "desc": "Assemblyline file type of the 'content' stream.",
-                            "type": "string",
-                        },
-                        {
-                            "name": "file_format_legacy",
-                            "desc": "Azul file type of the 'content' stream.",
                             "type": "string",
                         },
                         {"name": "filename", "desc": "Name on disk of the 'content' stream.", "type": "filepath"},
@@ -461,7 +446,7 @@ class TestBasePluginLive(unittest.TestCase):
             out_event,
             {
                 "kafka_key": "runner-placeholder",
-                "model_version": 5,
+                "model_version": azm.CURRENT_MODEL_VERSION,
                 "author": {
                     "category": "plugin",
                     "name": "DummyPluginSecurityDict",
@@ -490,11 +475,6 @@ class TestBasePluginLive(unittest.TestCase):
                         {
                             "name": "file_format",
                             "desc": "Assemblyline file type of the 'content' stream.",
-                            "type": "string",
-                        },
-                        {
-                            "name": "file_format_legacy",
-                            "desc": "Azul file type of the 'content' stream.",
                             "type": "string",
                         },
                         {"name": "filename", "desc": "Name on disk of the 'content' stream.", "type": "filepath"},
@@ -655,7 +635,6 @@ class TestBasePluginLive(unittest.TestCase):
                     size=11,
                     magic="#TESTONLY",
                     mime="#TESTONLY",
-                    file_format_legacy="#TESTONLY",
                     file_format="#TEST/ONLY",
                     file_extension="tonly",
                     md5="69ea00f9c3104cced2e97c4662ba8b5c",
@@ -674,7 +653,6 @@ class TestBasePluginLive(unittest.TestCase):
                     size=11,
                     magic="#TESTONLY",
                     mime="#TESTONLY",
-                    file_format_legacy="#TESTONLY",
                     file_format="#TEST/ONLY",
                     file_extension="tonly",
                     md5="4af0be381e877439bc3b676519dea88f",
@@ -828,7 +806,6 @@ class TestBasePluginLive(unittest.TestCase):
                 datastreams=[
                     azm.Datastream(
                         identify_version=1,
-                        file_format_legacy="ft",
                         file_format="#TEST/ONLY",
                         label=azm.DataLabel.CONTENT,
                         md5="5",
@@ -845,7 +822,6 @@ class TestBasePluginLive(unittest.TestCase):
                         label=azm.DataLabel.TEXT,
                         size=16,
                         language="english",
-                        file_format_legacy="#TESTONLY",
                         file_format="#TEST/ONLY",
                         file_extension="tonly",
                         mime="#TESTONLY",
@@ -1107,7 +1083,6 @@ class TestBasePluginLive(unittest.TestCase):
                                         ),
                                         sha256=child_id,
                                         size=3,
-                                        file_format_legacy="#TESTONLY",
                                         file_format="#TEST/ONLY",
                                     )
                                 ],
@@ -1123,7 +1098,6 @@ class TestBasePluginLive(unittest.TestCase):
                                 datastreams=[
                                     azm.Datastream(
                                         identify_version=1,
-                                        file_format_legacy="#TESTONLY",
                                         file_format="#TEST/ONLY",
                                         file_extension="tonly",
                                         label=azm.DataLabel.CONTENT,
@@ -1139,12 +1113,10 @@ class TestBasePluginLive(unittest.TestCase):
                                 ],
                                 features=[
                                     azm.FeatureValue(name="file_format", type="string", value="#TEST/ONLY"),
-                                    azm.FeatureValue(name="file_format_legacy", type="string", value="#TESTONLY"),
                                     azm.FeatureValue(name="file_extension", type="string", value="tonly"),
                                     azm.FeatureValue(name="magic", type="string", value="#TESTONLY"),
                                     azm.FeatureValue(name="mime", type="string", value="#TESTONLY"),
                                 ],
-                                file_format_legacy="#TESTONLY",
                                 file_format="#TEST/ONLY",
                                 file_extension="tonly",
                                 mime="#TESTONLY",
@@ -1178,7 +1150,6 @@ class TestBasePluginLive(unittest.TestCase):
                                         ),
                                         sha256=child_id,
                                         size=3,
-                                        file_format_legacy="#TESTONLY",
                                         file_format="#TEST/ONLY",
                                     ),
                                     azm.PathNode(
@@ -1193,7 +1164,6 @@ class TestBasePluginLive(unittest.TestCase):
                                         ),
                                         sha256=gc_id,
                                         size=3,
-                                        file_format_legacy="#TESTONLY",
                                         file_format="#TEST/ONLY",
                                         language="foo",
                                     ),
@@ -1210,7 +1180,6 @@ class TestBasePluginLive(unittest.TestCase):
                                 datastreams=[
                                     azm.Datastream(
                                         identify_version=1,
-                                        file_format_legacy="#TESTONLY",
                                         file_format="#TEST/ONLY",
                                         file_extension="tonly",
                                         label=azm.DataLabel.CONTENT,
@@ -1227,13 +1196,11 @@ class TestBasePluginLive(unittest.TestCase):
                                 ],
                                 features=[
                                     azm.FeatureValue(name="file_format", type="string", value="#TEST/ONLY"),
-                                    azm.FeatureValue(name="file_format_legacy", type="string", value="#TESTONLY"),
                                     azm.FeatureValue(name="file_extension", type="string", value="tonly"),
                                     azm.FeatureValue(name="magic", type="string", value="#TESTONLY"),
                                     azm.FeatureValue(name="mime", type="string", value="#TESTONLY"),
                                     azm.FeatureValue(name="sample_feature", type="string", value="completed ok"),
                                 ],
-                                file_format_legacy="#TESTONLY",
                                 file_format="#TEST/ONLY",
                                 file_extension="tonly",
                                 md5="37b51d194a7513e45b56f6524f2d51f2",

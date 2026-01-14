@@ -28,7 +28,6 @@ FEATURES = {
     # Child classes that set this property will ADD to this feature set.
     Feature(name="file_extension", desc="File extension of the 'content' stream.", type=FeatureType.String),
     Feature(name="file_format", desc="Assemblyline file type of the 'content' stream.", type=FeatureType.String),
-    Feature(name="file_format_legacy", desc="Azul file type of the 'content' stream.", type=FeatureType.String),
     Feature(name="filename", desc="Name on disk of the 'content' stream.", type=FeatureType.Filepath),
     Feature(name="magic", desc="File magic found for the 'content' stream.", type=FeatureType.String),
     Feature(name="malformed", desc="File is malformed in some way.", type=FeatureType.String),

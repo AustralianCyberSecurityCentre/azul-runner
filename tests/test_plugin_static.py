@@ -298,7 +298,7 @@ class TestBasePluginStatic(unittest.TestCase):
                 sha512="512",
                 mime="mt",
                 magic="mm",
-                file_format_legacy="ft",
+                file_format="ft",
             )
         }
         p.data = {"dummy_hash": b"data"}
@@ -317,7 +317,7 @@ class TestBasePluginStatic(unittest.TestCase):
                     sha512="512",
                     mime="mt",
                     magic="mm",
-                    file_format_legacy="ft",
+                    file_format="ft",
                 )
             ],
         )

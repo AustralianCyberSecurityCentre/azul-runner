@@ -506,7 +506,7 @@ class TestPlugin(unittest.TestCase):
             entity.sha256 = d.sha256
             entity.sha512 = d.sha512
             entity.md5 = d.md5
-            entity.file_format_legacy = d.file_format_legacy
+            entity.file_format = d.file_format
 
         event = local.gen_event(entity=entity)
         if submission_settings:
