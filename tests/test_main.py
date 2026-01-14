@@ -377,6 +377,7 @@ Feature key:
             self.assertEqual(result_dict["job.event.entity.sha1"], "5bf1fd927dfb8679496a2e6cf00cbe50c1c87145")
             self.assertEqual(result_dict["job.event.entity.md5"], "6f1ed002ab5595859014ebf0951522d9")
             self.assertEqual(result_dict["job.event.entity.size"], 4)
+            self.assertEqual(result_dict["job.event.entity.file_format"], "text/plain")
             # Close shared memory
             shared_list.shm.close()
 
