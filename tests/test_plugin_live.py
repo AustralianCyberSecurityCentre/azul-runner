@@ -1910,15 +1910,13 @@ class YaraxDP(sup.DummyPlugin):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.rules = yara_x.compile(
-            """
+        self.rules = yara_x.compile("""
         rule test { 
             strings: 
             $a = "fetched" 
             condition: 
             $a
-        }"""
-        )
+        }""")
 
     def execute(self, job: Job):
         result = self.rules.scan(b"This is test data that should be fetched by the runner")
