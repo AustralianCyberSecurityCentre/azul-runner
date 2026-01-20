@@ -120,6 +120,11 @@ class RunOnceHandler:
         for r in results.values():
             for file_label in r.data:
                 r.data[file_label] = open(self._generate_stream_path(file_label), "rb")
+        # Cleanup result file, otherwise they build up in temp.
+        try:
+            os.remove(self._get_result_file_path())
+        except Exception:
+            pass
         return results
 
     def _save_job_results_to_temp(self, result_dict: dict[str, JobResult]):
@@ -526,6 +531,23 @@ class Monitor:
                 c_task.queue.close()
             logging_queue.close()
 
+    def _refine_current_memory_value(self, current_mem_bytes) -> int:
+        """Further refine a memory value by subtracting the inactive file from the total amount of memory in use.
+
+        This prevents premature exiting of an application.
+        """
+        cur_inactive_file_memory = 0
+        with open(self._cfg.cur_mem_summary_file_path, "r") as cur_mem_summary_file:
+            try:
+                for line in cur_mem_summary_file.readlines():
+                    if line.startswith("inactive_file"):
+                        line = line.removeprefix("inactive_file")
+                        cur_inactive_file_memory = int(line.strip())
+                        break
+            except ValueError:
+                logger.warning("Couldn't read memory summary, memory readings may be inaccurate.")
+        return current_mem_bytes - cur_inactive_file_memory
+
     def _are_memory_limits_good(self, monitor_task: MonitorTask):
         """Check if the memory limit has been reached and kill the child process if required.
 
@@ -539,41 +561,46 @@ class Monitor:
             except ValueError as e:
                 logger.warning(f"Couldn't read memory file with error {e}")
                 return True
-            if cur_mem_bytes >= self.error_memusage_bytes:
-                multiplugin_text = self._plugin.NAME
-                if monitor_task.current_job.multi_plugin_name:
-                    multiplugin_text += f"-{monitor_task.current_job.multi_plugin_name}"
-                # Ran out of memory kill child process.
-                message = (
-                    f"Plugin {multiplugin_text} failed to complete "
-                    + f"job '{monitor_task.current_job.in_event.entity.sha256}' because it ran out of memory, "
-                    + f"memory limit is {pydantic.ByteSize(self.max_memusage_bytes).human_readable()} and memory "
-                    + f"usage was {pydantic.ByteSize(cur_mem_bytes).human_readable()} which is "
-                    + f"{(cur_mem_bytes / self.max_memusage_bytes) * 100:.1f}% memory usage."
-                )
-                logger.error(message)
 
-                result = JobResult(
-                    state=State(
-                        State.Label.ERROR_OOM,
-                        failure_name="Out of Memory",
-                        message=message,
-                    ),
-                )
-                self._post_status(monitor_task, result)
-                return False
+        # Memory is at error levels so perform additional refinement of the memory value to verify it will cause OOM.
+        if cur_mem_bytes >= self.error_memusage_bytes:
+            print(f"ATTEMPTING TO REFINE MEMORY USAGE! {cur_mem_bytes}")
+            cur_mem_bytes = self._refine_current_memory_value(cur_mem_bytes)
+            print(f"ATTEMPTING TO REFINE AFTER VALUE! {cur_mem_bytes}")
 
-            elif not monitor_task.job_low_memory_warning_raised and cur_mem_bytes >= self.warn_memusage_bytes:
+        if cur_mem_bytes >= self.error_memusage_bytes:
+            multiplugin_text = self._plugin.NAME
+            if monitor_task.current_job.multi_plugin_name:
+                multiplugin_text += f"-{monitor_task.current_job.multi_plugin_name}"
+            # Ran out of memory kill child process.
+            message = (
+                f"Plugin {multiplugin_text} failed to complete "
+                + f"job '{monitor_task.current_job.in_event.entity.sha256}' because it ran out of memory, "
+                + f"memory limit is {pydantic.ByteSize(self.max_memusage_bytes).human_readable()} and memory "
+                + f"usage was {pydantic.ByteSize(cur_mem_bytes).human_readable()} which is "
+                + f"{(cur_mem_bytes / self.max_memusage_bytes) * 100:.1f}% memory usage."
+            )
+            logger.error(message)
 
-                multiplugin_text = self._plugin.NAME
-                if monitor_task.current_job.multi_plugin_name:
-                    multiplugin_text += f"-{monitor_task.current_job.multi_plugin_name}"
-                logger.warning(
-                    f"The job '{monitor_task.current_job.in_event.entity.sha256}' is nearly out of memory it is at "
-                    + f"{(cur_mem_bytes / self.max_memusage_bytes) * 100:.1f}% memory usage for the plugin "
-                    + f"{multiplugin_text}."
-                )
-                monitor_task.job_low_memory_warning_raised = True
+            result = JobResult(
+                state=State(
+                    State.Label.ERROR_OOM,
+                    failure_name="Out of Memory",
+                    message=message,
+                ),
+            )
+            self._post_status(monitor_task, result)
+            return False
+        elif not monitor_task.job_low_memory_warning_raised and cur_mem_bytes >= self.warn_memusage_bytes:
+            multiplugin_text = self._plugin.NAME
+            if monitor_task.current_job.multi_plugin_name:
+                multiplugin_text += f"-{monitor_task.current_job.multi_plugin_name}"
+            logger.warning(
+                f"The job '{monitor_task.current_job.in_event.entity.sha256}' is nearly out of memory it is at "
+                + f"{(cur_mem_bytes / self.max_memusage_bytes) * 100:.1f}% memory usage for the plugin "
+                + f"{multiplugin_text}."
+            )
+            monitor_task.job_low_memory_warning_raised = True
         return True
 
     def _is_healthy_heartbeat_and_memory_checks(self, monitor_task: MonitorTask) -> bool:

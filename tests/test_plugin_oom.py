@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import datetime
 import json
-import multiprocessing
 import tempfile
 import time
 import unittest
@@ -92,6 +91,60 @@ class TestPluginOom(unittest.TestCase):
         cls.mock_server.kill()
 
     def setUp(self):
+        self.cur_mem_summary_file_path = tempfile.NamedTemporaryFile("w+", prefix="dontdelete")
+        # memory summary file
+        self.cur_mem_summary_file_path.write(
+            "\n".join(
+                [
+                    "anon 1228517376",
+                    "file 19820544",
+                    "kernel_stack 704512",
+                    "pagetables 4546560",
+                    "percpu 1152",
+                    "sock 69632",
+                    "shmem 262144",
+                    "file_mapped 1372160",
+                    "file_dirty 57344",
+                    "file_writeback 0",
+                    "swapcached 0",
+                    "anon_thp 811597824",
+                    "file_thp 0",
+                    "shmem_thp 0",
+                    "inactive_anon 1257385984",
+                    "active_anon 49152",
+                    "inactive_file 10",
+                    "active_file 7118848",
+                    "unevictable 0",
+                    "slab_reclaimable 4810728",
+                    "slab_unreclaimable 1600464",
+                    "slab 6411192",
+                    "workingset_refault_anon 0",
+                    "workingset_refault_file 0",
+                    "workingset_activate_anon 0",
+                    "workingset_activate_file 0",
+                    "workingset_restore_anon 0",
+                    "workingset_restore_file 0",
+                    "workingset_nodereclaim 0",
+                    "pgfault 2343992",
+                    "pgmajfault 22",
+                    "pgrefill 0",
+                    "pgscan 0",
+                    "pgsteal 0",
+                    "pgactivate 1786",
+                    "pgdeactivate 0",
+                    "pglazyfree 0",
+                    "pglazyfreed 0",
+                    "thp_fault_alloc 2343",
+                    "thp_collapse_alloc 508",
+                ]
+            )
+        )
+        self.cur_mem_summary_file_path.flush()
+        self.cur_mem_summary_file_path.seek(0)
+        # View contents of file.
+        # print(self.cur_mem_summary_file_path.read())
+        # self.cur_mem_summary_file_path.seek(0)
+
         # Add a prefix to avoid deletion of temporary files
         self.max_mem_file = tempfile.NamedTemporaryFile("w+", prefix="dontdelete")
         self.max_mem_file.write("100")
@@ -109,6 +162,7 @@ class TestPluginOom(unittest.TestCase):
             "used_mem_force_exit_frac": 0.9,
             "max_mem_file_path": self.max_mem_file.name,
             "cur_mem_file_path": self.cur_mem_file.name,
+            "cur_mem_summary_file_path": self.cur_mem_summary_file_path.name,
             "mem_poll_frequency_milliseconds": 1000,
         }
 
@@ -126,6 +180,22 @@ class TestPluginOom(unittest.TestCase):
             author=azm.Author(name="TestServer", category="blah"),
             entity=azm.BinaryEvent.Entity(sha256="1234", datastreams=[], features=[]),
         )
+
+    def tearDown(self) -> None:
+        try:
+            self.max_mem_file.close()
+        except Exception:
+            pass
+        try:
+            self.cur_mem_summary_file_path.close()
+        except Exception:
+            pass
+        try:
+            self.cur_mem_file.close()
+        except Exception:
+            pass
+
+        return super().tearDown()
 
     # ############### #
     # #### Tests #### #
@@ -157,7 +227,8 @@ class TestPluginOom(unittest.TestCase):
             State(
                 State.Label.ERROR_OOM,
                 failure_name="Out of Memory",
-                message="Plugin DummySleepPlugin failed to complete job '1234' because it ran out of memory, memory limit is 100B and memory usage was 100B which is 100.0% memory usage.",
+                # At 90 rather than 100 because the refinement lowers the memory limit
+                message="Plugin DummySleepPlugin failed to complete job '1234' because it ran out of memory, memory limit is 100B and memory usage was 90B which is 90.0% memory usage.",
             ),
         )
 
@@ -183,7 +254,7 @@ class TestPluginOom(unittest.TestCase):
         print(f"Actual Message: {out_evt.entity.message}")
         self.assertEqual(
             out_evt.entity.message,
-            "Plugin SleepMultiPlugin-MultiPluginName failed to complete job '1234' because it ran out of memory, memory limit is 100B and memory usage was 100B which is 100.0% memory usage.",
+            "Plugin SleepMultiPlugin-MultiPluginName failed to complete job '1234' because it ran out of memory, memory limit is 100B and memory usage was 90B which is 90.0% memory usage.",
         )
         self.assertEqual(
             out_evt.author,
@@ -194,6 +265,24 @@ class TestPluginOom(unittest.TestCase):
     def test_high_memory_usage_warnings(self):
         """Tests that warnings are raised if the plugin has high memory usage but not error level usage."""
         self.cur_mem_file.write("85")
+        self.cur_mem_file.flush()
+        self.cur_mem_file.seek(0)
+        loop = monitor.Monitor(TestPluginTimeouts.gen_sleep_plugin(1.1), self.default_config.copy())
+        with self.assertLogs() as caught_logs:
+            loop.run_once(self.basic_input_event)
+
+        found = False
+        for log_list in caught_logs:
+            for log_record in log_list:
+                print(log_record)
+                if "'1234' is nearly out of memory it is at 85.0% memory usage" in str(log_record):
+                    found = True
+        self.assertTrue(found, "Failed to find warning that runner is at 85% memory usage.")
+
+    @pytest.mark.timeout(20)
+    def test_high_memory_usage_after_inactivate_memory(self):
+        """Tests that warnings are raised if the plugin has high memory usage but not error level usage."""
+        self.cur_mem_file.write("95")
         self.cur_mem_file.flush()
         self.cur_mem_file.seek(0)
         loop = monitor.Monitor(TestPluginTimeouts.gen_sleep_plugin(1.1), self.default_config.copy())
