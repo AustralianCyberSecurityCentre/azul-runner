@@ -1,5 +1,6 @@
 """Monitor the plugin co-ordinator and check if it is Out of Memory, perform heart beats and capture timeouts."""
 
+import contextlib
 import datetime
 import json
 import logging
@@ -121,10 +122,8 @@ class RunOnceHandler:
             for file_label in r.data:
                 r.data[file_label] = open(self._generate_stream_path(file_label), "rb")
         # Cleanup result file, otherwise they build up in temp.
-        try:
+        with contextlib.suppress(Exception):
             os.remove(self._get_result_file_path())
-        except Exception:
-            pass
         return results
 
     def _save_job_results_to_temp(self, result_dict: dict[str, JobResult]):
