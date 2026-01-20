@@ -136,6 +136,8 @@ class Settings(BaseSettings):
     max_mem_file_path: str = "/sys/fs/cgroup/memory.max"
     # Current memory file location. (shouldn't need changing but just in case.)
     cur_mem_file_path: str = "/sys/fs/cgroup/memory.current"
+    # Current memory summary file location. (shouldn't need changing but just in case.)
+    cur_mem_summary_file_path: str = "/sys/fs/cgroup/memory.stat"
     # How often to check if the process is out of memory (milliseconds).
     mem_poll_frequency_milliseconds: int = 1000
 

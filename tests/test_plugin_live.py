@@ -160,8 +160,8 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertEqual(
             out_event,
             {
-                "kafka_key": "runner-placeholder",
                 "model_version": azm.CURRENT_MODEL_VERSION,
+                "kafka_key": "runner-placeholder",
                 "author": {
                     "category": "plugin",
                     "name": "DP-ASuffix",
@@ -201,8 +201,10 @@ class TestBasePluginLive(unittest.TestCase):
                     ],
                     "config": {
                         "assume_streams_available": "false",
+                        "concurrent_plugin_instances": "1",
                         "content_meta_cache_limit": "0",
                         "cur_mem_file_path": '"/sys/fs/cgroup/memory.current"',
+                        "cur_mem_summary_file_path": '"/sys/fs/cgroup/memory.stat"',
                         "deployment_key": '""',
                         "enable_mem_limits": "false",
                         "filter_allow_event_types": "[]",
@@ -223,15 +225,14 @@ class TestBasePluginLive(unittest.TestCase):
                         "request_retry_count": "0",
                         "request_timeout": "15",
                         "require_expedite": "true",
-                        "require_live": "true",
                         "require_historic": "true",
+                        "require_live": "true",
                         "run_timeout": "600",
                         "security_override": '"Alpha Beta"',
                         "use_multiprocessing_fork": "true",
                         "used_mem_force_exit_frac": "0.9",
                         "used_mem_warning_frac": "0.8",
                         "version_suffix": '"Beta5"',
-                        "concurrent_plugin_instances": "1",
                         "watch_path": '""',
                         "watch_type": '""',
                         "watch_wait": "10",
@@ -293,6 +294,7 @@ class TestBasePluginLive(unittest.TestCase):
                         "concurrent_plugin_instances": "1",
                         "content_meta_cache_limit": "0",
                         "cur_mem_file_path": '"/sys/fs/cgroup/memory.current"',
+                        "cur_mem_summary_file_path": '"/sys/fs/cgroup/memory.stat"',
                         "deployment_key": '""',
                         "enable_mem_limits": "false",
                         "filter_allow_event_types": "[]",
@@ -346,8 +348,8 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertEqual(
             out_event,
             {
-                "kafka_key": "runner-placeholder",
                 "model_version": azm.CURRENT_MODEL_VERSION,
+                "kafka_key": "runner-placeholder",
                 "author": {
                     "category": "plugin",
                     "name": "DummyPluginSecurity",
@@ -385,8 +387,10 @@ class TestBasePluginLive(unittest.TestCase):
                     ],
                     "config": {
                         "assume_streams_available": "false",
+                        "concurrent_plugin_instances": "1",
                         "content_meta_cache_limit": "0",
                         "cur_mem_file_path": '"/sys/fs/cgroup/memory.current"',
+                        "cur_mem_summary_file_path": '"/sys/fs/cgroup/memory.stat"',
                         "deployment_key": '""',
                         "enable_mem_limits": "false",
                         "filter_allow_event_types": "[]",
@@ -407,8 +411,8 @@ class TestBasePluginLive(unittest.TestCase):
                         "request_retry_count": "0",
                         "request_timeout": "15",
                         "require_expedite": "true",
-                        "require_live": "true",
                         "require_historic": "true",
+                        "require_live": "true",
                         "run_timeout": "600",
                         "security_override": '""',
                         "use_multiprocessing_fork": "true",
@@ -418,7 +422,6 @@ class TestBasePluginLive(unittest.TestCase):
                         "watch_path": '""',
                         "watch_type": '""',
                         "watch_wait": "10",
-                        "concurrent_plugin_instances": "1",
                     },
                 },
             },
@@ -445,8 +448,8 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertEqual(
             out_event,
             {
-                "kafka_key": "runner-placeholder",
                 "model_version": azm.CURRENT_MODEL_VERSION,
+                "kafka_key": "runner-placeholder",
                 "author": {
                     "category": "plugin",
                     "name": "DummyPluginSecurityDict",
@@ -484,8 +487,10 @@ class TestBasePluginLive(unittest.TestCase):
                     ],
                     "config": {
                         "assume_streams_available": "false",
+                        "concurrent_plugin_instances": "1",
                         "content_meta_cache_limit": "0",
                         "cur_mem_file_path": '"/sys/fs/cgroup/memory.current"',
+                        "cur_mem_summary_file_path": '"/sys/fs/cgroup/memory.stat"',
                         "deployment_key": '"apple"',
                         "enable_mem_limits": "false",
                         "filter_allow_event_types": "[]",
@@ -506,8 +511,8 @@ class TestBasePluginLive(unittest.TestCase):
                         "request_retry_count": "0",
                         "request_timeout": "15",
                         "require_expedite": "true",
-                        "require_live": "true",
                         "require_historic": "true",
+                        "require_live": "true",
                         "run_timeout": "600",
                         "security_override": '""',
                         "use_multiprocessing_fork": "true",
@@ -517,7 +522,6 @@ class TestBasePluginLive(unittest.TestCase):
                         "watch_path": '""',
                         "watch_type": '""',
                         "watch_wait": "10",
-                        "concurrent_plugin_instances": "1",
                     },
                 },
             },
