@@ -217,6 +217,7 @@ class Coordinator:
         if not self._cfg.events_url:
             raise ValueError("Cannot run fetch/execute loop when events_url is None")
 
+        logger.error("POSTING REGISTRATIONS")
         self._network.post_registrations()
         job_count = 0
         while job_limit is None or (job_limit and job_limit > job_count):
@@ -239,11 +240,15 @@ class Coordinator:
                 raise SigTermExitError()
 
             event = self._network.fetch_job()
+            logger.error("GOT A JOB FROM THE QUEUE")
+            logger.error(event.model_dump())
             # Put task immediately to account for time spend fetching a file.
             try:
                 queue.put(TaskModel(in_event=event, start_time_epoch=time.time()), timeout=QUEUE_PUT_TIMEOUT)
             except queueLib.Full:
                 logger.warning("monitoring queue is full bypassing, which may result in odd heartbeats.")
+
+            logger.error("FINSIHED THE QUEUE")
 
             job_count += 1
             try:
@@ -275,6 +280,7 @@ class Coordinator:
         This is a generator so that yielded results may be published while plugin continues to run.
         Useful if a certain multiplugin exceeds max memory and crashes the process.
         """
+        logger.error("RUNNING JOB 1")
         logger.info(
             "received plugin=%s file_format=%s size=%s sha256=%s"
             % (
@@ -284,6 +290,7 @@ class Coordinator:
                 event.entity.sha256,
             )
         )
+        logger.error("RUNNING JOB 2")
         run_start = datetime.datetime.now(datetime.timezone.utc)
 
         # check whether the maximum depth limit for the event has been reached, and opt-out if it has been.
@@ -306,7 +313,7 @@ class Coordinator:
             logger.warning(f"{self._plugin.NAME}: hit max depth OPT_OUT for '{event.entity.sha256}'")
             yield (result, None)
             return  # Fetch next job
-
+        logger.error("RUNNING JOB 3")
         job = models.Job(event=event)
         try:
             job.load_streams(dp=self._network.api, local=local)
@@ -327,7 +334,7 @@ class Coordinator:
 
         # run each multiplugin
         run_start = datetime.datetime.now(datetime.timezone.utc)
-
+        logger.error("RUNNING JOB 4")
         # run first entrypoint to see if the whole plugin is opting out
         # first entrypoint == execute() function
         result = self._run_job_with_multiplugin(job, multiplugin=None, queue=queue)
@@ -368,6 +375,7 @@ class Coordinator:
                     TaskModel(in_event=job.event, start_time_epoch=time.time(), multi_plugin_name=multiplugin),
                     timeout=QUEUE_PUT_TIMEOUT,
                 )
+            logger.error("RUN PLUGIN WITH JOB")
             result = plugin_executor.run_plugin_with_job(self._plugin, job, multiplugin)
         except BaseException:
             logger.fatal("run_once terminated with uncaught exception")

@@ -93,6 +93,8 @@ class RunOnceHandler:
 
     def cleanup_streams(self):
         """Cleanup any open streams."""
+        if not self.local_streams:
+            return
         for stream in self.local_streams:
             if not stream.closed:
                 stream.close()

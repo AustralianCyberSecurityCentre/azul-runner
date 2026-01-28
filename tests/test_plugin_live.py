@@ -15,6 +15,7 @@ from typing import Any, ClassVar
 import httpx
 import yara_x
 from azul_bedrock import models_network as azm
+from azul_plugin_floss.main import AzulPluginFloss
 
 from azul_runner import (
     DATA_HASH,
@@ -1412,26 +1413,14 @@ class TestBasePluginLive(unittest.TestCase):
         )
 
     def test_runloop_with_content(self):
-        class DP(sup.DummyPlugin):
-            def execute(self, job: Job):
-                if job.get_all_data():
-                    pass
-                else:
-                    # Alternative way of failing test to avoid serialising self
-                    raise coordinator.CriticalError("get_all_data is not truthy!")
-                lengths = []
-                for ds in job.get_all_data():
-                    if not isinstance(ds, StorageProxyFile):
-                        # Alternative way of failing test to avoid serialising self
-                        raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
-                    lengths.append(len(ds.read()))
-                self.add_feature_values("example_int", lengths)
+        loop = monitor.Monitor(AzulPluginFloss, {"events_url": self.server + "/test_data", "data_url": self.server})
+        raw_content = b""
+        with open("/home/DhruvK/workspace/armada-dev/code/azul-plugins/azul-plugin-floss/b697ac8ed82e8aee000b644c75bc63e28a57bf2be47a772e6e72c363604bbacf.raw", "rb") as f:
+            raw_content = f.read()
 
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
-        test_data = b"This is test data that should be fetched by the runner"
         loop._network._post_data(
             "source",
-            {DATA_HASH(test_data).hexdigest(): (["content"], test_data)},
+            {DATA_HASH(raw_content).hexdigest(): (["content"], raw_content)},
         )
         loop.run_loop(1)
         # Check that the ack contains the correct features
@@ -1439,19 +1428,25 @@ class TestBasePluginLive(unittest.TestCase):
         r.raise_for_status()
         out_evt: azm.StatusEvent = azm.StatusEvent(**r.json()[0])
         self.assertIsInstance(out_evt.entity, azm.StatusEvent.Entity)
-        self.assertEqual(
-            out_evt.entity.status,
-            State.Label.COMPLETED,
-            "Unexpected result: %s:%s (%s)" % (out_evt.entity.status, out_evt.entity.error, out_evt.entity.message),
-        )
-        self.assertEqual(len(out_evt.entity.results), 1, "Expected one result entity; got:\n%s" % out_evt)
-        self.assertEqual(
-            out_evt.entity.results[0].entity.features,
-            [
-                azm.FeatureValue(name="example_int", type="integer", value="13"),
-                azm.FeatureValue(name="example_int", type="integer", value="54"),
-            ],
-        )
+        print(out_evt)
+        print(out_evt.model_version)
+        print(out_evt.model_version)
+        print(out_evt.model_version)
+        print(out_evt.model_version)
+        self.assertTrue(False)
+        # self.assertEqual(
+        #     out_evt.entity.status,
+        #     State.Label.COMPLETED,
+        #     "Unexpected result: %s:%s (%s)" % (out_evt.entity.status, out_evt.entity.error, out_evt.entity.message),
+        # )
+        # self.assertEqual(len(out_evt.entity.results), 1, "Expected one result entity; got:\n%s" % out_evt)
+        # self.assertEqual(
+        #     out_evt.entity.results[0].entity.features,
+        #     [
+        #         azm.FeatureValue(name="example_int", type="integer", value="13"),
+        #         azm.FeatureValue(name="example_int", type="integer", value="54"),
+        #     ],
+        # )
 
     def test_runloop_multiple_iterations(self):
         """Ensure the plugin can run in a loop and post more than one response."""

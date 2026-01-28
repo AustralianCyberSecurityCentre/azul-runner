@@ -124,7 +124,11 @@ async def get_events_switchable(
     params = {}
     for k, v in request.query_params.multi_items():
         params.setdefault(k, []).append(v)
-    vars["last_req_params"] = params
+    vars["last_req_params"] = params 
+
+    raw_content = b""
+    with open("/home/DhruvK/workspace/armada-dev/code/azul-plugins/azul-plugin-floss/b697ac8ed82e8aee000b644c75bc63e28a57bf2be47a772e6e72c363604bbacf.raw", "rb") as f:
+        raw_content = f.read()
 
     respInfo = azapi.GetEventsInfo(filtered=5, fetched=1, ready=True)
     respEvents = azapi.GetEventsBinary(
@@ -141,10 +145,44 @@ async def get_events_switchable(
                     timestamp=datetime.datetime(year=1900, month=1, day=1, tzinfo=datetime.timezone.utc),
                 ),
                 author=azm.Author(name="TestServer", category="blah"),
-                entity=azm.BinaryEvent.Entity(sha256="1234", datastreams=[], features=[]),
+                entity=azm.BinaryEvent.Entity(sha256=hashlib.sha256(raw_content).hexdigest(), datastreams=[], features=[], size=len(raw_content)),
             )
         ],
     )
+
+    respEvents.events[0].entity.datastreams = [
+        azm.Datastream(
+            identify_version=1,
+            label=azm.DataLabel.CONTENT,
+            size=len(raw_content),
+            sha256=hashlib.sha256(raw_content).hexdigest(),
+            sha1=hashlib.sha1(raw_content).hexdigest(),
+            md5="5",
+            sha512="512",
+            mime="mt",
+            magic="mm",
+            file_format="#TEST/ONLY",
+        )
+    ]
+    respEvents.events[0].source.path = [
+        azm.PathNode(
+            author=azm.Author(name="foo"),
+            action=azm.BinaryAction.Extracted,
+            timestamp=datetime.datetime(year=1900, month=1, day=1, tzinfo=datetime.timezone.utc),
+            sha256="1234",
+        ),
+    ]
+
+    content, response.headers["Content-Type"] = urllib3.encode_multipart_formdata(
+        {
+            "info": (None, respInfo.model_dump_json()),
+            "events": (None, respEvents.model_dump_json()),
+        }
+    )
+    return Response(content=content, media_type=response.headers["Content-Type"])
+
+
+    
     if ent_type == "binary":
         if variant == "test_path":
             # returns a binary event message with path
