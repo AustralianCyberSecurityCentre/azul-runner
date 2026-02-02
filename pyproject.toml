@@ -35,8 +35,6 @@ dependencies = [
     "watchdog>=6.0.0",
 ]
 
-[project.scripts]
-
 [project.urls]
 Documentation = "https://australiancybersecuritycentre.github.io/azul/"
 Repository = "https://github.com/AustralianCyberSecurityCentre/azul-runner"
