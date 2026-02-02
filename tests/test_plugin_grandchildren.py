@@ -261,7 +261,6 @@ class TestPluginGrandchildHandling(TestPlugin):
         content_3 = DATA_HASH(b"3").hexdigest()
 
         class DP(sup.DummyPlugin):
-
             def execute(self, job):
                 c1 = self._add_child("child", {})
                 c2 = self._add_child("child2", {}, parent_sha256=parent_sha256)

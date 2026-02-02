@@ -47,7 +47,6 @@ class TestPluginTerminated(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-
         cls.mock_server = md.MockDispatcher()
         cls.mock_server.start()
         while not cls.mock_server.is_alive():

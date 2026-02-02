@@ -289,7 +289,6 @@ class TestPluginOutputStream(TestPlugin):
 
         # Plugin that generates random sha256's
         class DP(sup.DummyPlugin):
-
             def execute(self, job):
                 unique_id_1 = str(uuid.uuid4())
                 self.add_data(azm.DataLabel.TEST, {}, unique_id_1.encode())
@@ -323,7 +322,6 @@ class TestPluginOutputStream(TestPlugin):
 
         # Plugin that generates random sha256's
         class DP(sup.DummyPlugin):
-
             def execute(self, job):
                 unique_id_1 = str(uuid.uuid4())
                 self.add_child_with_data({"action": "extracted"}, unique_id_1.encode())

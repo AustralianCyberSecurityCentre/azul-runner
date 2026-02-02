@@ -24,9 +24,8 @@ from azul_bedrock import models_network as azm
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-from . import models, network
+from . import models, network, plugin_executor, settings
 from . import plugin as mplugin
-from . import plugin_executor, settings
 from .models import JobResult, State, TaskModel
 from .storage import StorageError, StorageProxyFile
 

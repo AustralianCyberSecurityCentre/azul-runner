@@ -29,9 +29,8 @@ from azul_runner.coordinator import (
 from azul_runner.log_setup import AddLoggingQueueListener, LogLevel, setup_logger
 from azul_runner.models import JobResult, State, TaskExitCodeEnum, TaskModel
 
-from . import network
+from . import network, settings
 from . import plugin as mplugin
-from . import settings
 from .storage import StorageProxyFile
 
 MAX_ATTEMPTS_TO_KILL_CHILD_PROCESS = 10
