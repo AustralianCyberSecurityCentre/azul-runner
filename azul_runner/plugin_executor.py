@@ -36,8 +36,10 @@ def run_plugin_with_job(plugin: mplugin.Plugin, job: models.Job, multiplugin: st
     try:
         # filter job if plugin requires data
         if plugin.cfg.assume_streams_available and not job.get_all_data():
+            logger.error("NO DATA FOUND! =(")
             state = State(State.Label.OPT_OUT, message="plugin requires data but none exists")
         else:
+            logger.error("RUNNING CALLBACK")
             logger.debug(f"Running job with '{multiplugin=}'")
             # Execute the plugin with the provided job data.
             response = mp.callback(job)
@@ -132,7 +134,7 @@ def run_plugin_with_job(plugin: mplugin.Plugin, job: models.Job, multiplugin: st
         )
 
     except Exception as e:
-        logger.error("%s for %s(%s)\n%s" % (e.__class__.__name__, plugin.NAME, job.id, str(e)))
+        logger.error("%s for %s(%s)\n%s" % (e.__class__.__name__, plugin.NAME, job.id, traceback.format_exc()))
         result = JobResult(
             state=State(
                 label=State.Label.ERROR_EXCEPTION,
