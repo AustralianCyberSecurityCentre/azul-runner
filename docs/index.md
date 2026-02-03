@@ -174,12 +174,6 @@ Defines python packages required for the tests for this plugin to work.
 
 https://pip.pypa.io/en/stable/user_guide/#requirements-files
 
-### setup.py
-
-Defines important metadata about your python package.
-
-https://docs.python.org/3/distutils/setupscript.html
-
 ### tox.ini
 
 Defines test execution and style checking for the repository.
