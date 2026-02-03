@@ -34,6 +34,17 @@ dependencies = [
     "watchdog>=6.0.0",
 ]
 
+[project.optional-dependencies]
+test_utils = [
+    "azul-bedrock[test_utils]",
+    "fastapi",
+    "pytest",
+    "uvicorn[standard]",
+    "pytest-timeout",
+    "yara-x",
+    "urllib3",
+]
+
 [project.urls]
 Documentation = "https://australiancybersecuritycentre.github.io/azul/"
 Repository = "https://github.com/AustralianCyberSecurityCentre/azul-runner"
