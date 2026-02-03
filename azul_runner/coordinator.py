@@ -14,7 +14,7 @@ import multiprocessing.sharedctypes
 import multiprocessing.util
 import queue as queueLib
 import signal
-import subprocess  # noqa: S404 # nosec B404
+import subprocess  # noqa: S404 # noqa S404
 import sys
 import time
 import traceback
@@ -24,9 +24,8 @@ from azul_bedrock import models_network as azm
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-from . import models, network
+from . import models, network, plugin_executor, settings
 from . import plugin as mplugin
-from . import plugin_executor, settings
 from .models import JobResult, State, TaskModel
 from .storage import StorageError, StorageProxyFile
 
@@ -62,8 +61,8 @@ def get_git_version_suffix(config: settings.Settings) -> str | None:
     if config.watch_path and config.watch_type == settings.WatchTypeEnum.GIT:
         # wait for valid git repo on disk
         for _ in range(3):
-            retcode = subprocess.call(  # noqa: S603, S607 # nosec B603 B607
-                ["git", "status"],
+            retcode = subprocess.call(
+                ["git", "status"],  # noqa: S607
                 cwd=config.watch_path,
                 shell=False,
             )
@@ -75,8 +74,8 @@ def get_git_version_suffix(config: settings.Settings) -> str | None:
         # recalculate commit hash as version_suffix
         # requires git to be installed
         try:
-            output = subprocess.check_output(  # noqa: S603, S607 # nosec B603 B607
-                ["git", "rev-parse", "--short", "HEAD"],
+            output = subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
                 cwd=config.watch_path,
                 shell=False,
             )

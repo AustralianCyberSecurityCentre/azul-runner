@@ -235,7 +235,6 @@ class TestPluginChildHandling(TestPlugin):
 
         # Add multiple children, and additional data for some
         class DP(sup.DummyPlugin):
-
             def execute(self, *args):
                 self.add_feature_values("example_unspec", ["1337"])
                 self.add_feature_values("filename", ["bad.exe"])

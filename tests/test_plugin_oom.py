@@ -30,7 +30,6 @@ def dump(x):
 
 
 class SleepMultiPlugin(sup.DummyPlugin):
-
     SETTINGS = add_settings(memory_file_path=(str, ""))
 
     def mp_callback(self, job):
@@ -67,7 +66,6 @@ class TestPluginOom(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-
         cls.mock_server = md.MockDispatcher()
         cls.mock_server.start()
         while not cls.mock_server.is_alive():

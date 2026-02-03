@@ -557,7 +557,7 @@ class TestPlugin(unittest.TestCase):
                 raise AttributeError(
                     "Have you overridden setUpClass or tearDownClass without calling 'super().setUpClass()'."
                     + f" Missing test_multi_process_temp_dir with error - {e}"
-                )
+                ) from e
 
             if isinstance(monitor_m_or_coord, Coordinator):
                 results = monitor_m_or_coord.run_once(event, datastreams)

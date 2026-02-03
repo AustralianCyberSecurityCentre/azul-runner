@@ -245,3 +245,6 @@ tags
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode
+.ruff_cache
+# FUTURE UV IS USEFUL
+uv.lock

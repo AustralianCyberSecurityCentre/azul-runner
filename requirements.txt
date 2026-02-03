@@ -1,8 +1,0 @@
-azul-bedrock
-bitarray>=0.9
-cart
-httpx
-pydantic>2
-pydantic-settings
-watchdog
-psutil
