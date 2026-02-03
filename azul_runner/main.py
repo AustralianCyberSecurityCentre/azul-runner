@@ -222,8 +222,8 @@ def process_file(plugin_class: Type[Plugin], m_loop: Monitor, filepath, args: Ar
         if not sha256:
             sha256 = hashlib.sha256(data).hexdigest()
         ent_sha512 = hashlib.sha512(data).hexdigest()
-        ent_sha1 = hashlib.sha1(data).hexdigest()  # nosec B324
-        ent_md5 = hashlib.md5(data).hexdigest()  # nosec B324
+        ent_sha1 = hashlib.sha1(data).hexdigest()  # noqa S324
+        ent_md5 = hashlib.md5(data).hexdigest()  # noqa S324
         _, _, file_format, file_extension = identify.from_buffer(data)
 
         size = len(data)

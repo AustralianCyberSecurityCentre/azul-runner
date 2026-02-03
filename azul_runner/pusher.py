@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def md5(text: str):
     """Return string md5 representing incoming text."""
-    return hashlib.md5(text.encode()).hexdigest()  # noqa: S303 # nosec B303, B324
+    return hashlib.md5(text.encode()).hexdigest()  # noqa: S303, S324
 
 
 class Pusher(Coordinator):
