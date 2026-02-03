@@ -25,7 +25,7 @@ $ azul-plugin-(name) --server http://server.address/path
 $ azul-plugin-(name) -c KEY VALUE -c KEY2 VALUE2
 ```
 
-Plugins may define multiple entrypoints, check the plugins pyproject.yaml for details.
+Plugins may define multiple entrypoints, check the plugins pyproject.toml for details.
 
 Plugin configuration may be passed in as environment variables.
 
