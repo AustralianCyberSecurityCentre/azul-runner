@@ -37,6 +37,7 @@ dependencies = [
 [project.optional-dependencies]
 test_utils = [
     "azul-bedrock[test_utils]",
+    "black",
     "fastapi",
     "pytest",
     "uvicorn[standard]",
