@@ -1,4 +1,4 @@
-# flake8: noqa - Flake8 doesn't detect these exported functions and classes properly.
+# flake8: noqa - Ruff's linting rules doesn't detect these exported functions and classes properly.
 import contextlib
 
 from azul_bedrock.models_network import DataLabel, FeatureType
