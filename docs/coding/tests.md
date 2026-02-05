@@ -23,7 +23,7 @@ class TestExecute(TestPlugin):
         data = self.load_test_file_bytes("u_testfile.cart")
         result = self.do_execution(data_in=[("content", data)])
         # this check will fail, and will print the expected value instead of 'None'
-        # to the console, which you can paste into your test and then format with 'black .'
+        # to the console, which you can paste into your test and then format with 'ruff.'
         # to make readable.
         self.assertJobResult(result, None)
 ```

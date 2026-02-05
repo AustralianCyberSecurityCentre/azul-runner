@@ -254,44 +254,33 @@ They also make it easier for people to review pull requests, as reviewers can fo
 
 Code quality checks are run in CI and will cause builds to fail if they are not successful.
 
-### black
+### ruff
 
-https://github.com/psf/black
+Ruff is a bundled styling, code quality and basic code security checker.
+It allows for standardised formatting of code and identifies common code issues.
 
-Black is an automated styling tool, it will automatically format your code to make lines a standard length and
-change spacing and other aspects of code to have a uniform layout.
+The tool can be installed and run with the commands:
+```bash
+# install ruff
+pip install ruff
 
-Black is configured through the `pyproject.toml` file which should not need to be changed from the defaults.
+# Format the code to meet the ruff standard.
+ruff format
+# Check the code meets all linting rules
+ruff check
+# Check the code meets all linting rules and fix any simple issues.
+ruff check --fix
+```
+tox is also used for an isolated environment for testing and styling and can be used with the commands:
 
-`pip install black`
-
-`black .`
-
-Remember to look at the changes black has made and commit them to your branch.
-
-### isort
-
-isort imports and separate into groups of first-party, second-party and third-party modules.
-
-`pip install isort`
-
-`isort .`
-
-
-### flake8
-
-https://flake8.pycqa.org/en/latest/
-
-Flake8 checks for code quality in a different way, it will alert you when some part of the python code looks like it might potentially have an error in it.
-
-Flake8 is run within the tox styling checks it has been configured to print the files and line numbers where it has found an issue.
-
-`tox -e style`
-
-The errors should usually be descriptive enough to be fixable relatively easily. If you have a good reason for doing something, you can add an flake ignore comment to make a specific check pass. Use the code for the check you want to disable.
-
-`suspect.call()  # noqa: B008`
-
+```bash
+# run style checks
+tox -e style
+# run just tests
+tox -e test
+# run all environments (normally style + test)
+tox
+```
 
 ## Ensure the docker build of your plugin succeeds
 

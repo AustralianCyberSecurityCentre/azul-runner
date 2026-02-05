@@ -122,5 +122,5 @@ Not a breaking change, but some options deprecated
 - self.do_execution returns a `JobResult()` instance instead of a dictionary
 - Use `self.assertJobResult(run_result, JobResult(...))` instead of `self.assertEqual` to make error checking render nicely
 - When developing tests, use `self.assertJobResult(run_result, None)` to print the received output of run_result that you can copy+paste to replace `None`.
-  - After copy+pasting, use `black .` to transform the long JobResult(...) into a nicely formatted multiline output.
+  - After copy+pasting, use `ruff format` to transform the long JobResult(...) into a nicely formatted multiline output.
   - Make sure to check this output is as you expected.
