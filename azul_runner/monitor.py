@@ -90,6 +90,14 @@ class RunOnceHandler:
         self.cache_dir_path = cache_dir_path
         self.run_guid = str(uuid.uuid4())
 
+    def cleanup_streams(self):
+        """Cleanup any open streams."""
+        if not self.local_streams:
+            return
+        for stream in self.local_streams:
+            if not stream.closed:
+                stream.close()
+
     def _get_result_file_path(self) -> str:
         """Get the results file path."""
         return os.path.join(self.cache_dir_path, self.run_guid + "-result")
@@ -150,13 +158,16 @@ class RunOnceHandler:
         logging_queue: multiprocessing.Queue,
     ):
         """Run a plugin once and then write the result to the cache_dir_path."""
-        setup_logger(log_level, logging_queue)
-        loop = Coordinator(plugin, config)
-        # Note - ignoring multi-plugin for timeouts.
-        if queue:
-            queue.put(TaskModel(in_event=self.event, start_time_epoch=time.time()), timeout=0.5)
-        results = loop.run_once(self.event, self.local_streams)
-        self._save_job_results_to_temp(results)
+        try:
+            setup_logger(log_level, logging_queue)
+            loop = Coordinator(plugin, config)
+            # Note - ignoring multi-plugin for timeouts.
+            if queue:
+                queue.put(TaskModel(in_event=self.event, start_time_epoch=time.time()), timeout=0.5)
+            results = loop.run_once(self.event, self.local_streams)
+            self._save_job_results_to_temp(results)
+        finally:
+            self.cleanup_streams()
 
 
 def _start_loop_coordinator(

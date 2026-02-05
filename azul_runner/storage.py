@@ -224,6 +224,8 @@ class StorageProxyFile(io.RawIOBase):
 
     def close(self) -> None:
         """Close and delete the underlying file or network connection."""
+        if self.closed:
+            return
         if self._session:
             self._session.close()
         self._content.close()

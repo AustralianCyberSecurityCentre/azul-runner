@@ -308,53 +308,59 @@ class Coordinator:
 
         job = models.Job(event=event)
         try:
-            job.load_streams(dp=self._network.api, local=local)
-        except (StorageError, FileNotFoundError):
-            result = JobResult(
-                state=State(
-                    State.Label.ERROR_INPUT,
-                    failure_name="Error opening data stream",
-                    message=traceback.format_exc(),
-                ),
-                date_start=run_start,
-                date_end=run_start,
-                runtime=0,
-            )
-            logger.warning("Error opening data stream for %s" % event.entity.sha256)
-            yield (result, None)
-            return  # Fetch next job
+            try:
+                job.load_streams(dp=self._network.api, local=local)
+            except (StorageError, FileNotFoundError):
+                result = JobResult(
+                    state=State(
+                        State.Label.ERROR_INPUT,
+                        failure_name="Error opening data stream",
+                        message=traceback.format_exc(),
+                    ),
+                    date_start=run_start,
+                    date_end=run_start,
+                    runtime=0,
+                )
+                logger.warning("Error opening data stream for %s" % event.entity.sha256)
+                yield (result, None)
+                return  # Fetch next job
 
-        # run each multiplugin
-        run_start = datetime.datetime.now(datetime.timezone.utc)
+            # run each multiplugin
+            run_start = datetime.datetime.now(datetime.timezone.utc)
 
-        # run first entrypoint to see if the whole plugin is opting out
-        # first entrypoint == execute() function
-        result = self._run_job_with_multiplugin(job, multiplugin=None, queue=queue)
-        # start time should include multiprocessing code
-        result.date_start = run_start
-        if result.state.label not in azm.StatusEnumSuccess:
-            # ending time should include multiprocessing code
-            now = datetime.datetime.now(datetime.timezone.utc)
-            result.date_end = now
-            result.runtime = int((now - run_start).total_seconds())
-            # yield heartbeats and other non-ok events
-            yield result, None
-            return  # fetch next job
+            # run first entrypoint to see if the whole plugin is opting out
+            # first entrypoint == execute() function
+            result = self._run_job_with_multiplugin(job, multiplugin=None, queue=queue)
+            # start time should include multiprocessing code
+            result.date_start = run_start
+            if result.state.label not in azm.StatusEnumSuccess:
+                # ending time should include multiprocessing code
+                now = datetime.datetime.now(datetime.timezone.utc)
+                result.date_end = now
+                result.runtime = int((now - run_start).total_seconds())
+                # yield heartbeats and other non-ok events
+                yield result, None
+                return  # fetch next job
 
-        # Execute any multiplugins and always send the main result
-        # NOTE - multiprocessing is not included in the time cost of these events
-        try:
-            for multiplugin in self._plugin.get_registered_multiplugins():
-                if multiplugin is None:
-                    continue
-                yield self._run_job_with_multiplugin(job, multiplugin, queue), multiplugin
+            # Execute any multiplugins and always send the main result
+            # NOTE - multiprocessing is not included in the time cost of these events
+            try:
+                for multiplugin in self._plugin.get_registered_multiplugins():
+                    if multiplugin is None:
+                        continue
+                    yield self._run_job_with_multiplugin(job, multiplugin, queue), multiplugin
+            finally:
+                # the overall plugin finished without error, now need to raise event for it
+                # send main plugin message with runtime covering all multiplugins and multiprocessing code
+                now = datetime.datetime.now(datetime.timezone.utc)
+                result.date_end = now
+                result.runtime = int((now - run_start).total_seconds())
+                yield result, None
         finally:
-            # the overall plugin finished without error, now need to raise event for it
-            # send main plugin message with runtime covering all multiplugins and multiprocessing code
-            now = datetime.datetime.now(datetime.timezone.utc)
-            result.date_end = now
-            result.runtime = int((now - run_start).total_seconds())
-            yield result, None
+            # Clean up streams to avoid leaving temporary files in /tmp/
+            if job._streams:
+                for stream in job._streams:
+                    stream.close()
 
     def _run_job_with_multiplugin(
         self, job: models.Job, multiplugin: Optional[str], queue: multiprocessing.Queue = None
