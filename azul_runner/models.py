@@ -126,7 +126,7 @@ class Feature(BaseModelStrict):
             except KeyError:
                 raise ValueError(
                     f"feature {name} should use a FeatureType.<option> enum entry for type, not {orig_kind}"
-                )
+                ) from None
 
         super().__init__(**dict(name=name, desc=desc, type=kind))
 

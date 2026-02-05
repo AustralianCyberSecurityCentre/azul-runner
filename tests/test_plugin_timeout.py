@@ -34,7 +34,6 @@ class TestPluginTimeouts(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-
         cls.mock_server = md.MockDispatcher()
         cls.mock_server.start()
         while not cls.mock_server.is_alive():
@@ -180,7 +179,6 @@ class TestPluginTimeouts(unittest.TestCase):
         )
 
         for loop in (loop1, loop2):
-
             self.assertRaises(monitor.PluginTimeoutError, loop.run_loop, 1)
 
             r = httpx.get("%s/mock/get_var/last_request_body" % self.server)

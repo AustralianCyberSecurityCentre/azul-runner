@@ -122,7 +122,6 @@ class StorageProxyFile(io.RawIOBase):
         self._dispatcher = dp
         self._allow_unbounded_read = allow_unbounded_read
         self.file_info = file_info
-        self._content._max_size
         if isinstance(init_data, bytes):
             logger.debug("Init StorageProxyFile with init_data (%d bytes), hash=%s" % (len(init_data), self._hash))
             # noinspection PyTypeChecker
@@ -256,7 +255,7 @@ class StorageProxyFile(io.RawIOBase):
             )
         except DispatcherApiException as e:
             if e.status_code == 404:
-                raise ProxyFileNotFoundError(2, "Got 404 requesting %s" % self._hash)
+                raise ProxyFileNotFoundError(2, "Got 404 requesting %s" % self._hash) from e
             elif e.status_code == 416:  # Range not satisfiable; return this to the caller for processing
                 resp = e.response
             else:
