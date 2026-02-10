@@ -5,7 +5,7 @@ import time
 import traceback
 import typing
 
-from azul_bedrock import dispatcher, exceptions
+from azul_bedrock import dispatcher, exceptions_bedrock
 from azul_bedrock import models_network as azm
 
 from . import network_transform, plugin
@@ -143,7 +143,7 @@ class Network:
         # Post result
         try:
             self.api.submit_events([status_event], model=azm.ModelType.Status)
-        except exceptions.NetworkDataException as e:
+        except exceptions_bedrock.NetworkDataException as e:
             # try to capture bad output from plugin
             # rerunning the plugin should produce the same result
             # so no need to capture detailed info

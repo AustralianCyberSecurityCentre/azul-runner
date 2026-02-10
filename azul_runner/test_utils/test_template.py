@@ -30,8 +30,9 @@ from unittest import mock
 import black
 import cart
 from azul_bedrock import dispatcher
-from azul_bedrock import exceptions as azbe
+from azul_bedrock import exceptions_bedrock as azbe
 from azul_bedrock import models_network as azm
+from azul_bedrock.exception_enums import ExceptionCodeEnum
 from azul_bedrock.test_utils import file_manager
 
 from azul_runner import coordinator, settings
@@ -577,7 +578,10 @@ class TestPlugin(unittest.TestCase):
                     eventlen := len(status.model_dump_json(exclude_defaults=True).encode())
                 ) > dispatcher.MAX_MESSAGE_SIZE:
                     raise azbe.NetworkDataException(
-                        f"event produced by plugin was too large: {eventlen}b" + f" > {dispatcher.MAX_MESSAGE_SIZE}b"
+                        ref=f"event produced by plugin was too large: {eventlen}b"
+                        + f" > {dispatcher.MAX_MESSAGE_SIZE}b",
+                        internal=ExceptionCodeEnum.TestRunnerExecutionEventTooLarge,
+                        parameters={"length_of_event": eventlen, "max_message_size": dispatcher.MAX_MESSAGE_SIZE},
                     )
 
                 self.assertTrue(status)

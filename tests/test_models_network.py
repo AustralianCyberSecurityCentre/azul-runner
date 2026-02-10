@@ -2,6 +2,7 @@ import datetime
 import unittest
 
 from azul_bedrock import models_network as azm
+from azul_bedrock import exceptions_bedrock
 
 
 class TestFeatureValue(unittest.TestCase):
@@ -24,4 +25,4 @@ class TestFeatureValue(unittest.TestCase):
         self.assertEqual(v.decode_value(), "http://test.com")
         v = azm.FeatureValue(name="", type=azm.FeatureType.Uri, value="meow")
         v.type = "cat"
-        self.assertRaises(ValueError, v.decode_value)
+        self.assertRaises(exceptions_bedrock.AzulValueError, v.decode_value)
