@@ -4,7 +4,7 @@ import unittest
 import uuid
 from typing import Any
 
-from azul_bedrock import exceptions as azbe
+from azul_bedrock import exceptions_bedrock as azbe
 from azul_bedrock import models_network as azm
 
 from azul_runner import (
@@ -128,12 +128,10 @@ class TestEventLimits(TestPlugin):
                 print(tmp[:20])
                 self.add_info({"large": tmp})
 
-        self.assertRaisesRegex(
-            azbe.NetworkDataException,
-            "event produced by plugin was too large: ",
-            self.do_execution,
-            plugin_class=DP,
-        )
+        with self.assertRaises(azbe.NetworkDataException) as e:
+            self.do_execution(plugin_class=DP)
+
+        self.assertIn("event produced by plugin was too large: ", e.exception.external)
 
 
 class TestAlterConfig(TestPlugin):

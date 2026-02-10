@@ -13,7 +13,7 @@ from typing import Optional
 import httpx
 from azul_bedrock import dispatcher
 from azul_bedrock import models_network as azm
-from azul_bedrock.exceptions import DispatcherApiException
+from azul_bedrock.exceptions_bedrock import DispatcherApiException
 from bitarray import bitarray
 
 from . import storage_spooled
@@ -251,7 +251,7 @@ class StorageProxyFile(io.RawIOBase):
             return v if v is not None else ""
 
         try:
-            logger.debug(f"Requesting bytes={s_fmt(start_pos)}-{s_fmt(end_pos)} of {s_fmt(self._hash)}")
+            logger.error(f"Requesting bytes={s_fmt(start_pos)}-{s_fmt(end_pos)} of {s_fmt(self._hash)}")
             resp = self._dispatcher.get_binary(
                 source=self._source, label=self._label, sha256=self._hash, start_pos=start_pos, end_pos=end_pos
             )
