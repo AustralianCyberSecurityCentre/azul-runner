@@ -105,7 +105,6 @@ class DummyPlugin(Plugin):
         # test_input_data allows plugins to pass in data needed in the execute method easily.
         request_retry_count=0,
         test_input_data=(dict, {}),
-        # use_multiprocessing_fork=True,
     )  # Don't retry failed requests when testing
     # leave security property unset
     # SECURITY = None
@@ -148,10 +147,6 @@ def cleanup_shared_memory(shared_memory_name):
         shared_mem_old.unlink()
     except Exception:
         pass
-
-
-def default_generic_execute(self: Plugin, job: Job):
-    pass
 
 
 class DummyPluginFeatureInheritance(DummyPlugin):

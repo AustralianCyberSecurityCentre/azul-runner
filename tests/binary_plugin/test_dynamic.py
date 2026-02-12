@@ -24,7 +24,6 @@ from azul_runner import (
 
 class BinaryTestPlugin(BinaryPlugin):
     VERSION = "1.0"
-    SETTINGS = add_settings()
     FEATURES = [
         Feature("sample_feature", "An output feature for the test plugin", type=FeatureType.String),
     ]
@@ -59,10 +58,6 @@ class TestBinaryTemplateDynamic(TestPlugin):
             self.add_feature_values("a_filepath", [FV(Filepath("/rootf/"))])
             self.add_feature_values("a_uri", [FV(Uri("http://abc.com"))])
 
-    class DPAddText(BinaryTestPlugin):
-        def execute(self, job):
-            self.add_text('print("Hello, world!")', "python")
-
     def test_legacy_stuff(self):
         """Check that legacy stuff works."""
         # legacy feature typing
@@ -79,6 +74,10 @@ class TestBinaryTemplateDynamic(TestPlugin):
                 "a_uri": [FV(Uri("http://abc.com"))],
             },
         )
+
+    class DPAddText(BinaryTestPlugin):
+        def execute(self, job):
+            self.add_text('print("Hello, world!")', "python")
 
     def test_add_text(self):
         """Check that binary.add_text functions correctly."""

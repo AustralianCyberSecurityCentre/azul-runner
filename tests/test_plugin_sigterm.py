@@ -114,7 +114,6 @@ class TestPluginTerminated(unittest.TestCase):
         all_pids = [parent.pid]
         for child_processes in parent.children(recursive=True):
             all_pids.append(child_processes.pid)
-            print(f"{child_processes.pid} - {child_processes}, {child_processes.parent().pid}")
 
         # Should be at least 1 child process
         self.assertGreaterEqual(len(all_pids), 1)

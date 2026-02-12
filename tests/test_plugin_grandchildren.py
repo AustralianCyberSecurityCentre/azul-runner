@@ -321,7 +321,6 @@ class TestPluginGrandchildHandling(sup.TestPluginSharedMem):
         )
 
         # Add multiple grandchildren, one under a child in a stream-specific result
-
         some_content = DATA_HASH(b"some content").hexdigest()
         other_content = DATA_HASH(b"other content").hexdigest()
         more_content = DATA_HASH(b"more content").hexdigest()

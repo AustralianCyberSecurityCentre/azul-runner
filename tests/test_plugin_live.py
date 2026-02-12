@@ -1920,8 +1920,6 @@ class YaraxDP(sup.DummyPlugin):
     and always fails when using threading.
     """
 
-    SETTINGS = add_settings()
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.rules = yara_x.compile("""
