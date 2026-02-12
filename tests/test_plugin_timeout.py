@@ -12,7 +12,8 @@ import httpx
 import pytest
 from azul_bedrock import models_network as azm
 
-from azul_runner import State, coordinator, monitor
+from azul_runner import State, monitor
+from azul_runner.settings import add_settings
 
 from . import mock_dispatcher as md
 from . import plugin_support as sup
@@ -20,6 +21,35 @@ from . import plugin_support as sup
 
 def dump(x):
     return json.loads(x.model_dump_json(exclude_defaults=True))
+
+
+class DummySleepPlugin(sup.DummyPlugin):
+    """Dummy plugin class that sleeps for 2 seconds before returning, to test timeouts with."""
+
+    SETTINGS = add_settings(delay=(float, 2), delay_after_exception=(int, 0))
+
+    @staticmethod
+    def interruptable_sleep(secs):
+        """Sleeps in bursts of 250ms so that exceptions can still interrupt us."""
+        start = datetime.datetime.now()
+        tick = 0.25
+        while True:
+            time.sleep(tick)
+            elapsed = (datetime.datetime.now() - start).total_seconds()
+            if elapsed >= secs:
+                return
+            elif secs - elapsed < tick:
+                tick = secs - elapsed
+
+    def execute(self, entity):
+        if self.cfg.delay_after_exception:
+            try:
+                self.interruptable_sleep(self.cfg.delay)
+            except monitor.PluginTimeoutError:
+                self.interruptable_sleep(self.cfg.delay_after_exception)
+        else:
+            self.interruptable_sleep(self.cfg.delay)
+        return
 
 
 class TestPluginTimeouts(unittest.TestCase):
@@ -34,22 +64,7 @@ class TestPluginTimeouts(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.mock_server = md.MockDispatcher()
-        cls.mock_server.start()
-        while not cls.mock_server.is_alive():
-            time.sleep(0.2)  # Wait for server to start
-        cls.server = "http://%s:%s" % (cls.mock_server.host, cls.mock_server.port)
-        # Wait for server to be ready to respond
-        tries = 0
-        while True:
-            time.sleep(0.5)
-            tries += 1
-            try:
-                _ = httpx.get(cls.server + "/mock/get_var/fetch_count")
-                break  # Exit loop if successful
-            except (httpx.TimeoutException, httpx.ConnectError):
-                if tries > 20:  # Time out after about 4 seconds
-                    raise RuntimeError("Timed out waiting for mock server to be ready")
+        cls.mock_server, cls.server = sup.setup_mock_dispatcher()
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -62,42 +77,6 @@ class TestPluginTimeouts(unittest.TestCase):
         self.dummy_log_handler = sup.DummyLogHandler()
         lr.addHandler(self.dummy_log_handler)
 
-    # #### Utility
-    @staticmethod
-    def gen_sleep_plugin(delay, delay_after_exception=0):
-        """Returns a plugin class which will sleep <delay> seconds then return an empty result.
-
-        If <delay_after_exception> is nonzero, the plugin will catch PluginTimeoutError and
-        sleep again for <delay_after_exception> seconds before returning."""
-
-        class DummySleepPlugin(sup.DummyPlugin):
-            """Dummy plugin class that sleeps for 2 seconds before returning, to test timeouts with."""
-
-            @staticmethod
-            def interruptible_sleep(secs):
-                """Sleeps in bursts of 250ms so that exceptions can still interrupt us."""
-                start = datetime.datetime.now()
-                tick = 0.25
-                while True:
-                    time.sleep(tick)
-                    elapsed = (datetime.datetime.now() - start).total_seconds()
-                    if elapsed >= secs:
-                        return
-                    elif secs - elapsed < tick:
-                        tick = secs - elapsed
-
-            def execute(self, entity):
-                if delay_after_exception:
-                    try:
-                        self.interruptible_sleep(delay)
-                    except coordinator.PluginTimeoutError:
-                        self.interruptible_sleep(delay_after_exception)
-                else:
-                    self.interruptible_sleep(delay)
-                return
-
-        return DummySleepPlugin
-
     def _filter_error_from_logs(self, msgs: list):
         return msgs
 
@@ -108,7 +87,7 @@ class TestPluginTimeouts(unittest.TestCase):
     def test_no_timeout(self):
         """Check that the plugin runs and returns successfully within the timeout."""
         loop = monitor.Monitor(
-            self.gen_sleep_plugin(2),
+            DummySleepPlugin,
             {
                 "server": self.server + "/null",
                 "run_timeout": 3,
@@ -159,7 +138,7 @@ class TestPluginTimeouts(unittest.TestCase):
         """Check that the plugin times out after 1 second, both with and without catching the exception."""
         # p1 just runs for 2 seconds and is aborted by the exception
         loop1 = monitor.Monitor(
-            self.gen_sleep_plugin(2),
+            DummySleepPlugin,
             {
                 "server": self.server + "/null",
                 "run_timeout": 1,
@@ -169,12 +148,13 @@ class TestPluginTimeouts(unittest.TestCase):
         )
         # p2 catches the timeout exception and sleeps 2 more seconds before returning
         loop2 = monitor.Monitor(
-            self.gen_sleep_plugin(2, 2),
+            DummySleepPlugin,
             {
                 "server": self.server + "/null",
                 "run_timeout": 1,
                 "heartbeat_interval": 1,
                 "max_timeouts_before_exit": 0,
+                "delay_after_exception": 2,
             },
         )
 
@@ -228,12 +208,13 @@ class TestPluginTimeouts(unittest.TestCase):
     def test_timeout_with_catch_no_return(self):
         """Tests that the expected errors occur when a plugin catches the timeout exception and doesn't terminate."""
         loop = monitor.Monitor(
-            self.gen_sleep_plugin(2, 5),
+            DummySleepPlugin,
             {
                 "server": self.server + "/null",
                 "run_timeout": 1,
                 "heartbeat_interval": 1,
                 "max_timeouts_before_exit": 0,
+                "delay_after_exception": 5,
             },
         )
         self.assertRaises(
@@ -285,7 +266,7 @@ class TestPluginTimeouts(unittest.TestCase):
     def test_timeout_count_limit(self):
         """Test that the runner exits after the specified number of timeouts."""
         loop = monitor.Monitor(
-            self.gen_sleep_plugin(2),
+            DummySleepPlugin,
             {
                 "server": self.server + "/null",
                 "run_timeout": 1,

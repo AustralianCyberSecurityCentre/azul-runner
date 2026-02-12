@@ -14,6 +14,7 @@ from azul_runner import local
 from azul_runner.storage import StorageError, StorageProxyFile
 
 from . import mock_dispatcher as md
+from . import plugin_support as sup
 
 
 class TestStorageProxyFile(unittest.TestCase):
@@ -22,11 +23,7 @@ class TestStorageProxyFile(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.mock_server = md.MockDispatcher()
-        cls.mock_server.start()
-        while not cls.mock_server.is_alive():
-            time.sleep(0.2)  # Wait for server to start
-        cls.server = "http://%s:%s" % (cls.mock_server.host, cls.mock_server.port)
+        cls.mock_server, cls.server = sup.setup_mock_dispatcher()
         cls.dp = dispatcher.DispatcherAPI(
             events_url=cls.server,
             data_url=cls.server,
@@ -36,18 +33,6 @@ class TestStorageProxyFile(unittest.TestCase):
             author_version="1",
             deployment_key="scorpion",
         )
-        # Wait for server to be ready to respond
-        tries = 0
-        while True:
-            time.sleep(0.2)
-            tries += 1
-            try:
-                _ = httpx.get(cls.server + "/mock/get_var/fetch_count")
-                break  # Exit loop if successful
-            except (httpx.TimeoutException, httpx.ConnectError):
-                if tries > 20:  # Time out after about 4 seconds
-                    raise RuntimeError("Timed out waiting for mock server to be ready")
-
         cls.editor = md.Editor(cls.server)
         cls.editor.set_stream("500-internal-server-error", 500, b"")
         cls.editor.set_stream("test-ff-128", 206, b"\xff" * 128)

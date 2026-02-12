@@ -26,9 +26,12 @@ from azul_runner import (
     monitor,
 )
 
+# Name used to pass the shareable list between running processes.
+COMMON_NAME_FOR_SHARED_MEM = "TestPluginBinaryInput"
+
 
 class MainBaseTestPlugin(Plugin):
-    SETTINGS = add_settings(use_multiprocessing_fork=True)
+    SETTINGS = add_settings()
 
 
 class TestCmdlineRun(unittest.TestCase):
@@ -70,24 +73,24 @@ class TestCmdlineRun(unittest.TestCase):
 
     # ######################## Test methods
 
+    class TestPluginSimplePlugin(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.add_feature_values("value", 97)
+
     def test_simple_plugin(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.add_feature_values("value", 97)
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginSimplePlugin)
         self.assertEqual(
             res,
-            f"""----- TestPlugin results -----
+            f"""----- TestPluginSimplePlugin results -----
 COMPLETED
 
 events (1)
@@ -103,45 +106,45 @@ Feature key:
 """,
         )
 
+    class TestPluginSimplePluginEmptyFeatureVals(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.add_feature_values("value", [])
+            self.add_feature_values("value", set())
+
     def test_simple_plugin_empty_feature_value(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.add_feature_values("value", [])
-                self.add_feature_values("value", set())
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name]
-            res = self._stdout_result(TestPlugin)
-        self.assertEqual(res, "----- TestPlugin results -----\nCOMPLETED_EMPTY\n\n")
+            res = self._stdout_result(self.TestPluginSimplePluginEmptyFeatureVals)
+        self.assertEqual(res, "----- TestPluginSimplePluginEmptyFeatureVals results -----\nCOMPLETED_EMPTY\n\n")
+
+    class TestPluginSimplePluginOffsetFeatureValues(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.add_feature_values("value", FeatureValue(value=97, label="label1", offset=10, size=1))
+            self.add_feature_values("value", FeatureValue(value=97, offset=20))
+            self.add_feature_values("value", FeatureValue(value=97, label="labelOnly"))
+            self.add_feature_values("value", FeatureValue(value=97, size=99))
 
     def test_simple_plugin_offset_feature_values(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.add_feature_values("value", FeatureValue(value=97, label="label1", offset=10, size=1))
-                self.add_feature_values("value", FeatureValue(value=97, offset=20))
-                self.add_feature_values("value", FeatureValue(value=97, label="labelOnly"))
-                self.add_feature_values("value", FeatureValue(value=97, size=99))
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginSimplePluginOffsetFeatureValues)
         self.assertEqual(
             res,
-            f"""----- TestPlugin results -----
+            f"""----- TestPluginSimplePluginOffsetFeatureValues results -----
 COMPLETED
 
 events (1)
@@ -160,34 +163,34 @@ Feature key:
 """,
         )
 
+    class TestPluginSimplePluginLogDebug(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.logger.error("a error thing happened")
+            self.logger.warning("a warning thing happened")
+            self.logger.info("a info thing happened")
+            self.logger.debug("a debug thing happened")
+            self.add_feature_values("value", 97)
+
+            mylog = logging.getLogger("external.flatlib")
+            mylog.error("this is just a simple error")
+            mylog.warning("this is just a simple warning")
+            mylog.info("this is just a simple info")
+            mylog.debug("this is just a simple debug")
+
     def test_simple_plugin_log_debug(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.logger.error("a error thing happened")
-                self.logger.warning("a warning thing happened")
-                self.logger.info("a info thing happened")
-                self.logger.debug("a debug thing happened")
-                self.add_feature_values("value", 97)
-
-                mylog = logging.getLogger("external.flatlib")
-                mylog.error("this is just a simple error")
-                mylog.warning("this is just a simple warning")
-                mylog.info("this is just a simple info")
-                mylog.debug("this is just a simple debug")
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name, "--verbose", "--verbose"]
-            res, err, log = self._stdout_stderr_result(TestPlugin)
+            res, err, log = self._stdout_stderr_result(self.TestPluginSimplePluginLogDebug)
         self.assertEqual(
             res,
-            f"""----- TestPlugin results -----
+            f"""----- TestPluginSimplePluginLogDebug results -----
 COMPLETED
 
 events (1)
@@ -216,31 +219,31 @@ Feature key:
         self.assertRegex(err, r"external.flatlib.*this is just a simple info")
         self.assertRegex(err, r"external.flatlib.*this is just a simple debug")
 
+    class TestPluginSimplePluginLogInfo(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.logger.error("a error thing happened")
+            self.logger.warning("a warning thing happened")
+            self.logger.info("a info thing happened")
+            self.logger.debug("a debug thing happened")
+            self.add_feature_values("value", 97)
+
+            mylog = logging.getLogger("external.flatlib")
+            mylog.error("this is just a simple error")
+            mylog.warning("this is just a simple warning")
+            mylog.info("this is just a simple info")
+            mylog.debug("this is just a simple debug")
+
     def test_simple_plugin_log_info(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.logger.error("a error thing happened")
-                self.logger.warning("a warning thing happened")
-                self.logger.info("a info thing happened")
-                self.logger.debug("a debug thing happened")
-                self.add_feature_values("value", 97)
-
-                mylog = logging.getLogger("external.flatlib")
-                mylog.error("this is just a simple error")
-                mylog.warning("this is just a simple warning")
-                mylog.info("this is just a simple info")
-                mylog.debug("this is just a simple debug")
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name, "--verbose"]
-            res, err, log = self._stdout_stderr_result(TestPlugin)
+            res, err, log = self._stdout_stderr_result(self.TestPluginSimplePluginLogInfo)
         # Show logs incase of errors
         print(f"--- error ---\n{err}\n--- End error ---")
         print(f"+++ log +++\n{log}\n+++ End log +++")
@@ -255,31 +258,31 @@ Feature key:
         self.assertRegex(err, r"external.flatlib.*this is just a simple info")
         self.assertNotRegex(err, r"external.flatlib.*this is just a simple debug")
 
+    class TestPluginSimplePluginLogWarn(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.logger.error("a error thing happened")
+            self.logger.warning("a warning thing happened")
+            self.logger.info("a info thing happened")
+            self.logger.debug("a debug thing happened")
+            self.add_feature_values("value", 97)
+
+            mylog = logging.getLogger("external.flatlib")
+            mylog.error("this is just a simple error")
+            mylog.warning("this is just a simple warning")
+            mylog.info("this is just a simple info")
+            mylog.debug("this is just a simple debug")
+
     def test_simple_plugin_log_warn(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.logger.error("a error thing happened")
-                self.logger.warning("a warning thing happened")
-                self.logger.info("a info thing happened")
-                self.logger.debug("a debug thing happened")
-                self.add_feature_values("value", 97)
-
-                mylog = logging.getLogger("external.flatlib")
-                mylog.error("this is just a simple error")
-                mylog.warning("this is just a simple warning")
-                mylog.info("this is just a simple info")
-                mylog.debug("this is just a simple debug")
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name]
-            res, err, log = self._stdout_stderr_result(TestPlugin)
+            res, err, log = self._stdout_stderr_result(self.TestPluginSimplePluginLogWarn)
         # Show logs incase of errors
         print(f"--- error ---\n{err}\n--- End error ---")
         print(f"+++ log +++\n{log}\n+++ End log +++")
@@ -294,31 +297,31 @@ Feature key:
         self.assertNotRegex(err, r"external.flatlib.*this is just a simple info")
         self.assertNotRegex(err, r"external.flatlib.*this is just a simple debug")
 
+    class TestPluginSimpleLogErr(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.logger.error("a error thing happened")
+            self.logger.warning("a warning thing happened")
+            self.logger.info("a info thing happened")
+            self.logger.debug("a debug thing happened")
+            self.add_feature_values("value", 97)
+
+            mylog = logging.getLogger("external.flatlib")
+            mylog.error("this is just a simple error")
+            mylog.warning("this is just a simple warning")
+            mylog.info("this is just a simple info")
+            mylog.debug("this is just a simple debug")
+
     def test_simple_plugin_log_err(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.logger.error("a error thing happened")
-                self.logger.warning("a warning thing happened")
-                self.logger.info("a info thing happened")
-                self.logger.debug("a debug thing happened")
-                self.add_feature_values("value", 97)
-
-                mylog = logging.getLogger("external.flatlib")
-                mylog.error("this is just a simple error")
-                mylog.warning("this is just a simple warning")
-                mylog.info("this is just a simple info")
-                mylog.debug("this is just a simple debug")
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name, "--quiet"]
-            res, err, log = self._stdout_stderr_result(TestPlugin)
+            res, err, log = self._stdout_stderr_result(self.TestPluginSimpleLogErr)
         # Show logs incase of errors
         print(f"--- error ---\n{err}\n--- End error ---")
         print(f"+++ log +++\n{log}\n+++ End log +++")
@@ -333,72 +336,75 @@ Feature key:
         self.assertNotRegex(err, r"external.flatlib.*this is just a simple info")
         self.assertNotRegex(err, r"external.flatlib.*this is just a simple debug")
 
+    class TestPluginBinaryInput(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("job_event_id", "Getting Job details back", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            shared_list = shared_memory.ShareableList(None, name=COMMON_NAME_FOR_SHARED_MEM)
+            shared_list[0] = job.event.entity.sha256
+            shared_list[1] = job.event.entity.sha512
+            shared_list[2] = job.event.entity.sha1
+            shared_list[3] = job.event.entity.md5
+            shared_list[4] = job.event.entity.size
+            shared_list[5] = job.event.entity.file_format
+
     def test_binary_input(self):
-        shared_list = shared_memory.ShareableList([500 * "a" for _ in range(7)])
-
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("job_event_id", "Getting Job details back", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                shared_list[0] = job.event.entity.sha256
-                shared_list[1] = job.event.entity.sha512
-                shared_list[2] = job.event.entity.sha1
-                shared_list[3] = job.event.entity.md5
-                shared_list[4] = job.event.entity.size
-                shared_list[5] = job.event.entity.file_format
-
-        with tempfile.NamedTemporaryFile() as f:
-            f.write(b"blah")
-            f.seek(0)
-            hashlib.sha256(f.read()).hexdigest()
-            f.seek(0)
-            sys.argv = ["test_main.py", f.name]
-            result_data = self._stdout_result(TestPlugin)
-            # Logs errors if something is wrong with the shared list.
-            print(result_data)
-            result_dict = {
-                "job.event.entity.sha256": shared_list[0],
-                "job.event.entity.sha512": shared_list[1],
-                "job.event.entity.sha1": shared_list[2],
-                "job.event.entity.md5": shared_list[3],
-                "job.event.entity.size": shared_list[4],
-                "job.event.entity.file_format": shared_list[5],
-            }
-            print(result_dict)
-            self.assertEqual(
-                result_dict["job.event.entity.sha256"],
-                "8b7df143d91c716ecfa5fc1730022f6b421b05cedee8fd52b1fc65a96030ad52",
-            )
-            self.assertEqual(
-                result_dict["job.event.entity.sha512"],
-                "39ca2b1f97c7d1d223dcb2b22cbe20c36f920aeefd201d0bf68ffc08db6d9ac608a0a202fb536d944c9d1f50cf9bd61b5bc84217212f0727a8db8a01c2fa54b7",
-            )
-            self.assertEqual(result_dict["job.event.entity.sha1"], "5bf1fd927dfb8679496a2e6cf00cbe50c1c87145")
-            self.assertEqual(result_dict["job.event.entity.md5"], "6f1ed002ab5595859014ebf0951522d9")
-            self.assertEqual(result_dict["job.event.entity.size"], 4)
-            self.assertEqual(result_dict["job.event.entity.file_format"], "text/plain")
+        shared_list = shared_memory.ShareableList([500 * "a" for _ in range(7)], name=COMMON_NAME_FOR_SHARED_MEM)
+        try:
+            with tempfile.NamedTemporaryFile() as f:
+                f.write(b"blah")
+                f.seek(0)
+                hashlib.sha256(f.read()).hexdigest()
+                f.seek(0)
+                sys.argv = ["test_main.py", f.name]
+                result_data = self._stdout_result(self.TestPluginBinaryInput)
+                # Logs errors if something is wrong with the shared list.
+                print(result_data)
+                result_dict = {
+                    "job.event.entity.sha256": shared_list[0],
+                    "job.event.entity.sha512": shared_list[1],
+                    "job.event.entity.sha1": shared_list[2],
+                    "job.event.entity.md5": shared_list[3],
+                    "job.event.entity.size": shared_list[4],
+                    "job.event.entity.file_format": shared_list[5],
+                }
+                print(result_dict)
+                self.assertEqual(
+                    result_dict["job.event.entity.sha256"],
+                    "8b7df143d91c716ecfa5fc1730022f6b421b05cedee8fd52b1fc65a96030ad52",
+                )
+                self.assertEqual(
+                    result_dict["job.event.entity.sha512"],
+                    "39ca2b1f97c7d1d223dcb2b22cbe20c36f920aeefd201d0bf68ffc08db6d9ac608a0a202fb536d944c9d1f50cf9bd61b5bc84217212f0727a8db8a01c2fa54b7",
+                )
+                self.assertEqual(result_dict["job.event.entity.sha1"], "5bf1fd927dfb8679496a2e6cf00cbe50c1c87145")
+                self.assertEqual(result_dict["job.event.entity.md5"], "6f1ed002ab5595859014ebf0951522d9")
+                self.assertEqual(result_dict["job.event.entity.size"], 4)
+                self.assertEqual(result_dict["job.event.entity.file_format"], "text/plain")
+        finally:
             # Close shared memory
             shared_list.shm.close()
+            shared_list.shm.unlink()
+
+    class TestPluginSimplePluginOnlyStream(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", FeatureType.String)]
+
+        def execute(self, job: Job) -> dict:
+            data = job.get_data(azm.DataLabel.TEST).read().decode("utf-8", errors="ignore")
+            self.add_feature_values("value", data)
 
     def test_simple_plugin_only_stream(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", FeatureType.String)]
-
-            def execute(self, job: Job) -> dict:
-                data = job.get_data(azm.DataLabel.TEST).read().decode("utf-8", errors="ignore")
-                self.add_feature_values("value", data)
-
         sha256 = "test_stream_only"
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah" * 4)
             f.seek(0)
             sys.argv = ["test_main.py", "--entity-id", sha256, "--stream", azm.DataLabel.TEST, f.name]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginSimplePluginOnlyStream)
         self.assertEqual(
             res,
-            f"""----- TestPlugin results -----
+            f"""----- TestPluginSimplePluginOnlyStream results -----
 COMPLETED
 
 events (1)
@@ -414,17 +420,17 @@ Feature key:
 """,
         )
 
+    class TestPluginMultipleStreams(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            text = job.get_data(azm.DataLabel.TEST).file_info.sha256
+            event = self.get_data_event(text)
+            event.add_feature_values("value", FeatureValue(95))
+            self.add_feature_values("value", 97)
+
     def test_multiple_streams(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                text = job.get_data(azm.DataLabel.TEST).file_info.sha256
-                event = self.get_data_event(text)
-                event.add_feature_values("value", FeatureValue(95))
-                self.add_feature_values("value", 97)
-
         # execute again with two input data streams - expect a result for each stream
         saved_argv = sys.argv
         tf1 = tempfile.NamedTemporaryFile()
@@ -438,11 +444,11 @@ Feature key:
         tf2.seek(0)
         tf2.flush()
         sys.argv = ["test_main.py", "-s", azm.DataLabel.TEXT, tf1.name, "-s", azm.DataLabel.TEST, tf2.name]
-        res = self._stdout_result(TestPlugin)
+        res = self._stdout_result(self.TestPluginMultipleStreams)
         print(res)
         self.assertEqual(
             res,
-            """----- TestPlugin results -----
+            """----- TestPluginMultipleStreams results -----
 COMPLETED
 
 events (2)
@@ -465,56 +471,56 @@ Feature key:
         tf1.close()
         tf2.close()
 
+    class TestPluginChildOutput(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("child_feat", "A feature of the child entity", FeatureType.String)]
+
+        def execute(self, job: Job) -> dict:
+            c = self._add_child(
+                "child_ID",
+                {"relationship": "extracted"},
+            )
+            c.add_data("content", {}, b"Child content")
+            c.add_feature_values("child_feat", "child feature value")
+
+            c = self._add_child(
+                "child2_ID",
+                {"relationship": "extracted"},
+            )
+            c.add_data("content", {}, b"Child content")
+            c.add_feature_values("child_feat", "child feature value")
+            c = self._add_child(
+                "child2_ID",
+                {"relationship": "extracted"},
+            )
+            c.add_data("content", {}, b"Child content")
+            c.add_feature_values("child_feat", "child feature value")
+            c = self._add_child(
+                "child3_ID",
+                {"relationship": "extracted"},
+            )
+            c.add_data("content", {}, b"Child content")
+            c.add_feature_values("child_feat", "child feature value")
+            c = self._add_child(
+                "child3_ID",
+                {"relationship": "extracted", "additional": "extracted twice"},
+            )
+            c.add_data("content", {}, b"Child content")
+            c.add_feature_values("child_feat", "a different feature value")
+            return
+
     def test_child_output(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("child_feat", "A feature of the child entity", FeatureType.String)]
-
-            def execute(self, job: Job) -> dict:
-                c = self._add_child(
-                    "child_ID",
-                    {"relationship": "extracted"},
-                )
-                c.add_data("content", {}, b"Child content")
-                c.add_feature_values("child_feat", "child feature value")
-
-                c = self._add_child(
-                    "child2_ID",
-                    {"relationship": "extracted"},
-                )
-                c.add_data("content", {}, b"Child content")
-                c.add_feature_values("child_feat", "child feature value")
-                c = self._add_child(
-                    "child2_ID",
-                    {"relationship": "extracted"},
-                )
-                c.add_data("content", {}, b"Child content")
-                c.add_feature_values("child_feat", "child feature value")
-                c = self._add_child(
-                    "child3_ID",
-                    {"relationship": "extracted"},
-                )
-                c.add_data("content", {}, b"Child content")
-                c.add_feature_values("child_feat", "child feature value")
-                c = self._add_child(
-                    "child3_ID",
-                    {"relationship": "extracted", "additional": "extracted twice"},
-                )
-                c.add_data("content", {}, b"Child content")
-                c.add_feature_values("child_feat", "a different feature value")
-                return
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginChildOutput)
             print(res)
         self.assertEqual(
             res,
-            f"""----- TestPlugin results -----
+            f"""----- TestPluginChildOutput results -----
 COMPLETED
 
 events (3)
@@ -550,53 +556,53 @@ Feature key:
 """,
         )
 
+    class TestPluginWithConfig(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = []
+
+        def execute(self, job: Job) -> dict:
+            return
+
     def test_with_config(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = []
-
-            def execute(self, job: Job) -> dict:
-                return
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sys.argv = ["test_main.py", f.name, "-c", "alpha", "beta"]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginWithConfig)
         print(res)
-        self.assertEqual(res, "----- TestPlugin results -----\nCOMPLETED_EMPTY\n\n")
+        self.assertEqual(res, "----- TestPluginWithConfig results -----\nCOMPLETED_EMPTY\n\n")
+
+    class TestPluginGrandchildOutput(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [
+            Feature("child_feat", "A feature of the child entity", FeatureType.String),
+            Feature("gc_feat", "A feature of the grandchild", FeatureType.String),
+        ]
+
+        def execute(self, job: Job) -> dict:
+            c = self._add_child(
+                "child_ID",
+                {"relationship": "extracted"},
+            )
+            c.add_data("content", {}, b"Child content")
+            c.add_feature_values("child_feat", "child feature value")
+            gc = c._add_child("grandchild_ID", {"relationship": "decoded"})
+            gc.add_data("content", {"language": "ocelot"}, b"Grandchild content")
+            gc.add_feature_values("gc_feat", ["value1", "value2"])
+            return
 
     def test_grandchild_output(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [
-                Feature("child_feat", "A feature of the child entity", FeatureType.String),
-                Feature("gc_feat", "A feature of the grandchild", FeatureType.String),
-            ]
-
-            def execute(self, job: Job) -> dict:
-                c = self._add_child(
-                    "child_ID",
-                    {"relationship": "extracted"},
-                )
-                c.add_data("content", {}, b"Child content")
-                c.add_feature_values("child_feat", "child feature value")
-                gc = c._add_child("grandchild_ID", {"relationship": "decoded"})
-                gc.add_data("content", {"language": "ocelot"}, b"Grandchild content")
-                gc.add_feature_values("gc_feat", ["value1", "value2"])
-                return
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginGrandchildOutput)
         print(res)
         self.assertEqual(
             res,
-            f"""----- TestPlugin results -----
+            f"""----- TestPluginGrandchildOutput results -----
 COMPLETED
 
 events (2)
@@ -625,29 +631,29 @@ Feature key:
 """,
         )
 
+    class TestPluginStreamOutput(MainBaseTestPlugin):
+        VERSION = "none"
+
+        def execute(self, job: Job) -> dict:
+            self.add_data(
+                "text",
+                {"language": "python"},
+                b"Text output content",
+            )
+            return
+
     def test_stream_output(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-
-            def execute(self, job: Job) -> dict:
-                self.add_data(
-                    "text",
-                    {"language": "python"},
-                    b"Text output content",
-                )
-                return
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginStreamOutput)
         print(res)
         self.assertEqual(
             res,
-            f"""----- TestPlugin results -----
+            f"""----- TestPluginStreamOutput results -----
 COMPLETED
 
 events (1)
@@ -660,18 +666,19 @@ event for {sha256}:None
 """,
         )
 
-    def test_JSON_output(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "1.0"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+    class TestPluginJsonOutput(MainBaseTestPlugin):
+        VERSION = "1.0"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
 
-            def execute(self, job: Job) -> dict:
-                self.add_data(
-                    "text",
-                    {"language": "python"},
-                    b"Text output content",
-                )
-                self.add_feature_values("value", 12345)
+        def execute(self, job: Job) -> dict:
+            self.add_data(
+                "text",
+                {"language": "python"},
+                b"Text output content",
+            )
+            self.add_feature_values("value", 12345)
+
+    def test_JSON_output(self):
 
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
@@ -679,7 +686,7 @@ event for {sha256}:None
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name, "--output-json"]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginJsonOutput)
             res = json.loads(res)
         # Ignore nondeterministic outputs
         res.pop("date_start")
@@ -710,26 +717,25 @@ event for {sha256}:None
             },
         )
 
+    class TestPluginOutputFolder(MainBaseTestPlugin):
+        VERSION = "1.0"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.add_data(
+                "text",
+                {"language": "python"},
+                b"Text output content",
+            )
+            self.add_feature_values("value", 12345)
+
     def test_output_folder(self):
         """Test that the plugin can output artifacts and run info to folder."""
-
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "1.0"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.add_data(
-                    "text",
-                    {"language": "python"},
-                    b"Text output content",
-                )
-                self.add_feature_values("value", 12345)
-
         with tempfile.NamedTemporaryFile() as f, tempfile.TemporaryDirectory() as tmpdir:
             f.write(b"blah")
             f.seek(0)
             sys.argv = ["test_main.py", f.name, "--output-folder", tmpdir]
-            self._stdout_result(TestPlugin)
+            self._stdout_result(self.TestPluginOutputFolder)
             self.assertEqual(
                 os.listdir(tmpdir),
                 ["1c2568562238a338919f87598737756a67e22f35d5031a45796c9d312b5beb54_text.data"],
@@ -741,25 +747,25 @@ event for {sha256}:None
                 databytes = f2.read()
             self.assertEqual(databytes, b"Text output content")
 
+    class TestPluginMultipluginRegular(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", FeatureType.String)]
+
+        def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
+            super().__init__(config)
+            self.register_multiplugin("66_dec", "version 5", self.execute_order_66)
+            self.register_multiplugin("rol_67", "version 5", self.execute_order_67)
+
+        def execute_order_66(self, entity) -> dict:
+            return {"features": {"value": "for a safe and secure galaxy"}}
+
+        def execute_order_67(self, entity) -> dict:
+            return {"features": {"value": "hello there"}}
+
     def test_multiplugin_regular(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", FeatureType.String)]
-
-            def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
-                super().__init__(config)
-                self.register_multiplugin("66_dec", "version 5", self.execute_order_66)
-                self.register_multiplugin("rol_67", "version 5", self.execute_order_67)
-
-            def execute_order_66(self, entity) -> dict:
-                return {"features": {"value": "for a safe and secure galaxy"}}
-
-            def execute_order_67(self, entity) -> dict:
-                return {"features": {"value": "hello there"}}
-
         # First, execute without input data streams
         sys.argv = ["test_main.py"]
-        res = self._stdout_result(TestPlugin)
+        res = self._stdout_result(self.TestPluginMultipluginRegular)
         expected = """
 ----- TestPlugin-66_dec results -----
 COMPLETED
@@ -783,32 +789,32 @@ Feature key:
         """.strip()
         self.assertEqual(res.strip(), expected)
 
+    class TestPluginMultipluginRegular(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", FeatureType.String)]
+
+        def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
+            super().__init__(config)
+            self.register_multiplugin("66_dec", "version 5", self.execute_order_66)
+            self.register_multiplugin("rol_67", "version 5", self.execute_order_67)
+
+        def execute(self, job: Job) -> dict:
+            pass
+
+        def execute_order_66(self, job: Job) -> dict:
+            self.add_feature_values("value", "for a safe and secure galaxy")
+
+        def execute_order_67(self, job: Job) -> dict:
+            self.add_feature_values("value", "hello there")
+
     def test_multiplugin_regular(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", FeatureType.String)]
-
-            def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
-                super().__init__(config)
-                self.register_multiplugin("66_dec", "version 5", self.execute_order_66)
-                self.register_multiplugin("rol_67", "version 5", self.execute_order_67)
-
-            def execute(self, job: Job) -> dict:
-                pass
-
-            def execute_order_66(self, job: Job) -> dict:
-                self.add_feature_values("value", "for a safe and secure galaxy")
-
-            def execute_order_67(self, job: Job) -> dict:
-                self.add_feature_values("value", "hello there")
-
         with tempfile.NamedTemporaryFile() as f:
             f.write(b"blah")
             f.seek(0)
             sha256 = hashlib.sha256(f.read()).hexdigest()
             f.seek(0)
             sys.argv = ["test_main.py", f.name, "--output-json"]
-            results = self._stdout_result(TestPlugin)
+            results = self._stdout_result(self.TestPluginMultipluginRegular)
         res1, res2, _, _ = results.split("\n")
 
         res1 = json.loads(res1)
@@ -857,18 +863,18 @@ Feature key:
             },
         )
 
+    class TestPluginFolder(MainBaseTestPlugin):
+        VERSION = "none"
+
+        def execute(self, job: Job) -> dict:
+            self.add_data(
+                "text",
+                {"language": "python"},
+                b"Text output content",
+            )
+            return
+
     def test_folder(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-
-            def execute(self, job: Job) -> dict:
-                self.add_data(
-                    "text",
-                    {"language": "python"},
-                    b"Text output content",
-                )
-                return
-
         with tempfile.TemporaryDirectory() as tmpdir:
             pf1 = os.path.join(tmpdir, "f1")
             pf2 = os.path.join(tmpdir, "f2")
@@ -882,12 +888,12 @@ Feature key:
                 f.seek(0)
                 sha2562 = hashlib.sha256(f.read()).hexdigest()
             sys.argv = ["test_main.py", tmpdir]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginFolder)
         print(res)
         self.assertEqual(
             res,
             f"""{pf1}
------ TestPlugin results -----
+----- TestPluginFolder results -----
 COMPLETED
 
 events (1)
@@ -898,7 +904,7 @@ event for {sha2561}:None
     19 bytes - EventData(hash='1c2568562238a338919f87598737756a67e22f35d5031a45796c9d312b5beb54', label='text', language='python')
 
 {pf2}
------ TestPlugin results -----
+----- TestPluginFolder results -----
 COMPLETED
 
 events (1)
@@ -911,19 +917,19 @@ event for {sha2562}:None
 """,
         )
 
+    class TestPluginFolderJson(MainBaseTestPlugin):
+        VERSION = "1.0"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.add_data(
+                "text",
+                {"language": "python"},
+                b"Text output content",
+            )
+            self.add_feature_values("value", 12345)
+
     def test_folder_json(self):
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "1.0"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.add_data(
-                    "text",
-                    {"language": "python"},
-                    b"Text output content",
-                )
-                self.add_feature_values("value", 12345)
-
         with tempfile.TemporaryDirectory() as tmpdir:
             pf1 = os.path.join(tmpdir, "f1")
             pf2 = os.path.join(tmpdir, "f2")
@@ -937,7 +943,7 @@ event for {sha2562}:None
                 f.seek(0)
                 sha2562 = hashlib.sha256(f.read()).hexdigest()
             sys.argv = ["test_main.py", tmpdir, "--output-json"]
-            res = self._stdout_result(TestPlugin)
+            res = self._stdout_result(self.TestPluginFolderJson)
 
         # every second line is valid json
         lines = res.split("\n")
@@ -1000,16 +1006,15 @@ event for {sha2562}:None
             },
         )
 
+    class TestPluginServerExceptionHandlingPlugin(MainBaseTestPlugin):
+        VERSION = "none"
+        FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
+
+        def execute(self, job: Job) -> dict:
+            self.add_feature_values("value", 97)
+
     def test_server_exception_handling_plugin(self):
         """Tests the server's handling of errors from coordinator."""
-
-        class TestPlugin(MainBaseTestPlugin):
-            VERSION = "none"
-            FEATURES = [Feature("value", "A return value", type=FeatureType.Integer)]
-
-            def execute(self, job: Job) -> dict:
-                self.add_feature_values("value", 97)
-
         # Have to use shared memory because it's the only way for the mock method to communicate from the subprocess.
         # back to the test, to validate the right number of calls were made.
         with managers.SharedMemoryManager() as smm:
@@ -1021,7 +1026,7 @@ event for {sha2562}:None
                 return
 
             with mock.patch.object(monitor.Monitor, "run_loop", wraps=fake_run_loop_return):
-                main.execute(TestPlugin, main.Args())
+                main.execute(self.TestPluginServerExceptionHandlingPlugin, main.Args())
                 self.assertEqual(share_mem[0], 1)
 
             share_mem[0] = 0
@@ -1033,7 +1038,7 @@ event for {sha2562}:None
 
             with mock.patch.object(monitor.Monitor, "run_loop", wraps=fake_run_loop_exception):
                 with self.assertRaises(Exception):
-                    main.execute(TestPlugin, main.Args())
+                    main.execute(self.TestPluginServerExceptionHandlingPlugin, main.Args())
                     self.assertEqual(share_mem[0], 1)
 
             # Re-boot plugin once and cleanup temp
@@ -1048,5 +1053,5 @@ event for {sha2562}:None
 
             with mock.patch.object(monitor.Monitor, "run_loop", wraps=fake_run_loop_retry):
                 with self.assertRaises(monitor.RecreateException):
-                    main.execute(TestPlugin, main.Args())
+                    main.execute(self.TestPluginServerExceptionHandlingPlugin, main.Args())
                     self.assertEqual(share_mem[0], 2)

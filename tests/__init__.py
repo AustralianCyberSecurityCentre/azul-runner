@@ -3,10 +3,12 @@
 import logging
 import multiprocessing
 
-# FUTURE, shouldn't rely on fork and should switch to forkserver or spawn (defaults for python 3.14)
-# Ensure start method is set to fork but ignore if the start method has already been set.
+# Preload azul_runner, this dramatically improves test speed when running in forkserver.
+multiprocessing.set_forkserver_preload(["azul_runner"])
+
+# Ensures forkserver which is used which is how all future code is expected to run (python 3.14+)
 try:
-    multiprocessing.set_start_method("fork")
+    multiprocessing.set_start_method("forkserver")
 except Exception:
     pass
 # Ensure logging is enabled during tests.

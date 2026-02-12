@@ -78,15 +78,14 @@ class TestBasePluginStatic(unittest.TestCase):
     Test cases for base plugin class - cases that don't require mock server
     """
 
+    class DPFeatureInheritanceInstance(sup.DummyPluginFeatureInheritance):
+        def execute(self, job):
+            self.add_feature_values("example_string", ["String value"])
+            self.add_feature_values("descendant feature", ["Whatever"])
+
     def test_feature_inheritance_instance(self):
         """Tests that feature inheritance functions correctly on instantiated classes"""
-
-        class DP(sup.DummyPluginFeatureInheritance):
-            def execute(self, job):
-                self.add_feature_values("example_string", ["String value"])
-                self.add_feature_values("descendant feature", ["Whatever"])
-
-        loop = monitor.Monitor(DP, {})
+        loop = monitor.Monitor(self.DPFeatureInheritanceInstance, {})
         self.assertEqual(loop._plugin.VERSION, "2.0")
         self.assertEqual(loop._plugin.cfg.filter_data_types, {})
         self.assertEqual(
@@ -112,14 +111,13 @@ class TestBasePluginStatic(unittest.TestCase):
             },
         )
 
+    class DPAddNoFeatures(sup.DummyPlugin):
+        def execute(self, job):
+            pass
+
     def test_add_no_features(self):
         """Tests that feature inheritance functions correctly on instantiated classes"""
-
-        class DP(sup.DummyPlugin):
-            def execute(self, job):
-                pass
-
-        loop = monitor.Monitor(DP, {})
+        loop = monitor.Monitor(self.DPAddNoFeatures, {})
         self.assertEqual(loop._plugin.cfg.filter_data_types, {})
 
         # Check that features give correct output on execution
@@ -175,7 +173,6 @@ class TestBasePluginStatic(unittest.TestCase):
                 "filter_self": False,
                 "filter_data_types": {},
                 "concurrent_plugin_instances": 1,
-                "use_multiprocessing_fork": False,
             },
         )
 
@@ -233,7 +230,6 @@ class TestBasePluginStatic(unittest.TestCase):
                 "filter_self": False,
                 "filter_data_types": {},
                 "concurrent_plugin_instances": 1,
-                "use_multiprocessing_fork": False,
                 "custom1": 999,
                 "myvalue2": "100",
                 "myvalue3": 100,

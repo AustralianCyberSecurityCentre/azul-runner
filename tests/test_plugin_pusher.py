@@ -31,22 +31,7 @@ class TestPusherLive(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.mock_server = md.MockDispatcher()
-        cls.mock_server.start()
-        while not cls.mock_server.is_alive():
-            time.sleep(0.2)  # Wait for server to start
-        cls.server = "http://%s:%s" % (cls.mock_server.host, cls.mock_server.port)
-        # Wait for server to be ready to respond
-        tries = 0
-        while True:
-            time.sleep(0.2)
-            tries += 1
-            try:
-                _ = httpx.get(cls.server + "/mock/get_var/fetch_count")
-                break  # Exit loop if successful
-            except (httpx.TimeoutException, httpx.ConnectError):
-                if tries > 20:  # Time out after about 4 seconds
-                    raise RuntimeError("Timed out waiting for mock server to be ready")
+        cls.mock_server, cls.server = sup.setup_mock_dispatcher()
 
     @classmethod
     def tearDownClass(cls) -> None:

@@ -94,7 +94,7 @@ class Plugin:
 
         # add the multiplugin for execute()
         self._multiplugins: dict[str | None, Multiplugin] = {
-            None: Multiplugin(name=None, version=None, callback=lambda x: self.execute(x), description=None)
+            None: Multiplugin(name=None, version=None, callback=self._mp_callback, description=None)
         }
 
         # travel inheritance hierarchy for all defined features
@@ -112,6 +112,10 @@ class Plugin:
         if self.SECURITY and not isinstance(self.SECURITY, str):
             logger.error(f"self.SECURITY is {self.SECURITY}, not a string")
             exit(1)
+
+    def _mp_callback(self, job: Job):
+        """Defined method for multiplugin callback."""
+        return self.execute(job)
 
     def _alter_config(self, config: settings.Settings) -> settings.Settings:
         """Implement this function to edit config immediately after config generation.
