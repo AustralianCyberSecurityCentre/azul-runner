@@ -26,6 +26,24 @@ from . import mock_dispatcher as md
 from .test_plugin_timeout import DummySleepPlugin, TestPluginTimeouts
 
 
+def _proxy_run_loop_monitor(server: str, *args):
+    """Raise a termination signal"""
+    loop = monitor.Monitor(
+        DummySleepPlugin,
+        {"events_url": server + "/test_data", "data_url": server, "delay": 3},
+    )
+    loop.run_loop()
+
+
+def _proxy_run_loop_coordinator(server: str, dummy_queue):
+    """Raise a termination signal"""
+    loop = coordinator.Coordinator(
+        DummySleepPlugin,
+        settings.Settings(events_url=server + "/test_data", data_url=server, delay=1, delay_after_exception=0),
+    )
+    loop.run_loop(queue=dummy_queue)
+
+
 class CustomTestException(Exception):
     """Unique exception that is only raised in tests."""
 
@@ -76,19 +94,9 @@ class TestPluginTerminated(unittest.TestCase):
     @pytest.mark.timeout(20)
     def test_sigterm_monitor(self):
         """Test to see if child processes are killed when a sigterm is sent to the parent process (monitor)"""
-
-        loop = monitor.Monitor(
-            DummySleepPlugin,
-            {"events_url": self.server + "/test_data", "data_url": self.server, "delay": 3},
-        )
-
-        def proxy_run_loop(*args):
-            """Raise a termination signal"""
-            loop.run_loop()
-
         process_ref = multiprocessing.Process(
-            target=proxy_run_loop,
-            args=(),
+            target=_proxy_run_loop_monitor,
+            args=(self.server),
         )
         process_ref.start()
         time.sleep(2)
@@ -133,21 +141,9 @@ class TestPluginTerminated(unittest.TestCase):
 
         As opposed to just accepting the SIGTERM and exiting immediately.
         """
-        loop = coordinator.Coordinator(
-            DummySleepPlugin,
-            settings.Settings(
-                events_url=self.server + "/test_data", data_url=self.server, delay=1, delay_after_exception=0
-            ),
-        )
-
-        def proxy_run_loop(*args):
-            """Raise a termination signal"""
-            with self.assertRaises(coordinator.SigTermExitError):
-                loop.run_loop(queue=self.dummy_queue)
-
         p = multiprocessing.Process(
-            target=proxy_run_loop,
-            args=(),
+            target=_proxy_run_loop_coordinator,
+            args=(self.server, self.dummy_queue),
         )
         p.start()
         time.sleep(2)
