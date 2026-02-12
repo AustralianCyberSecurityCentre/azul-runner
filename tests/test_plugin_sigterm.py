@@ -99,8 +99,18 @@ class TestPluginTerminated(unittest.TestCase):
             args=(self.server),
         )
         process_ref.start()
-        time.sleep(2)
-        parent = psutil.Process(process_ref.pid)
+
+        # Wait until parent id is available.
+        parent = None
+        for i in range(20):
+            time.sleep(0.5)
+            with contextlib.suppress(psutil.NoSuchProcess):
+                parent = psutil.Process(process_ref.pid)
+            if i >= 19:
+                raise Exception("cannot find parent process after waiting, something is wrong!")
+            if parent:
+                break
+
         all_pids = [parent.pid]
         for child_processes in parent.children(recursive=True):
             all_pids.append(child_processes.pid)
