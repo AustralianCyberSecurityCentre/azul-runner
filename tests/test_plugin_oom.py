@@ -16,7 +16,7 @@ from azul_runner.settings import add_settings
 from tests import plugin_support as sup
 
 from . import mock_dispatcher as md
-from .test_plugin_timeout import TestPluginTimeouts
+from .test_plugin_timeout import DummySleepPlugin, TestPluginTimeouts
 
 
 class CustomTestException(Exception):
@@ -66,22 +66,7 @@ class TestPluginOom(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.mock_server = md.MockDispatcher()
-        cls.mock_server.start()
-        while not cls.mock_server.is_alive():
-            time.sleep(0.2)  # Wait for server to start
-        cls.server = "http://%s:%s" % (cls.mock_server.host, cls.mock_server.port)
-        # Wait for server to be ready to respond
-        tries = 0
-        while True:
-            time.sleep(0.2)
-            tries += 1
-            try:
-                _ = httpx.get(cls.server + "/mock/get_var/fetch_count")
-                break  # Exit loop if successful
-            except (httpx.TimeoutException, httpx.ConnectError):
-                if tries > 20:  # Time out after about 4 seconds
-                    raise RuntimeError("Timed out waiting for mock server to be ready")
+        cls.mock_server, cls.server = sup.setup_mock_dispatcher()
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -201,7 +186,7 @@ class TestPluginOom(unittest.TestCase):
     @pytest.mark.timeout(10)
     def test_normal_plugin_run(self):
         """Check that the plugin runs and returns successfully with a memory limit set when it stays in that limit."""
-        loop = monitor.Monitor(TestPluginTimeouts.gen_sleep_plugin(2), self.default_config.copy())
+        loop = monitor.Monitor(DummySleepPlugin, self.default_config.copy())
         result = loop.run_once(self.basic_input_event)
 
         print(result[None])
@@ -213,7 +198,9 @@ class TestPluginOom(unittest.TestCase):
         self.cur_mem_file.write("100")
         self.cur_mem_file.flush()
         self.cur_mem_file.seek(0)
-        loop = monitor.Monitor(TestPluginTimeouts.gen_sleep_plugin(1.1), self.default_config.copy())
+        cfg = self.default_config.copy()
+        cfg["delay"] = 1.1
+        loop = monitor.Monitor(DummySleepPlugin, cfg)
         with self.assertRaises(monitor.NoNetworkResultError) as e:
             loop.run_once(self.basic_input_event)
         job_oom_result = e.exception.result
@@ -265,7 +252,9 @@ class TestPluginOom(unittest.TestCase):
         self.cur_mem_file.write("85")
         self.cur_mem_file.flush()
         self.cur_mem_file.seek(0)
-        loop = monitor.Monitor(TestPluginTimeouts.gen_sleep_plugin(1.1), self.default_config.copy())
+        cfg = self.default_config.copy()
+        cfg["delay"] = 1.1
+        loop = monitor.Monitor(DummySleepPlugin, cfg)
         with self.assertLogs() as caught_logs:
             loop.run_once(self.basic_input_event)
 
@@ -283,7 +272,9 @@ class TestPluginOom(unittest.TestCase):
         self.cur_mem_file.write("95")
         self.cur_mem_file.flush()
         self.cur_mem_file.seek(0)
-        loop = monitor.Monitor(TestPluginTimeouts.gen_sleep_plugin(1.1), self.default_config.copy())
+        cfg = self.default_config.copy()
+        cfg["delay"] = 1.1
+        loop = monitor.Monitor(DummySleepPlugin, cfg)
         with self.assertLogs() as caught_logs:
             loop.run_once(self.basic_input_event)
 
@@ -301,7 +292,7 @@ class TestPluginOom(unittest.TestCase):
         self.max_mem_file.write("MAXMEM")
         self.max_mem_file.flush()
         self.max_mem_file.seek(0)
-        loop = monitor.Monitor(TestPluginTimeouts.gen_sleep_plugin(2), self.default_config.copy())
+        loop = monitor.Monitor(DummySleepPlugin, self.default_config.copy())
         result = loop.run_once(self.basic_input_event)
 
         # Ensure a result is acquired rather than an OOM error
@@ -312,8 +303,9 @@ class TestPluginOom(unittest.TestCase):
     @pytest.mark.timeout(20)
     def test_kill_children_called_oom(self):
         """Test to see if child processes are killed on out of memory"""
-
-        loop = monitor.Monitor(TestPluginTimeouts.gen_sleep_plugin(1.1), self.default_config.copy())
+        cfg = self.default_config.copy()
+        cfg["delay"] = 1.1
+        loop = monitor.Monitor(DummySleepPlugin, cfg)
 
         called = False
 

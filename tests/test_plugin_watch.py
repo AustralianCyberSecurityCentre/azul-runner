@@ -48,22 +48,7 @@ class TestPluginExecutionWrapper(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.mock_server = md.MockDispatcher()
-        cls.mock_server.start()
-        while not cls.mock_server.is_alive():
-            time.sleep(0.2)  # Wait for server to start
-        cls.server = "http://%s:%s" % (cls.mock_server.host, cls.mock_server.port)
-        # Wait for server to be ready to respond
-        tries = 0
-        while True:
-            time.sleep(0.2)
-            tries += 1
-            try:
-                _ = httpx.get(cls.server + "/mock/get_var/fetch_count")
-                break  # Exit loop if successful
-            except (httpx.TimeoutException, httpx.ConnectError):
-                if tries > 20:  # Time out after about 4 seconds
-                    raise RuntimeError("Timed out waiting for mock server to be ready")
+        cls.mock_server, cls.server = sup.setup_mock_dispatcher()
 
         # Dummy shared memory queue and ctype
         cls.dummy_queue: multiprocessing.Queue = multiprocessing.Queue()
@@ -81,8 +66,7 @@ class TestPluginExecutionWrapper(unittest.TestCase):
             config_dict["watch_type"] = watch_type
         loop = coordinator.Coordinator(sup.DummyPlugin, settings.parse_config(sup.DummyPlugin, config_dict))
 
-        mp_ctx = multiprocessing.get_context("fork")
-        p = mp_ctx.Process(
+        p = Process(
             target=modify_file_in_background_causing_crash,
             args=(
                 filepath,
@@ -117,24 +101,39 @@ class TestPluginExecutionWrapper(unittest.TestCase):
 
             self._inner_test_watch(filepath, watch_type="git")
 
+    class DPWatchGitMissing(sup.DummyPlugin):
+        def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
+            super().__init__(config)
+            with open(os.path.join(config["test_input_data"]["filepath"], "tmp.txt"), "r") as f:
+                self.retval = f.read()
+
+        def execute(self, job):
+            self.add_feature_values("example_string", self.retval)
+
     def test_watch_git_missing(self):
         with tempfile.TemporaryDirectory() as filepath:
-
-            class DP(sup.DummyPlugin):
-                def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
-                    super().__init__(config)
-                    with open(os.path.join(filepath, "tmp.txt"), "r") as f:
-                        self.retval = f.read()
-
-                def execute(self, job):
-                    self.add_feature_values("example_string", self.retval)
-
             self.assertRaisesRegex(
                 coordinator.CriticalError,
                 r"is git not installed or .* not a valid git checkout",
                 coordinator.Coordinator,
-                *(DP, settings.parse_config(DP, {"watch_path": filepath, "watch_wait": 0, "watch_type": "git"})),
+                *(
+                    self.DPWatchGitMissing,
+                    settings.parse_config(
+                        self.DPWatchGitMissing,
+                        {
+                            "watch_path": filepath,
+                            "watch_wait": 0,
+                            "watch_type": "git",
+                            "test_input_data": {"filepath": filepath},
+                        },
+                    ),
+                ),
             )
+
+    class DPTestNoWatch(sup.DummyPlugin):
+        def execute(self, job):
+            # Sleep up to job limit (6) waiting up to 3 seconds for a Recreate error to be generated.
+            time.sleep(0.5)
 
     @pytest.mark.timeout(10)
     def test_no_watch(self):
@@ -144,15 +143,11 @@ class TestPluginExecutionWrapper(unittest.TestCase):
             with open(os.path.join(filepath, "tmp.txt"), "w") as f:
                 f.write("1")
 
-            class DP(sup.DummyPlugin):
-                def execute(self, job):
-                    # Sleep up to job limit (6) waiting up to 3 seconds for a Recreate error to be generated.
-                    time.sleep(0.5)
+            loop = coordinator.Coordinator(
+                self.DPTestNoWatch, settings.parse_config(self.DPTestNoWatch, {"server": self.server + "/test_data"})
+            )
 
-            loop = coordinator.Coordinator(DP, settings.parse_config(DP, {"server": self.server + "/test_data"}))
-
-            mp_ctx = multiprocessing.get_context("fork")
-            p = mp_ctx.Process(
+            p = Process(
                 target=modify_file_in_background_causing_crash,
                 args=(
                     filepath,

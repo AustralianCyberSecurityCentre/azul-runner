@@ -245,11 +245,7 @@ class Monitor:
         """Init."""
         self._plugin_class = plugin_class
         self._cfg = settings.parse_config(self._plugin_class, config)
-        # Using multiprocess so dill can be used for serialization rather than pickle.
-        if self._cfg.use_multiprocessing_fork:
-            self.mp_ctx = multiprocessing.get_context("fork")
-        else:
-            self.mp_ctx = multiprocessing.get_context("forkserver")
+        self.mp_ctx = multiprocessing.get_context("forkserver")
 
         # Setup plugin
         self._recreate_plugin()

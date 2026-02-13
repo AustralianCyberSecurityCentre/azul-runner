@@ -1,21 +1,38 @@
 """Dispatcher API Mocking with enough state-tracking to be useful for testing runner."""
 
+import contextlib
 import copy
 import datetime
 import hashlib
 import json
 import logging
+import multiprocessing
 import os
 import re
+import socket
 from typing import Any
 
 import urllib3
 from azul_bedrock import models_api as azapi
 from azul_bedrock import models_network as azm
 from azul_bedrock.mock import Editor, MockDispatcher, dp
-from fastapi import Request, Response
+from fastapi import APIRouter, Request, Response
+import uvicorn
 
-app = dp.app
+router = APIRouter()
+
+
+class RunnerMockDispatcher(MockDispatcher):
+    """Allows for runner to mock dispatcher in forkserver multiprocessing."""
+
+    def run(self, *args, **kwargs):
+        """Run the server."""
+        app = dp.app
+        app.include_router(router)
+        config = uvicorn.Config(app, host=self.host, port=self.port)
+        self.server = uvicorn.Server(config=config)
+        self.config = config
+        self.server.run()
 
 
 class RawResponse(Response):
@@ -64,7 +81,7 @@ clear()
 # Bottle methods
 
 
-@app.get("/mock/get_var/{var}")
+@router.get("/mock/get_var/{var}")
 def mock_get_var(var: str, request: Request, response: Response) -> Any:
     """
     Retrieve a var from the mock server; used to check correct parameters were passed.
@@ -100,7 +117,7 @@ def mock_get_var(var: str, request: Request, response: Response) -> Any:
 #
 
 
-@app.post("/{path}/api/v2/event")
+@router.post("/{path}/api/v2/event")
 async def post_event(path: str, request: Request, response: Response) -> azapi.ResponsePostEvent:
     """Called to create new output events on plugin completion"""
     body = await request.body()
@@ -114,7 +131,7 @@ async def post_event(path: str, request: Request, response: Response) -> azapi.R
     return azapi.ResponsePostEvent(total_ok=len(data), total_failures=0, failures=[])
 
 
-@app.get("/{variant}/api/v2/event/{ent_type}/active")
+@router.get("/{variant}/api/v2/event/{ent_type}/active")
 async def get_events_switchable(
     variant: str, ent_type: str, request: Request, response: Response
 ) -> dict | bytes | str:

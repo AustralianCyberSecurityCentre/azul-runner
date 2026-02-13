@@ -45,15 +45,14 @@ class DeleteTempDirectoryTests(unittest.TestCase):
     def test_delete_same_case_on_prefix_and_filename(self):
         self.base_delete_file_with_custom_prefix("customTempFile", "customTempFile")
 
+    class DPTemplatefileGetsCleared(sup.DummyPlugin):
+        def execute(self, job: Job):
+            with open(job.event.entity.info.get("file"), "wb") as f:
+                f.write(b"abjksdlfjalksdf aslkdfjlkasdj lasdjf laksdfjlkasdf")
+
     def test_tempfile_gets_cleared(self):
         """Tests that bad temp files created by a plugin get cleared on re-create."""
-
-        class DP(sup.DummyPlugin):
-            def execute(self, job: Job):
-                with open(job.event.entity.info.get("file"), "wb") as f:
-                    f.write(b"abjksdlfjalksdf aslkdfjlkasdj lasdjf laksdfjlkasdf")
-
-        loop = monitor.Monitor(DP, {})
+        loop = monitor.Monitor(self.DPTemplatefileGetsCleared, {})
         first_dummy_file = os.path.join(tempfile.gettempdir(), "tmpdummyfile1")
         second_dummy_file = os.path.join(tempfile.gettempdir(), "tmpdummyfile2")
         entity = azm.BinaryEvent.Entity(sha256="id", datastreams=[], features=[], info={"file": first_dummy_file})

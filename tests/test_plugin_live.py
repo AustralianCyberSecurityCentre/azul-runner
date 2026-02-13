@@ -54,24 +54,7 @@ class TestBasePluginLive(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.mock_server = md.MockDispatcher()
-        cls.mock_server.start()
-        total_sleep = 0
-        while not cls.mock_server.is_alive() and total_sleep < 20:
-            time.sleep(0.2)  # Wait for server to start
-            total_sleep += 1
-        cls.server = "http://%s:%s" % (cls.mock_server.host, cls.mock_server.port)
-        # Wait for server to be ready to respond
-        tries = 0
-        while True:
-            time.sleep(0.2)
-            tries += 1
-            try:
-                _ = httpx.get(cls.server + "/mock/get_var/fetch_count")
-                break  # Exit loop if successful
-            except (httpx.TimeoutException, httpx.ConnectError):
-                if tries > 20:  # Time out after about 4 seconds
-                    raise RuntimeError("Timed out waiting for mock server to be ready")
+        cls.mock_server, cls.server = sup.setup_mock_dispatcher()
         # Dummy shared memory queue and ctype
         cls.dummy_queue: multiprocessing.Queue = multiprocessing.Queue()
 
@@ -131,16 +114,17 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertIn("password", out_event["entity"]["config"])
         self.assertNotIn("secret_password", out_event["entity"]["config"])
 
+    class DPRegistartionConfigOverride(sup.DummyPlugin):
+        """Hello world."""
+
+        FEATURES = [
+            Feature(name="feat1", desc="", type=azm.FeatureType.String),
+            Feature(name="per_stream_feat", desc="", type=azm.FeatureType.String),
+        ]
+
     def test_registration_config_overrides(self):
-        class DP(sup.DummyPlugin):
-            """Hello world."""
 
-            FEATURES = [
-                Feature(name="feat1", desc="", type=azm.FeatureType.String),
-                Feature(name="per_stream_feat", desc="", type=azm.FeatureType.String),
-            ]
-
-        p = DP(
+        p = self.DPRegistartionConfigOverride(
             config={
                 "server": self.server + "/depth_1",
                 "name_suffix": "ASuffix",
@@ -164,13 +148,13 @@ class TestBasePluginLive(unittest.TestCase):
                 "kafka_key": "runner-placeholder",
                 "author": {
                     "category": "plugin",
-                    "name": "DP-ASuffix",
+                    "name": "DPRegistartionConfigOverride-ASuffix",
                     "version": "1.0-Beta5",
                     "security": "Alpha Beta",
                 },
                 "entity": {
                     "category": "plugin",
-                    "name": "DP-ASuffix",
+                    "name": "DPRegistartionConfigOverride-ASuffix",
                     "version": "1.0-Beta5",
                     "security": "Alpha Beta",
                     "description": "Hello world.",
@@ -229,7 +213,7 @@ class TestBasePluginLive(unittest.TestCase):
                         "require_live": "true",
                         "run_timeout": "600",
                         "security_override": '"Alpha Beta"',
-                        "use_multiprocessing_fork": "true",
+                        "test_input_data": "{}",
                         "used_mem_force_exit_frac": "0.9",
                         "used_mem_warning_frac": "0.8",
                         "version_suffix": '"Beta5"',
@@ -319,7 +303,7 @@ class TestBasePluginLive(unittest.TestCase):
                         "require_live": "true",
                         "run_timeout": "600",
                         "security_override": '""',
-                        "use_multiprocessing_fork": "true",
+                        "test_input_data": "{}",
                         "used_mem_force_exit_frac": "0.9",
                         "used_mem_warning_frac": "0.8",
                         "version_suffix": '""',
@@ -331,13 +315,13 @@ class TestBasePluginLive(unittest.TestCase):
             },
         )
 
+    class DPRegistrationSecurityField(sup.DummyPlugin):
+        """Test case plugin class for security field."""
+
+        SECURITY = "security_1 other_security"
+
     def test_registration_security_field(self):
-        class DummyPluginSecurity(sup.DummyPlugin):
-            """Test case plugin class for security field."""
-
-            SECURITY = "security_1 other_security"
-
-        p = DummyPluginSecurity(config={"events_url": self.server + "/depth_1", "data_url": self.server})
+        p = self.DPRegistrationSecurityField(config={"events_url": self.server + "/depth_1", "data_url": self.server})
         net = network.Network(p)
         net.post_registrations()
         r = httpx.get("%s/mock/get_var/last_request_body" % self.server)
@@ -352,13 +336,13 @@ class TestBasePluginLive(unittest.TestCase):
                 "kafka_key": "runner-placeholder",
                 "author": {
                     "category": "plugin",
-                    "name": "DummyPluginSecurity",
+                    "name": "DPRegistrationSecurityField",
                     "version": "1.0",
                     "security": "security_1 other_security",
                 },
                 "entity": {
                     "category": "plugin",
-                    "name": "DummyPluginSecurity",
+                    "name": "DPRegistrationSecurityField",
                     "version": "1.0",
                     "security": "security_1 other_security",
                     "description": "Test case plugin class for security field.",
@@ -415,7 +399,7 @@ class TestBasePluginLive(unittest.TestCase):
                         "require_live": "true",
                         "run_timeout": "600",
                         "security_override": '""',
-                        "use_multiprocessing_fork": "true",
+                        "test_input_data": "{}",
                         "used_mem_force_exit_frac": "0.9",
                         "used_mem_warning_frac": "0.8",
                         "version_suffix": '""',
@@ -427,15 +411,15 @@ class TestBasePluginLive(unittest.TestCase):
             },
         )
 
+    class DummyPluginSecurityDict(sup.DummyPlugin):
+        """Test case plugin class for security field dict."""
+
+        SECURITY = "security_1 inc_grp TLP:WHITE"
+
     def test_registration_security_dict(self):
         """Test registration using a security dict instead of list."""
 
-        class DummyPluginSecurityDict(sup.DummyPlugin):
-            """Test case plugin class for security field dict."""
-
-            SECURITY = "security_1 inc_grp TLP:WHITE"
-
-        p = DummyPluginSecurityDict(
+        p = self.DummyPluginSecurityDict(
             config={"events_url": self.server + "/depth_1", "deployment_key": "apple", "data_url": self.server}
         )
         net = network.Network(p)
@@ -515,7 +499,7 @@ class TestBasePluginLive(unittest.TestCase):
                         "require_live": "true",
                         "run_timeout": "600",
                         "security_override": '""',
-                        "use_multiprocessing_fork": "true",
+                        "test_input_data": "{}",
                         "used_mem_force_exit_frac": "0.9",
                         "used_mem_warning_frac": "0.8",
                         "version_suffix": '""',
@@ -681,15 +665,15 @@ class TestBasePluginLive(unittest.TestCase):
         r.raise_for_status()
         self.assertEqual(r.content, b"fake data 2")
 
-    def test_ack_job(self):
-        class DP(sup.DummyPlugin):
-            FEATURES = [
-                Feature(name="feat1", desc="", type=azm.FeatureType.String),
-                Feature(name="per_stream_feat", desc="", type=azm.FeatureType.String),
-            ]
-            SECURITY = "test_security_level"  # should be passed in result
+    class _DPTestAckJob(sup.DummyPlugin):
+        FEATURES = [
+            Feature(name="feat1", desc="", type=azm.FeatureType.String),
+            Feature(name="per_stream_feat", desc="", type=azm.FeatureType.String),
+        ]
+        SECURITY = "test_security_level"  # should be passed in result
 
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
+    def test_ack_job(self):
+        loop = monitor.Monitor(self._DPTestAckJob, {"events_url": self.server + "/test_data", "data_url": self.server})
         entity = azm.BinaryEvent.Entity(sha256="id", datastreams=[], features=[], info={})
         _ = loop.run_once(local.gen_event(entity))
         dt = datetime.datetime.now(datetime.timezone.utc)
@@ -754,7 +738,7 @@ class TestBasePluginLive(unittest.TestCase):
                         timestamp=dt,
                         author=azm.Author(
                             category="plugin",
-                            name="DP",
+                            name="_DPTestAckJob",
                             version="1.0",
                             security="test_security_level",
                         ),
@@ -764,7 +748,7 @@ class TestBasePluginLive(unittest.TestCase):
             ),
             author=azm.Author(
                 category="plugin",
-                name="DP",
+                name="_DPTestAckJob",
                 version="1.0",
                 security="test_security_level",
             ),
@@ -791,7 +775,7 @@ class TestBasePluginLive(unittest.TestCase):
                         timestamp=dt,
                         author=azm.Author(
                             category="plugin",
-                            name="DP",
+                            name="_DPTestAckJob",
                             version="1.0",
                             security="test_security_level",
                         ),
@@ -801,7 +785,7 @@ class TestBasePluginLive(unittest.TestCase):
             ),
             author=azm.Author(
                 category="plugin",
-                name="DP",
+                name="_DPTestAckJob",
                 version="1.0",
                 security="test_security_level",
             ),
@@ -856,7 +840,7 @@ class TestBasePluginLive(unittest.TestCase):
                 timestamp=dt,
                 author=azm.Author(
                     category="plugin",
-                    name="DP",
+                    name="_DPTestAckJob",
                     version="1.0",
                     security="test_security_level",
                 ),
@@ -873,15 +857,18 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertEqual(out_event["entity"]["results"][1], dump(event2))
         self.assertEqual(out_event, expected)
 
-    def test_ack_job_security_string_passthrough(self):
-        class DP(sup.DummyPlugin):
-            FEATURES = [
-                Feature(name="feat1", desc="", type=azm.FeatureType.String),
-                Feature(name="per_stream_feat", desc="", type=azm.FeatureType.String),
-            ]
-            SECURITY = "test_security_level"  # should be passed in result
+    class DPTestAckJobSecurityStringPassthrough(sup.DummyPlugin):
+        FEATURES = [
+            Feature(name="feat1", desc="", type=azm.FeatureType.String),
+            Feature(name="per_stream_feat", desc="", type=azm.FeatureType.String),
+        ]
+        SECURITY = "test_security_level"  # should be passed in result
 
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
+    def test_ack_job_security_string_passthrough(self):
+        loop = monitor.Monitor(
+            self.DPTestAckJobSecurityStringPassthrough,
+            {"events_url": self.server + "/test_data", "data_url": self.server},
+        )
         entity = azm.BinaryEvent.Entity(sha256="id", datastreams=[], features=[], info={})
         _ = loop.run_once(local.gen_event(entity))[None]
         dt = datetime.datetime.now(datetime.timezone.utc)
@@ -936,7 +923,7 @@ class TestBasePluginLive(unittest.TestCase):
                         timestamp=dt,
                         author=azm.Author(
                             category="plugin",
-                            name="DP",
+                            name="DPTestAckJobSecurityStringPassthrough",
                             version="1.0",
                             security="test_security_level",
                         ),
@@ -947,7 +934,7 @@ class TestBasePluginLive(unittest.TestCase):
             ),
             author=azm.Author(
                 category="plugin",
-                name="DP",
+                name="DPTestAckJobSecurityStringPassthrough",
                 version="1.0",
                 security="test_security_level",
             ),
@@ -965,7 +952,7 @@ class TestBasePluginLive(unittest.TestCase):
                 timestamp=dt,
                 author=azm.Author(
                     category="plugin",
-                    name="DP",
+                    name="DPTestAckJobSecurityStringPassthrough",
                     version="1.0",
                     security="test_security_level",
                 ),
@@ -981,16 +968,18 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertEqual(out_event["entity"]["results"][0], dump(event1))
         self.assertEqual(out_event, expected)
 
+    class DPAckJobChildrenAndSecurityDict(sup.DummyPlugin):
+        FEATURES = [
+            Feature(name="sample_feature", desc="", type=azm.FeatureType.String),
+        ]
+        SECURITY = "ex_value TLP:WHITE"  # should be passed in result
+
     def test_ack_job_children_and_security_dict(self):
         """Test the API post output of an event with children and grandchildren, using a dict value for SECURITY"""
 
-        class DP(sup.DummyPlugin):
-            FEATURES = [
-                Feature(name="sample_feature", desc="", type=azm.FeatureType.String),
-            ]
-            SECURITY = "ex_value TLP:WHITE"  # should be passed in result
-
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
+        loop = monitor.Monitor(
+            self.DPAckJobChildrenAndSecurityDict, {"events_url": self.server + "/test_data", "data_url": self.server}
+        )
         entity = azm.BinaryEvent.Entity(sha256="id", datastreams=[], features=[], info={})
         _ = loop.run_once(local.gen_event(entity))[None]
         dt = datetime.datetime.now(datetime.timezone.utc)
@@ -1057,7 +1046,7 @@ class TestBasePluginLive(unittest.TestCase):
                 timestamp=dt,
                 author=azm.Author(
                     category="plugin",
-                    name="DP",
+                    name="DPAckJobChildrenAndSecurityDict",
                     version="1.0",
                     security="ex_value TLP:WHITE",
                 ),
@@ -1081,7 +1070,7 @@ class TestBasePluginLive(unittest.TestCase):
                                         timestamp=dt,
                                         author=azm.Author(
                                             category="plugin",
-                                            name="DP",
+                                            name="DPAckJobChildrenAndSecurityDict",
                                             version="1.0",
                                             security="ex_value TLP:WHITE",
                                         ),
@@ -1093,7 +1082,7 @@ class TestBasePluginLive(unittest.TestCase):
                             ),
                             author=azm.Author(
                                 category="plugin",
-                                name="DP",
+                                name="DPAckJobChildrenAndSecurityDict",
                                 version="1.0",
                                 security="ex_value TLP:WHITE",
                             ),
@@ -1148,7 +1137,7 @@ class TestBasePluginLive(unittest.TestCase):
                                         timestamp=dt,
                                         author=azm.Author(
                                             category="plugin",
-                                            name="DP",
+                                            name="DPAckJobChildrenAndSecurityDict",
                                             version="1.0",
                                             security="ex_value TLP:WHITE",
                                         ),
@@ -1162,7 +1151,7 @@ class TestBasePluginLive(unittest.TestCase):
                                         timestamp=dt,
                                         author=azm.Author(
                                             category="plugin",
-                                            name="DP",
+                                            name="DPAckJobChildrenAndSecurityDict",
                                             version="1.0",
                                             security="ex_value TLP:WHITE",
                                         ),
@@ -1175,7 +1164,7 @@ class TestBasePluginLive(unittest.TestCase):
                             ),
                             author=azm.Author(
                                 category="plugin",
-                                name="DP",
+                                name="DPAckJobChildrenAndSecurityDict",
                                 version="1.0",
                                 security="ex_value TLP:WHITE",
                             ),
@@ -1223,13 +1212,15 @@ class TestBasePluginLive(unittest.TestCase):
         expected["entity"]["runtime"] = out_event["entity"]["runtime"]
         self.assertEqual(out_event, expected)
 
+    class DPAckJobNewStreamOnly(sup.DummyPlugin):
+        SECURITY = "test_security_level"  # should be passed in result
+
     def test_ack_job_new_stream_only(self):
         """Ensure if plugin only produces a new stream, it is still treated as an output result."""
 
-        class DP(sup.DummyPlugin):
-            SECURITY = "test_security_level"  # should be passed in result
-
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
+        loop = monitor.Monitor(
+            self.DPAckJobNewStreamOnly, {"events_url": self.server + "/test_data", "data_url": self.server}
+        )
         entity = azm.BinaryEvent.Entity(sha256="id", datastreams=[], features=[], info={})
         _ = loop.run_once(local.gen_event(entity))[None]
         dt = datetime.datetime.now(datetime.timezone.utc)
@@ -1267,11 +1258,13 @@ class TestBasePluginLive(unittest.TestCase):
         out_event: dict = r.json()[0]
         self.assertTrue(out_event["entity"].get("results"))
 
-    def test_ack_job_status_id(self):
-        class DP(sup.DummyPlugin):
-            SECURITY = "test_security_level"  # should be passed in result
+    class DPAckJobStatusId(sup.DummyPlugin):
+        SECURITY = "test_security_level"  # should be passed in result
 
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_path", "data_url": self.server})
+    def test_ack_job_status_id(self):
+        loop = monitor.Monitor(
+            self.DPAckJobStatusId, {"events_url": self.server + "/test_path", "data_url": self.server}
+        )
         entity = azm.BinaryEvent.Entity(sha256="id", datastreams=[], features=[], info={})
         _ = loop.run_once(local.gen_event(entity))[None]
         dt = datetime.datetime.now(datetime.timezone.utc)
@@ -1295,20 +1288,21 @@ class TestBasePluginLive(unittest.TestCase):
         # Ensure that this hash matches what is tested against in the dispatcher
         self.assertEqual("generated-dummy-dequeued-id", out_event["entity"]["input"]["dequeued"])
 
+    class DPRunloopPosting(sup.DummyPlugin):
+        def execute(self, job):
+            time.sleep(0.1)
+
     def test_runloop_posting(self):
         """Directly test monitoring process managing loop"""
-
-        class DP(sup.DummyPlugin):
-            def execute(self, job):
-                time.sleep(0.1)
-
         logging_queue = multiprocessing.Queue()
 
         p = Process(
             target=monitor._start_loop_coordinator,
             kwargs=dict(
-                plugin=DP,
-                config=settings.parse_config(DP, {"events_url": self.server + "/null_sleep", "data_url": self.server}),
+                plugin=self.DPRunloopPosting,
+                config=settings.parse_config(
+                    self.DPRunloopPosting, {"events_url": self.server + "/null_sleep", "data_url": self.server}
+                ),
                 job_limit=None,
                 log_level=logging.INFO,
                 queue=self.dummy_queue,
@@ -1336,7 +1330,7 @@ class TestBasePluginLive(unittest.TestCase):
                 timestamp=datetime.datetime.now(tz=datetime.timezone.utc),  # Will be replaced with correct value below
                 author=azm.Author(
                     category="plugin",
-                    name="DP",
+                    name="DPRunloopPosting",
                     version="1.0",
                 ),
                 entity=azm.StatusEvent.Entity(
@@ -1366,18 +1360,19 @@ class TestBasePluginLive(unittest.TestCase):
         expected["entity"]["runtime"] = j.get("entity", {}).get("runtime")
         self.assertEqual(j, expected)
 
-    def test_runloop_with_heartbeat(self):
-        class DP(sup.DummyPlugin):
-            def execute(self, job: Job):
-                time.sleep(2.5)
-                self.add_feature_values("example_string", "test")
+    class DPRunloopWithHeartbeat(sup.DummyPlugin):
+        def execute(self, job: Job):
+            time.sleep(2.5)
+            self.add_feature_values("example_string", "test")
 
+    def test_runloop_with_heartbeat(self):
         # Clean any requests
         r = httpx.get("%s/mock/get_var/all_requests" % self.server)
 
         # Send heartbeat ever 1 sec
         loop = monitor.Monitor(
-            DP, {"events_url": self.server + "/test_data", "heartbeat_interval": 1, "data_url": self.server}
+            self.DPRunloopWithHeartbeat,
+            {"events_url": self.server + "/test_data", "heartbeat_interval": 1, "data_url": self.server},
         )
         test_data = b"This is test data that should be fetched by the runner"
         loop._network._post_data(
@@ -1411,23 +1406,25 @@ class TestBasePluginLive(unittest.TestCase):
             [azm.FeatureValue(name="example_string", type="string", value="test")],
         )
 
-    def test_runloop_with_content(self):
-        class DP(sup.DummyPlugin):
-            def execute(self, job: Job):
-                if job.get_all_data():
-                    pass
-                else:
+    class DPRunloopWithContent(sup.DummyPlugin):
+        def execute(self, job: Job):
+            if job.get_all_data():
+                pass
+            else:
+                # Alternative way of failing test to avoid serialising self
+                raise coordinator.CriticalError("get_all_data is not truthy!")
+            lengths = []
+            for ds in job.get_all_data():
+                if not isinstance(ds, StorageProxyFile):
                     # Alternative way of failing test to avoid serialising self
-                    raise coordinator.CriticalError("get_all_data is not truthy!")
-                lengths = []
-                for ds in job.get_all_data():
-                    if not isinstance(ds, StorageProxyFile):
-                        # Alternative way of failing test to avoid serialising self
-                        raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
-                    lengths.append(len(ds.read()))
-                self.add_feature_values("example_int", lengths)
+                    raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
+                lengths.append(len(ds.read()))
+            self.add_feature_values("example_int", lengths)
 
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
+    def test_runloop_with_content(self):
+        loop = monitor.Monitor(
+            self.DPRunloopWithContent, {"events_url": self.server + "/test_data", "data_url": self.server}
+        )
         test_data = b"This is test data that should be fetched by the runner"
         loop._network._post_data(
             "source",
@@ -1453,25 +1450,26 @@ class TestBasePluginLive(unittest.TestCase):
             ],
         )
 
+    class DPRunloopMultipleIterations(sup.DummyPlugin):
+        def execute(self, job: Job):
+            if job.get_all_data():
+                pass
+            else:
+                # Alternative way of failing test to avoid serialising self
+                raise coordinator.CriticalError("get_all_data is not truthy!")
+            lengths = []
+            for ds in job.get_all_data():
+                if not isinstance(ds, StorageProxyFile):
+                    # Alternative way of failing test to avoid serialising self
+                    raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
+                lengths.append(len(ds.read()))
+            self.add_feature_values("example_int", lengths)
+
     def test_runloop_multiple_iterations(self):
         """Ensure the plugin can run in a loop and post more than one response."""
-
-        class DP(sup.DummyPlugin):
-            def execute(self, job: Job):
-                if job.get_all_data():
-                    pass
-                else:
-                    # Alternative way of failing test to avoid serialising self
-                    raise coordinator.CriticalError("get_all_data is not truthy!")
-                lengths = []
-                for ds in job.get_all_data():
-                    if not isinstance(ds, StorageProxyFile):
-                        # Alternative way of failing test to avoid serialising self
-                        raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
-                    lengths.append(len(ds.read()))
-                self.add_feature_values("example_int", lengths)
-
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
+        loop = monitor.Monitor(
+            self.DPRunloopMultipleIterations, {"events_url": self.server + "/test_data", "data_url": self.server}
+        )
         loop.time_to_wait_between_checks = 0.5
         test_data = b"This is test data that should be fetched by the runner"
         loop._network._post_data(
@@ -1542,27 +1540,29 @@ class TestBasePluginLive(unittest.TestCase):
             "Unexpected result: %s:%s (%s)" % (out_evt.entity.status, out_evt.entity.error, out_evt.entity.message),
         )
 
+    class DPRunloopWithWatch(sup.DummyPlugin):
+        def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
+            super().__init__(config)
+            filepath = self.cfg.test_input_data.get("filepath")
+            with open(os.path.join(filepath, "tmp.txt"), "r") as f:
+                self.retval = f.read()
+
+        def execute(self, job):
+            self.add_feature_values("example_string", self.retval)
+
     def test_runloop_with_watch(self):
         with tempfile.TemporaryDirectory() as filepath:
             with open(os.path.join(filepath, "tmp.txt"), "w") as f:
                 f.write("1")
 
-            class DP(sup.DummyPlugin):
-                def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
-                    super().__init__(config)
-                    with open(os.path.join(filepath, "tmp.txt"), "r") as f:
-                        self.retval = f.read()
-
-                def execute(self, job):
-                    self.add_feature_values("example_string", self.retval)
-
             loop = monitor.Monitor(
-                DP,
+                self.DPRunloopWithWatch,
                 {
                     "events_url": self.server + "/test_data",
                     "watch_path": filepath,
                     "watch_wait": 0,
                     "data_url": self.server,
+                    "test_input_data": {"filepath": filepath},
                 },
             )
             # test_data = b"This is test data that should be fetched by the runner"
@@ -1622,7 +1622,7 @@ class TestBasePluginLive(unittest.TestCase):
             with open(os.path.join(filepath, "tmp.txt"), "w") as f:
                 f.write("1")
 
-            class DP(sup.DummyPlugin):
+            class DPRunlookWithNoWatch(sup.DummyPlugin):
                 def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
                     super().__init__(config)
                     with open(os.path.join(filepath, "tmp.txt"), "r") as f:
@@ -1633,8 +1633,10 @@ class TestBasePluginLive(unittest.TestCase):
 
             # Have to run with coordinator, because monitor would restart the coordinator between iterations.
             loop = coordinator.Coordinator(
-                DP,
-                settings.parse_config(DP, {"events_url": self.server + "/test_data", "data_url": self.server}),
+                DPRunlookWithNoWatch,
+                settings.parse_config(
+                    DPRunlookWithNoWatch, {"events_url": self.server + "/test_data", "data_url": self.server}
+                ),
             )
             # test_data = b"This is test data that should be fetched by the runner"
             # loop._network._post_data({DATA_HASH(test_data).hexdigest(): test_data})
@@ -1698,6 +1700,20 @@ class TestBasePluginLive(unittest.TestCase):
                 ],
             )
 
+    class DPRunloopUTF8(sup.DummyPlugin):
+        def execute(self, job: Job):
+            lengths = []
+            if job.get_all_data():
+                pass
+            else:
+                # A way of crashing the test without assertions
+                raise coordinator.CriticalError("get_all_data is not truthy!")
+            for ds in job.get_all_data():
+                if not isinstance(ds, StorageProxyFile):
+                    raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
+                lengths.append(len(ds.read()))
+            self.add_feature_values("example_string", self.cfg.test_input_data.get("example_string"))
+
     def test_runloop_utf8(self):
         # ensure that utf8 is encoded and decoded correctly
         # different length when encoded
@@ -1705,21 +1721,14 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertEqual(len(text), 5)
         self.assertEqual(len(text.encode()), 15)
 
-        class DP(sup.DummyPlugin):
-            def execute(self, job: Job):
-                lengths = []
-                if job.get_all_data():
-                    pass
-                else:
-                    # A way of crashing the test without assertions
-                    raise coordinator.CriticalError("get_all_data is not truthy!")
-                for ds in job.get_all_data():
-                    if not isinstance(ds, StorageProxyFile):
-                        raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
-                    lengths.append(len(ds.read()))
-                self.add_feature_values("example_string", text)
-
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
+        loop = monitor.Monitor(
+            TestBasePluginLive.DPRunloopUTF8,
+            {
+                "events_url": self.server + "/test_data",
+                "data_url": self.server,
+                "test_input_data": {"example_string": text},
+            },
+        )
         test_data = b"This is test data that should be fetched by the runner"
         loop._network._post_data(
             "source",
@@ -1744,6 +1753,20 @@ class TestBasePluginLive(unittest.TestCase):
             ],
         )
 
+    class DPRunloopSurrogateCharacters(sup.DummyPlugin):
+        def execute(self, job: Job):
+            lengths = []
+            if job.get_all_data():
+                pass
+            else:
+                # A way of crashing the test without assertions
+                raise coordinator.CriticalError("get_all_data is not truthy!")
+            for ds in job.get_all_data():
+                if not isinstance(ds, StorageProxyFile):
+                    raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
+                lengths.append(len(ds.read()))
+            self.add_feature_values("example_string", self.cfg.test_input_data.get("text"))
+
     def test_runloop_surrogate_characters(self):
         # ensure that utf8 is encoded and decoded correctly
         # different length when encoded
@@ -1752,21 +1775,10 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertEqual(len(text), 2)
         self.assertEqual(len(text.encode(errors="backslashreplace")), 12)
 
-        class DP(sup.DummyPlugin):
-            def execute(self, job: Job):
-                lengths = []
-                if job.get_all_data():
-                    pass
-                else:
-                    # A way of crashing the test without assertions
-                    raise coordinator.CriticalError("get_all_data is not truthy!")
-                for ds in job.get_all_data():
-                    if not isinstance(ds, StorageProxyFile):
-                        raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
-                    lengths.append(len(ds.read()))
-                self.add_feature_values("example_string", text)
-
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
+        loop = monitor.Monitor(
+            self.DPRunloopSurrogateCharacters,
+            {"events_url": self.server + "/test_data", "data_url": self.server, "test_input_data": {"text": text}},
+        )
         test_data = b"This is test data that should be fetched by the runner"
         loop._network._post_data(
             "source",
@@ -1792,10 +1804,7 @@ class TestBasePluginLive(unittest.TestCase):
         )
 
     def test_too_many_events(self):
-        class DP(sup.DummyPlugin):
-            pass
-
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/too_many", "data_url": self.server})
+        loop = monitor.Monitor(sup.DummyPlugin, {"events_url": self.server + "/too_many", "data_url": self.server})
         self.assertRaisesRegex(ValueError, "2 events fetched by dispatcher, only 1 allowed", loop._network.fetch_job)
 
     def test_use_spawn_mp_plugin(self):
@@ -1823,6 +1832,39 @@ class TestBasePluginLive(unittest.TestCase):
             {"example_string": [FV(value="test")]},
         )
 
+    class DPRunMultipleInstancesConcurrently(sup.DummyPlugin):
+        SETTINGS = add_settings(
+            request_retry_count=0,
+            concurrent_plugin_instances=5,
+        )  # Don't retry failed requests when testing
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+            self.received_jobs = 0
+
+        def execute(self, job: Job):
+            if self.received_jobs and self.received_jobs == 1:
+                # Sleep before completing second job.
+                time.sleep(1)
+            elif self.received_jobs and self.received_jobs > 1:
+                # Ran more than 2 jobs where only a max of 2 is allowed.
+                raise coordinator.CriticalError("Instance received more than one job and this is unexpected!")
+
+            self.received_jobs += 1
+            if job.get_all_data():
+                pass
+            else:
+                # Alternative way of failing test to avoid serialising self
+                raise coordinator.CriticalError("get_all_data is not truthy!")
+            lengths = []
+            for ds in job.get_all_data():
+                if not isinstance(ds, StorageProxyFile):
+                    # Alternative way of failing test to avoid serialising self
+                    raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
+                lengths.append(len(ds.read()))
+            self.add_feature_values("example_int", lengths)
+
     def test_run_multiple_plugin_instances_concurrently(self):
         """Run 5 instances of a plugin concurrently and ensure they get at most 2 jobs.
 
@@ -1833,42 +1875,10 @@ class TestBasePluginLive(unittest.TestCase):
         They may not ALL be done by the time coordinator checks if the job limit is reached.
         Once the job limit is reached all plugins will have one at least once.
         """
-
-        class DP(sup.DummyPlugin):
-            SETTINGS = add_settings(
-                request_retry_count=0,
-                use_multiprocessing_fork=True,
-                concurrent_plugin_instances=5,
-            )  # Don't retry failed requests when testing
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.received_jobs = 0
-
-            def execute(self, job: Job):
-                if self.received_jobs and self.received_jobs == 1:
-                    # Sleep before completing second job.
-                    time.sleep(1)
-                elif self.received_jobs and self.received_jobs > 1:
-                    # Ran more than 2 jobs where only a max of 2 is allowed.
-                    raise coordinator.CriticalError("Instance received more than one job and this is unexpected!")
-
-                self.received_jobs += 1
-                if job.get_all_data():
-                    pass
-                else:
-                    # Alternative way of failing test to avoid serialising self
-                    raise coordinator.CriticalError("get_all_data is not truthy!")
-                lengths = []
-                for ds in job.get_all_data():
-                    if not isinstance(ds, StorageProxyFile):
-                        # Alternative way of failing test to avoid serialising self
-                        raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
-                    lengths.append(len(ds.read()))
-                self.add_feature_values("example_int", lengths)
-
-        loop = monitor.Monitor(DP, {"events_url": self.server + "/test_data", "data_url": self.server})
+        loop = monitor.Monitor(
+            self.DPRunMultipleInstancesConcurrently,
+            {"events_url": self.server + "/test_data", "data_url": self.server},
+        )
         loop.time_to_wait_between_checks = 0.5
         test_data = b"This is test data that should be fetched by the runner"
         loop._network._post_data(
@@ -1909,8 +1919,6 @@ class YaraxDP(sup.DummyPlugin):
     This is because yara-x fails to function when using certain multiprocessing options
     and always fails when using threading.
     """
-
-    SETTINGS = add_settings(use_multiprocessing_fork=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

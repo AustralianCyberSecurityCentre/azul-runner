@@ -182,13 +182,6 @@ class Settings(BaseSettings):
     # Launches this many subprocesses, each running their own instance of the plugin.
     concurrent_plugin_instances: int = 1
 
-    # Useful for testing in cases where forking allows users to preserve mocks between multiprocessors.
-    # It can also be much faster than using forkserver.
-    # fork is not the default because it is deprecated and in Python 3.14 it forkserver will be the default.
-    # This is because having threads in a parent can cause deadlocks which includes some libraries
-    # azul plugins use, as well as our Queue based log handlers.
-    use_multiprocessing_fork: bool = False
-
 
 def add_settings(**field_definitions: Any) -> type[PluginBaseSettings]:
     """Create a pydantic settings class useable for plugins SETTINGS field.

@@ -27,28 +27,24 @@ from . import plugin_support as sup
 class BaseInputContentNoFilter(sup.DummyPlugin):
     SETTINGS = add_settings(
         filter_data_types={azm.DataLabel.TEST: []},
-        use_multiprocessing_fork=True,
     )
 
 
 class BaseInputContentAssertionPluginV1(sup.DummyPluginMinimum):
     SETTINGS = add_settings(
         filter_data_types={azm.DataLabel.TEST: ["text/plain"]},
-        use_multiprocessing_fork=True,
     )
 
 
 class BaseInputContentAssertionPluginV2(sup.DummyPluginMinimum):
     SETTINGS = add_settings(
         filter_data_types={azm.DataLabel.TEST: ["text/plain", "unknown", "network/tcpdump"]},
-        use_multiprocessing_fork=True,
     )
 
 
 class BaseInputContentAssertionPluginV3(sup.DummyPluginMinimum):
     SETTINGS = add_settings(
         filter_data_types={azm.DataLabel.TEST: ["network/tcpdump"]},
-        use_multiprocessing_fork=True,
     )
 
 
@@ -117,19 +113,19 @@ class TestExecutionWrapperInputChecking(TestPlugin):
 class TestEventLimits(TestPlugin):
     PLUGIN_TO_TEST = sup.DummyPlugin
 
+    class DPTooLarge(sup.DummyPlugin):
+        def execute(self, job) -> dict:
+            tmp = "a" * (1024 * 1024 * 2 + 512)
+            print(len(tmp))
+            print(tmp[:20])
+            self.add_info({"large": tmp})
+
     def test_too_large(self):
         """Limit total size of status message."""
 
         # Generate a dynamic class with input content requirements
-        class DP(sup.DummyPlugin):
-            def execute(self, job) -> dict:
-                tmp = "a" * (1024 * 1024 * 2 + 512)
-                print(len(tmp))
-                print(tmp[:20])
-                self.add_info({"large": tmp})
-
         with self.assertRaises(azbe.NetworkDataException) as e:
-            self.do_execution(plugin_class=DP)
+            self.do_execution(plugin_class=self.DPTooLarge)
 
         self.assertIn("event produced by plugin was too large: ", e.exception.external)
 
@@ -137,22 +133,22 @@ class TestEventLimits(TestPlugin):
 class TestAlterConfig(TestPlugin):
     PLUGIN_TO_TEST = sup.DummyPlugin
 
+    class DPTooLarge(sup.DummyPlugin):
+        def execute(self, job) -> dict:
+            tmp = "a" * (1024 * 1024 * 2 + 512)
+            print(len(tmp))
+            print(tmp[:20])
+            self.add_info({"large": tmp})
+
+        def _alter_config(self, config: settings.Settings) -> settings.Settings:
+            config.filter_data_types = {"*": ["text/plain"]}
+            return config
+
     def test_too_large(self):
         """Limit total size of status message."""
 
         # Generate a dynamic class with input content requirements
-        class DP(sup.DummyPlugin):
-            def execute(self, job) -> dict:
-                tmp = "a" * (1024 * 1024 * 2 + 512)
-                print(len(tmp))
-                print(tmp[:20])
-                self.add_info({"large": tmp})
-
-            def _alter_config(self, config: settings.Settings) -> settings.Settings:
-                config.filter_data_types = {"*": ["text/plain"]}
-                return config
-
-        p = DP()
+        p = self.DPTooLarge()
         self.assertEqual(p.cfg.filter_data_types, {"*": ["text/plain"]})
 
 
@@ -232,13 +228,13 @@ class TestPluginOutputStream(TestPlugin):
 
     PLUGIN_TO_TEST = sup.DummyPlugin
 
-    def test_add_alt_stream(self):
-        class DP(sup.DummyPlugin):
-            def execute(self, job):
-                self.add_data("text", {"language": "value"}, b"Text data stream")
+    class DPAddAltStream(sup.DummyPlugin):
+        def execute(self, job):
+            self.add_data("text", {"language": "value"}, b"Text data stream")
 
+    def test_add_alt_stream(self):
         # Test a plugin successfully adding an additional stream result
-        result = self.do_execution(plugin_class=DP)
+        result = self.do_execution(plugin_class=self.DPAddAltStream)
         self.assertJobResult(
             result,
             JobResult(
@@ -260,12 +256,12 @@ class TestPluginOutputStream(TestPlugin):
             inspect_data=True,
         )
 
-    def test_addition_common_feature_malformed(self):
-        class DP(sup.DummyPlugin):
-            def execute(self, job):
-                return self.is_malformed("This file is seriously malformed")
+    class DPAdditionCommonFeatureMalformed(sup.DummyPlugin):
+        def execute(self, job):
+            return self.is_malformed("This file is seriously malformed")
 
-        result = self.do_execution(plugin_class=DP)
+    def test_addition_common_feature_malformed(self):
+        result = self.do_execution(plugin_class=self.DPAdditionCommonFeatureMalformed)
         self.assertJobResult(
             result,
             JobResult(
@@ -279,27 +275,28 @@ class TestPluginOutputStream(TestPlugin):
             ),
         )
 
+    class DPMutatingAugStream(sup.DummyPlugin):
+        """Plugin that generates random sha256's"""
+
+        def execute(self, job):
+            unique_id_1 = str(uuid.uuid4())
+            self.add_data(azm.DataLabel.TEST, {}, unique_id_1.encode())
+
     def test_mutating_augmented_stream(self):
         """Test that the test case fails if you mutate the augmented streams.
 
         Important to limit data produced by plugins.
         """
 
-        # Plugin that generates random sha256's
-        class DP(sup.DummyPlugin):
-            def execute(self, job):
-                unique_id_1 = str(uuid.uuid4())
-                self.add_data(azm.DataLabel.TEST, {}, unique_id_1.encode())
-
         # Verify assertion error is raised with inconsistent outputs
         with self.assertRaises(AssertionError):
             self.do_execution(
-                plugin_class=DP,
+                plugin_class=self.DPMutatingAugStream,
             )
 
         # Verify bypassing the check is possible.
         result = self.do_execution(
-            plugin_class=DP,
+            plugin_class=self.DPMutatingAugStream,
             check_consistent_augmented_stream=False,
         )
         self.assertJobResult(
@@ -312,27 +309,27 @@ class TestPluginOutputStream(TestPlugin):
             strip_hash=True,
         )
 
+    class DPMutatingChildStream(sup.DummyPlugin):
+        """Plugin that generates random sha256's"""
+
+        def execute(self, job):
+            unique_id_1 = str(uuid.uuid4())
+            self.add_child_with_data({"action": "extracted"}, unique_id_1.encode())
+
     def test_mutating_child_stream(self):
         """Test that the test case fails if you mutate the child streams.
 
         Important to limit data produced by plugins.
         """
-
-        # Plugin that generates random sha256's
-        class DP(sup.DummyPlugin):
-            def execute(self, job):
-                unique_id_1 = str(uuid.uuid4())
-                self.add_child_with_data({"action": "extracted"}, unique_id_1.encode())
-
         # Verify assertion error is raised with inconsistent outputs
         with self.assertRaises(AssertionError):
             self.do_execution(
-                plugin_class=DP,
+                plugin_class=self.DPMutatingChildStream,
             )
 
         # Verify bypassing the check is possible.
         result = self.do_execution(
-            plugin_class=DP,
+            plugin_class=self.DPMutatingChildStream,
             check_consistent_augmented_stream=False,
         )
         self.assertJobResult(
@@ -352,35 +349,35 @@ class TestPluginOutputStream(TestPlugin):
             strip_hash=True,
         )
 
+    class DPMutatingMultipluginStream(sup.DummyPlugin):
+        """Plugin that generates random sha256's"""
+
+        def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
+            super().__init__(config)
+            self._multiplugins = {}  # remove parent plugins
+            self.register_multiplugin(None, None, lambda x: self.execute(x))
+            self.register_multiplugin(None, None, lambda x: self.execute(x))
+
+        def execute(self, job):
+            unique_id_1 = str(uuid.uuid4())
+            self.add_child_with_data({"action": "extracted"}, unique_id_1.encode())
+            unique_id_2 = str(uuid.uuid4())
+            self.add_data(azm.DataLabel.TEST, {}, unique_id_2.encode())
+
     def test_mutating_multiplugin_stream(self):
         """Test that the test case fails if you mutate the augmented/child streams with a multi-plugin.
 
         Important to limit data produced by plugins.
         """
-
-        # Plugin that generates random sha256's
-        class DP(sup.DummyPlugin):
-            def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
-                super().__init__(config)
-                self._multiplugins = {}  # remove parent plugins
-                self.register_multiplugin(None, None, lambda x: self.execute(x))
-                self.register_multiplugin(None, None, lambda x: self.execute(x))
-
-            def execute(self, job):
-                unique_id_1 = str(uuid.uuid4())
-                self.add_child_with_data({"action": "extracted"}, unique_id_1.encode())
-                unique_id_2 = str(uuid.uuid4())
-                self.add_data(azm.DataLabel.TEST, {}, unique_id_2.encode())
-
         # Verify assertion error is raised with inconsistent outputs
         with self.assertRaises(AssertionError):
             self.do_execution(
-                plugin_class=DP,
+                plugin_class=self.DPMutatingMultipluginStream,
             )
 
         # Verify bypassing the check is possible.
         result = self.do_execution(
-            plugin_class=DP,
+            plugin_class=self.DPMutatingMultipluginStream,
             check_consistent_augmented_stream=False,
         )
         self.assertJobResult(

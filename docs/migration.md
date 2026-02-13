@@ -2,6 +2,10 @@
 
 Note that version was reset to conform to azul-app chart versions
 
+## 10.0
+
+Removal of `use_multiprocessing_fork`
+
 ## 7.0
 
 - Moved `test_template.py` to a folder `test_utils` and made it an extra import so now `azul_runner[test_utils]` will need to be added to the `requirements_test.txt` file, and imported from the `azul_runner` or `azul_runner.test_utils` package.
