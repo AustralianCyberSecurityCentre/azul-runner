@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
 import tempfile
 import time
 import unittest
@@ -35,18 +36,22 @@ class SleepMultiPlugin(sup.DummyPlugin):
     def mp_callback(self, job):
         "Write 100% to memory usage and then sleep."
         time.sleep(1)
-        with open(self.cfg.memory_file_path, "w") as f:
-            f.write("100")
-            f.flush()
-            f.seek(0)
+        # Write to the file if it exists (if it doesn't the process has been terminated)
+        if os.path.exists(self.cfg.memory_file_path):
+            with open(self.cfg.memory_file_path, "w") as f:
+                f.write("100")
+                f.flush()
+                f.seek(0)
         time.sleep(1)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        with open(self.cfg.memory_file_path, "w") as f:
-            f.write("0")
-            f.flush()
-            f.seek(0)
+        # Write to the file if it exists (if it doesn't the process has been terminated)
+        if os.path.exists(self.cfg.memory_file_path):
+            with open(self.cfg.memory_file_path, "w") as f:
+                f.write("0")
+                f.flush()
+                f.seek(0)
 
         self.register_multiplugin("MultiPluginName", "1.0", self.mp_callback)
 
@@ -322,3 +327,9 @@ class TestPluginOom(unittest.TestCase):
         self.assertTrue(
             called, "kill_child_process wasn't called even though out of memory should have been detected."
         )
+
+        # Cleanup leftover -result file this test leaves behind.
+        for f in os.listdir(tempfile.gettempdir()):
+            out_path = os.path.join(tempfile.gettempdir(), f)
+            if os.path.isfile(out_path) and f.endswith(monitor.LOCAL_RESULT_SUFFIX):
+                os.remove(out_path)
