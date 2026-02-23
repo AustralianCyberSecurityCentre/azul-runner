@@ -34,6 +34,7 @@ from . import plugin as mplugin
 from .storage import StorageProxyFile
 
 MAX_ATTEMPTS_TO_KILL_CHILD_PROCESS = 10
+LOCAL_RESULT_SUFFIX = "-result"
 logger = logging.getLogger(__name__)
 
 result_type_adapter = pydantic.TypeAdapter(dict[str | None, JobResult])
@@ -100,7 +101,7 @@ class RunOnceHandler:
 
     def _get_result_file_path(self) -> str:
         """Get the results file path."""
-        return os.path.join(self.cache_dir_path, self.run_guid + "-result")
+        return os.path.join(self.cache_dir_path, self.run_guid + LOCAL_RESULT_SUFFIX)
 
     def _generate_stream_path(self, file_label) -> str:
         """Generate a path for a stream."""

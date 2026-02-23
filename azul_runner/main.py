@@ -2,6 +2,7 @@
 
 import argparse
 import base64
+import contextlib
 import datetime
 import hashlib
 import io
@@ -322,6 +323,14 @@ def process_file(plugin_class: Type[Plugin], m_loop: Monitor, filepath, args: Ar
             with open(os.path.join(args.output_folder, f"{stream[1]}_{stream[0]}.data"), "wb") as f:
                 f.write(stream[2].read())
                 stream[2].seek(0)
+
+    # Attempt to close and delete the file of origin for any open streams, this cleans up temp.
+    streams = []
+    for jresult in res.values():
+        for data_stream in jresult.data.values():
+            with contextlib.suppress(Exception):
+                data_stream.close()
+                os.remove(data_stream.name)
 
 
 def generate_json(result: JobResult, indent=None):
