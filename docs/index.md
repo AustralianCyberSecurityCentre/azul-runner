@@ -95,11 +95,6 @@ Look through the  files that are generated. The generated code defines a basic p
 
 Read the comments and check the links below to understand what does what. Also ask the Azul team for more information.
 
-### .devcontainer/
-
-Contains configuration for VisualStudio Code to enable development inside of a docker container.
- This enables development and local testing/debugging in a consistent environment no matter what operating system the developer is using. You should not need to edit this.
-
 ### tests/
 
 Contains example of test for plugin
@@ -122,12 +117,6 @@ Controls what files are available from the directory during a docker build opera
 
 https://docs.docker.com/engine/reference/builder/#dockerignore-file
 
-### .pre-commit-config.yaml
-
-Controls what checks are performed before allowing a `git commit` operation (if activated)
-
-https://pre-commit.com/
-
 ### Dockerfile
 
 Specifies build steps for this repository during the docker build process.
@@ -135,12 +124,6 @@ Specifies build steps for this repository during the docker build process.
 Avoid getting too fancy/complex with build steps here.
 
 https://docs.docker.com/engine/reference/builder/
-
-### Makefile
-
-Helper for local testing of docker build process. You should avoid editing this.
-
-https://en.wikipedia.org/wiki/Make_(software)
 
 ### README.md
 
@@ -158,21 +141,9 @@ It is important that any system requirements (apt install) are specified here an
 
 ### pyproject.toml
 
-Defines important metadata about your python package.
+Defines important metadata about your python package, linting configuration and all dependencies.
 
 https://www.python.org/dev/peps/pep-0621/
-
-### requirements.txt
-
-Defines python packages required for this plugin to work.
-
-https://pip.pypa.io/en/stable/user_guide/#requirements-files
-
-### requirements_tests.txt
-
-Defines python packages required for the tests for this plugin to work.
-
-https://pip.pypa.io/en/stable/user_guide/#requirements-files
 
 ### tox.ini
 
@@ -327,16 +298,6 @@ This is where any required system dependencies should go, like 'libmagic-dev'.
 
 They need to go here instead of directly in the dockerfile as there is a special build step in CI
  which compiles and publishes your wheel after installing things from debian.txt.
-
-#### requirements.txt
-
-python packages your plugin needs during normal operation.
-e.g. requests
-
-#### requirements_test.txt
-
-python packages your plugin needs during test execution.
-e.g. malpz & pytest
 
 
 ### Try to build the dockerfile
