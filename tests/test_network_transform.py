@@ -202,14 +202,7 @@ class TestGenEvents(unittest.TestCase):
                 "action": "extracted",
                 "source": {
                     "name": "sauce",
-                    "path": [
-                        {
-                            "sha256": "hash",
-                            "action": "extracted",
-                            "timestamp": "2000-01-01T00:00:00+00:00",
-                            "author": {"category": "plugin", "name": "system", "version": "1"},
-                        }
-                    ],
+                    "path": [],
                     "timestamp": "2000-01-01T00:00:00+00:00",
                     "references": {"keen": "eye"},
                 },
@@ -289,14 +282,7 @@ class TestGenEvents(unittest.TestCase):
                 "action": "mapped",
                 "source": {
                     "name": "sauce",
-                    "path": [
-                        {
-                            "sha256": "hash",
-                            "action": "mapped",
-                            "timestamp": "2000-01-01T00:00:00+00:00",
-                            "author": {"category": "plugin", "name": "system", "version": "1"},
-                        }
-                    ],
+                    "path": [],
                     "timestamp": "2000-01-01T00:00:00+00:00",
                     "references": {"keen": "eye"},
                 },
@@ -373,14 +359,7 @@ class TestGenEvents(unittest.TestCase):
                 "action": "sourced",
                 "source": {
                     "name": "sauce",
-                    "path": [
-                        {
-                            "sha256": "hash",
-                            "action": "sourced",
-                            "timestamp": "2000-01-01T00:00:00+00:00",
-                            "author": {"category": "plugin", "name": "system", "version": "1"},
-                        }
-                    ],
+                    "path": [],
                     "timestamp": "2000-01-01T00:00:00+00:00",
                     "references": {"keen": "eye"},
                 },

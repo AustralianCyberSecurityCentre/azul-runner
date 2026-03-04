@@ -117,18 +117,18 @@ class TestPusherLive(unittest.TestCase):
         status["timestamp"] = "2023-10-10T10:10:10+00:00"
         status["entity"]["results"][0]["timestamp"] = "2023-10-10T10:10:10+00:00"
         # Should only be a single event.
-        self.assertEqual(len(result.entity.results[0].source.path), 1)
+        self.assertEqual(len(result.entity.results[0].source.path), 0)
         print(f"actual\n\n{status}\n\nend actual")
         self.assertEqual(
             status,
             {
-                "model_version": azm.CURRENT_MODEL_VERSION,
+                "model_version": 6,
                 "kafka_key": "runner-placeholder",
                 "timestamp": "2023-10-10T10:10:10+00:00",
                 "author": {"category": "plugin", "name": "DummyPluginWithFeats", "version": "1.0"},
                 "entity": {
                     "input": {
-                        "model_version": azm.CURRENT_MODEL_VERSION,
+                        "model_version": 6,
                         "kafka_key": "DummyPluginWithFeats-placeholder",
                         "timestamp": "2023-10-10T10:10:10+00:00",
                         "author": {
@@ -150,7 +150,10 @@ class TestPusherLive(unittest.TestCase):
                         },
                         "action": "sourced",
                         "source": {
+                            "security": "OFFICIAL",
                             "name": "source",
+                            "timestamp": "2023-10-10T10:10:10+00:00",
+                            "references": {"ref1": "val1"},
                             "path": [
                                 {
                                     "sha256": "2f094deac91260d23d3a9a9c0c9e59448342f346fa2927f0ec10af1d72cf55d0",
@@ -167,9 +170,6 @@ class TestPusherLive(unittest.TestCase):
                                     "filename": "random-diff-data",
                                 }
                             ],
-                            "timestamp": "2023-10-10T10:10:10+00:00",
-                            "security": "OFFICIAL",
-                            "references": {"ref1": "val1"},
                         },
                         "dequeued": "2f094deac91260d23d3a9a9c0c9e59448342f346fa2927f0ec10af1d72cf55d0.DummyPluginWithFeats.1.0.2023-10-10T10:10:10Z",
                     },
@@ -177,7 +177,7 @@ class TestPusherLive(unittest.TestCase):
                     "runtime": 0.0,
                     "results": [
                         {
-                            "model_version": azm.CURRENT_MODEL_VERSION,
+                            "model_version": 6,
                             "kafka_key": "runner-placeholder",
                             "timestamp": "2023-10-10T10:10:10+00:00",
                             "author": {"category": "plugin", "name": "DummyPluginWithFeats", "version": "1.0"},
@@ -218,26 +218,11 @@ class TestPusherLive(unittest.TestCase):
                             },
                             "action": "sourced",
                             "source": {
-                                "name": "source",
-                                "path": [
-                                    {
-                                        "sha256": "2f094deac91260d23d3a9a9c0c9e59448342f346fa2927f0ec10af1d72cf55d0",
-                                        "action": "sourced",
-                                        "timestamp": "2023-10-10T10:10:10+00:00",
-                                        "author": {
-                                            "category": "plugin",
-                                            "name": "DummyPluginWithFeats",
-                                            "version": "1.0",
-                                            "security": "OFFICIAL",
-                                        },
-                                        "file_format": "#TEST/ONLY",
-                                        "size": 21,
-                                        "filename": "random-diff-data",
-                                    }
-                                ],
-                                "timestamp": "2023-10-10T10:10:10+00:00",
                                 "security": "OFFICIAL",
+                                "name": "source",
+                                "timestamp": "2023-10-10T10:10:10+00:00",
                                 "references": {"ref1": "val1"},
+                                "path": [],
                             },
                         }
                     ],
@@ -338,19 +323,19 @@ class TestPusherLive(unittest.TestCase):
         status["timestamp"] = "2023-10-10T10:10:10+00:00"
         status["entity"]["results"][0]["timestamp"] = "2023-10-10T10:10:10+00:00"
         # Should be attached to provided source info so should have depth of two.
-        self.assertEqual(len(result.entity.results[0].source.path), 2)
+        self.assertEqual(len(result.entity.results[0].source.path), 0)
 
         print(f"actual\n\n{status}\n\nend actual")
         self.assertEqual(
             status,
             {
-                "model_version": azm.CURRENT_MODEL_VERSION,
+                "model_version": 6,
                 "kafka_key": "runner-placeholder",
                 "timestamp": "2023-10-10T10:10:10+00:00",
                 "author": {"category": "plugin", "name": "DummyPluginWithFeats", "version": "1.0"},
                 "entity": {
                     "input": {
-                        "model_version": azm.CURRENT_MODEL_VERSION,
+                        "model_version": 6,
                         "kafka_key": "DummyPluginWithFeats-placeholder",
                         "timestamp": "2023-10-10T10:10:10+00:00",
                         "author": {
@@ -402,7 +387,7 @@ class TestPusherLive(unittest.TestCase):
                     "runtime": 0.0,
                     "results": [
                         {
-                            "model_version": azm.CURRENT_MODEL_VERSION,
+                            "model_version": 6,
                             "kafka_key": "runner-placeholder",
                             "timestamp": "2023-10-10T10:10:10+00:00",
                             "author": {"category": "plugin", "name": "DummyPluginWithFeats", "version": "1.0"},
@@ -423,30 +408,7 @@ class TestPusherLive(unittest.TestCase):
                                 "name": "source",
                                 "timestamp": "2023-10-10T10:10:10+00:00",
                                 "references": {"ref1": "val1"},
-                                "path": [
-                                    {
-                                        "sha256": "random-other-sha256",
-                                        "action": "sourced",
-                                        "timestamp": "2023-10-10T10:10:10+00:00",
-                                        "author": {"category": "User", "name": "user1", "security": "OFFICIAL"},
-                                        "file_format": "text/plain",
-                                    },
-                                    {
-                                        "sha256": "dummy-sha256",
-                                        "action": "mapped",
-                                        "timestamp": "2023-10-10T10:10:10+00:00",
-                                        "author": {
-                                            "category": "plugin",
-                                            "name": "DummyPluginWithFeats",
-                                            "version": "1.0",
-                                            "security": "OFFICIAL",
-                                        },
-                                        "relationship": {"Asssemblyline_reingest": "Reingested from Assemblyline"},
-                                        "file_format": "text/plain",
-                                        "size": 1,
-                                        "filename": "random-file-name1",
-                                    },
-                                ],
+                                "path": [],
                             },
                         }
                     ],

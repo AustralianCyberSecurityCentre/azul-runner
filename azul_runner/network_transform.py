@@ -199,7 +199,8 @@ def _gen_event_output(
     )
     if plugin._IS_USING_PUSHER:
         # Pusher doesn't need any additional path added because the provided event is the output event..
-        out_event.source.path.pop()
+        # out_event.source.path.pop()
+        out_event.source.path = []
         src_entity_copy = src.entity.model_copy(deep=True)
         # # Merging features
         for base_feats in src_entity_copy.features:
