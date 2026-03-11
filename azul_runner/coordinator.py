@@ -7,6 +7,7 @@
 """
 
 import contextlib
+import dataclasses
 import datetime
 import logging
 import multiprocessing
@@ -16,6 +17,7 @@ import queue as queueLib
 import signal
 import subprocess  # noqa: S404 # noqa S404
 import sys
+import threading
 import time
 import traceback
 from typing import Any, Generator, Optional, Type
@@ -125,6 +127,43 @@ class WatchPath(FileSystemEventHandler):
         else:
             return False
 
+@dataclasses.dataclass
+class WatchRepo:
+    """Notifies main thread when a watched git repository has been updated."""
+    
+    watch_path: str
+    update_event: threading.Event
+    watch_interval: int = 600 # 10 minutes by default, the same as used to be set in the helm chart
+    _notify_thread: threading.Thread | None = None
+    _stop_event: threading.Event | None = None
+    
+    def start(self):
+        """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
+        if self._notify_thread:
+            raise CriticalError("WatchRepo thread is already running")
+
+        self._notify_thread = threading.Thread(target=self._run_loop)
+        self._stop_event = threading.Event()
+        self._notify_thread.start()
+    
+    def stop(self):
+        """In practice this probably won't be called because monitor completely kills running coordinators."""
+        self._stop_event.set()
+        self._notify_thread.join()
+
+    def _run_loop(self):
+        while not self._stop_event.is_set():
+            # get local hash
+            local = subprocess.check_output(["git", "rev-parse", "HEAD"], pwd=self.watch_path, text=True)
+            
+            # get remote hash
+            remote = subprocess.check_output(["git", "ls-remote", "origin", "HEAD"], pwd=self.watch_path, text=True).split()[0]
+            
+            # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
+            if local != remote:
+                self.update_event.set()
+                
+            time.sleep(self.watch_interval)
 
 class Coordinator:
     """Manage continuous plugin execution and prevent bad jobs from stalling plugin."""
@@ -145,19 +184,25 @@ class Coordinator:
         signal.signal(signal.SIGINT, self.set_signal_exit)
         signal.signal(signal.SIGTERM, self.set_signal_exit)
 
-        self._watchdog: Any | None = None
-        self._watched: WatchPath | None = None
+        # self._watchdog: Any | None = None
+        # self._watched: WatchPath | None = None
+        
+        self._watchrepo: WatchRepo | None = None
+        self._repoevent: threading.Event | None = None
 
         # start watchdog
         if self._cfg.watch_path:
-            self._watchdog = Observer()
-            self._watched = WatchPath(self._cfg.watch_wait)
-            # sleep before starting plugin
-            # In Kubernetes, the sidecar is unlikely to have completed sync yet
-            # so this sleep avoids kubernetes pod restarts.
-            time.sleep(self._cfg.watch_wait)
-            self._watchdog.schedule(self._watched, self._cfg.watch_path, recursive=True)
-            self._watchdog.start()
+            self._repoevent = threading.Event()
+            self._watchrepo = WatchRepo(self._cfg.watch_path, self._repoevent)
+            self._watchrepo.start()
+            # self._watchdog = Observer()
+            # self._watched = WatchPath(self._cfg.watch_wait)
+            # # sleep before starting plugin
+            # # In Kubernetes, the sidecar is unlikely to have completed sync yet
+            # # so this sleep avoids kubernetes pod restarts.
+            # time.sleep(self._cfg.watch_wait)
+            # self._watchdog.schedule(self._watched, self._cfg.watch_path, recursive=True)
+            # self._watchdog.start()
         self._recreate_plugin()
 
     def set_signal_exit(self, *args):
@@ -219,8 +264,10 @@ class Coordinator:
         self._network.post_registrations()
         job_count = 0
         while job_limit is None or (job_limit and job_limit > job_count):
-            if self._watched and self._watched.check_updated():
+            if self._repoevent and self._repoevent.is_set():
                 logger.info("Plugin being restarted due to a file change")
+                # pull from remote
+                subprocess.run("git pull ")
                 raise RecreateException()
             # ensure plugin is (still) ready to receive jobs
             if not self._plugin.is_ready():
