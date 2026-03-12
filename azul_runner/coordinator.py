@@ -24,8 +24,8 @@ import traceback
 from typing import Any, Generator, Optional, Type
 
 from azul_bedrock import models_network as azm
-from watchdog.events import FileSystemEvent, FileSystemEventHandler
-from watchdog.observers import Observer
+# from watchdog.events import FileSystemEvent, FileSystemEventHandler
+# from watchdog.observers import Observer
 
 from . import models, network, plugin_executor, settings
 from . import plugin as mplugin
@@ -88,118 +88,93 @@ def get_git_version_suffix(config: settings.Settings) -> str | None:
     return None
 
 
-class WatchPath(FileSystemEventHandler):
-    """Event handler for watchdog."""
-
-    def __init__(self, watch_wait: int) -> None:
-        self._restart_after = None
-        self._watch_wait = watch_wait
-        super().__init__()
-
-    def on_created(self, event):
-        """Event trigger."""
-        self._update(event)
-
-    def on_deleted(self, event):
-        """Event trigger."""
-        self._update(event)
-
-    def on_moved(self, event):
-        """Event trigger."""
-        self._update(event)
-
-    def on_modified(self, event):
-        """Event trigger."""
-        self._update(event)
-
-    def _update(self, event: FileSystemEvent):
-        """Trigger restart if necessary."""
-        logger.info(f"Watched file {event.event_type}: {event.src_path}")
-        if not self._restart_after:
-            logger.info(f"Plugin will be restarted after at least {self._watch_wait} seconds.")
-            # delay in case multiple files are being rewritten
-            self._restart_after = time.time() + self._watch_wait
-
-    def check_updated(self) -> bool:
-        """Return true if path was updated."""
-        if self._restart_after and self._restart_after < time.time():
-            self._restart_after = None
-            return True
-        else:
-            return False
-
 class WatchRepo:
     """Notifies main thread when a watched git repository has been updated."""
-    
-    def __init__(self, url: str, watch_path: str, update_event: threading.Event, watch_interval: int = 600, username: str = "", password: str = ""):
+
+    def __init__(self, url: str, watch_path: str, watch_interval: int = 600, username: str = "", password: str = ""):
         self.url: str = url
         self.watch_path: str = watch_path
-        self.update_event: threading.Event = update_event
         self.watch_interval: int = watch_interval
-        
+
         self.username: str = username if username else os.getenv("GITSYNC_USERNAME", "")
         self.password: str = password if password else os.getenv("GITSYNC_PASSWORD", "")
 
         self._notify_thread: threading.Thread | None = None
+        self._update_event: threading.Event = threading.Event()
         self._stop_event: threading.Event | None = None
-    
+        self._git_lock: threading.Lock = threading.Lock()
+
     def start(self):
         """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
         if self._notify_thread:
             raise CriticalError("WatchRepo thread is already running")
-        
+
         # add authentication info to local store
         if self.username and self.password:
             try:
                 subprocess.run(["git", "config", "--global", "credential.helper", "store"], check=True)
-                subprocess.run(["git", "credential", "approve"], input=f"url={self.url}\nusername={self.username}\npassword={self.password}", text=True, check=True)
+                subprocess.run(
+                    ["git", "credential", "approve"],
+                    input=f"url={self.url}\nusername={self.username}\npassword={self.password}",
+                    text=True,
+                    check=True,
+                )
             except subprocess.CalledProcessError as e:
                 raise CriticalError(f"Could not configure git authentication for watched repo: {e}")
-        
+
         # create watch dir if necessary
         if not os.path.isdir(self.watch_path):
             os.makedirs(self.watch_path, exist_ok=True)
 
-        if subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=self.watch_path).returncode != 0:
-            # clone if repo does not exist
-            subprocess.run(["git", "clone", self.url], cwd=self.watch_path)
-        else:
-            # otherwise just fetch updates
-            self.fetch()
-    
+        with self._git_lock:
+            if subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=self.watch_path).returncode != 0:
+                # clone if repo does not exist
+                subprocess.run(["git", "clone", self.url], cwd=self.watch_path)
+
+        # fetch all updates
+        self.fetch()
+
         self._notify_thread = threading.Thread(target=self._run_loop)
         self._stop_event = threading.Event()
         self._notify_thread.start()
-    
+
     def stop(self):
         """In practice this probably won't be called because monitor completely kills all child coordinators."""
         self._stop_event.set()
         self._notify_thread.join()
-        
-    def update_ready(self) -> bool:
+
+    def update_pending(self) -> bool:
         """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
-        return self.update_event.is_set()
-        
+        return self._update_event.is_set()
+    
+    def clear_pending(self):
+        self._update_event.clear()
+
     def fetch(self):
         try:
-            subprocess.run(["git", "fetch"], cwd=self.watch_path, check=True)
+            with self._git_lock:
+                subprocess.run(["git", "fetch"], cwd=self.watch_path, check=True)
         except subprocess.CalledProcessError as e:
             raise CriticalError(f"Could not fetch remote: {e}")
 
     def _run_loop(self):
         while not self._stop_event.is_set():
-            # get local hash
-            local = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.watch_path, text=True)
-            
-            # get remote hash
-            remote = subprocess.check_output(["git", "ls-remote", "origin", "HEAD"], cwd=self.watch_path, text=True).split()[0]
-            
+            with self._git_lock:
+                # get local hash
+                local = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.watch_path, text=True)
+
+                # get remote hash
+                remote = subprocess.check_output(
+                    ["git", "ls-remote", "origin", "HEAD"], cwd=self.watch_path, text=True
+                ).split()[0]
+
             # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
             if local != remote:
-                self.update_event.set()
+                self._update_event.set()
                 break
-                
-            time.sleep(self.watch_interval)
+
+            self._stop_event.wait(timeout=self.watch_interval)
+
 
 class Coordinator:
     """Manage continuous plugin execution and prevent bad jobs from stalling plugin."""
@@ -220,25 +195,12 @@ class Coordinator:
         signal.signal(signal.SIGINT, self.set_signal_exit)
         signal.signal(signal.SIGTERM, self.set_signal_exit)
 
-        # self._watchdog: Any | None = None
-        # self._watched: WatchPath | None = None
-        
         self._watchrepo: WatchRepo | None = None
-        self._repoevent: threading.Event | None = None
 
-        # start watchdog
+        # start watchdog for monitored repo
         if self._cfg.watch_path:
-            self._repoevent = threading.Event()
-            self._watchrepo = WatchRepo(self._cfg.watch_path, self._repoevent)
+            self._watchrepo = WatchRepo(url="https://inserturlhere.git", watch_path=self._cfg.watch_path)
             self._watchrepo.start()
-            # self._watchdog = Observer()
-            # self._watched = WatchPath(self._cfg.watch_wait)
-            # # sleep before starting plugin
-            # # In Kubernetes, the sidecar is unlikely to have completed sync yet
-            # # so this sleep avoids kubernetes pod restarts.
-            # time.sleep(self._cfg.watch_wait)
-            # self._watchdog.schedule(self._watched, self._cfg.watch_path, recursive=True)
-            # self._watchdog.start()
         self._recreate_plugin()
 
     def set_signal_exit(self, *args):
@@ -257,8 +219,8 @@ class Coordinator:
 
     def __del__(self):
         """Cleanup on deletion."""
-        if hasattr(self, "_watchdog") and self._watchdog:
-            self._watchdog.stop()
+        if hasattr(self, "_watchrepo") and self._watchrepo:
+            self._watchrepo.stop()
 
     def _recreate_plugin(self):
         """Recreate plugin including git version suffix."""
@@ -274,7 +236,9 @@ class Coordinator:
         local_streams: list[StorageProxyFile] = None,
     ) -> dict[str, JobResult]:
         """Perform a local run of plugin, with timeout and error capture."""
-        if self._watchrepo and self._watchrepo.update_ready():
+        if self._watchrepo and self._watchrepo.update_pending():
+            self._watchrepo.clear_pending()
+            self._watchrepo.fetch()  # explicitly fetch; we are not restarting the process unlike in run_loop()
             self._recreate_plugin()
             logger.info("Plugin has been restarted due to a file change")
         # keep newest result for each multiplugin
@@ -300,10 +264,9 @@ class Coordinator:
         self._network.post_registrations()
         job_count = 0
         while job_limit is None or (job_limit and job_limit > job_count):
-            if self._repoevent and self._repoevent.is_set():
+            if self._watchrepo and self._watchrepo.update_pending():
                 logger.info("Plugin being restarted due to a file change")
-                # pull from remote
-                subprocess.run(["git", "pull", f"https://{os.getenv("GITSYNC_USERNAME")}:{os.getenv("GITSYNC_PASSWORD")}@{}")
+                # restart plugin and fetch remote updates when self._watchrepo.start() is called in constructor
                 raise RecreateException()
             # ensure plugin is (still) ready to receive jobs
             if not self._plugin.is_ready():
