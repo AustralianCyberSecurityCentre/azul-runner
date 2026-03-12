@@ -13,6 +13,7 @@ import logging
 import multiprocessing
 import multiprocessing.sharedctypes
 import multiprocessing.util
+import os
 import queue as queueLib
 import signal
 import subprocess  # noqa: S404 # noqa S404
@@ -127,41 +128,76 @@ class WatchPath(FileSystemEventHandler):
         else:
             return False
 
-@dataclasses.dataclass
 class WatchRepo:
     """Notifies main thread when a watched git repository has been updated."""
     
-    watch_path: str
-    update_event: threading.Event
-    watch_interval: int = 600 # 10 minutes by default, the same as used to be set in the helm chart
-    _notify_thread: threading.Thread | None = None
-    _stop_event: threading.Event | None = None
+    def __init__(self, url: str, watch_path: str, update_event: threading.Event, watch_interval: int = 600, username: str = "", password: str = ""):
+        self.url: str = url
+        self.watch_path: str = watch_path
+        self.update_event: threading.Event = update_event
+        self.watch_interval: int = watch_interval
+        
+        self.username: str = username if username else os.getenv("GITSYNC_USERNAME", "")
+        self.password: str = password if password else os.getenv("GITSYNC_PASSWORD", "")
+
+        self._notify_thread: threading.Thread | None = None
+        self._stop_event: threading.Event | None = None
     
     def start(self):
         """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
         if self._notify_thread:
             raise CriticalError("WatchRepo thread is already running")
+        
+        # add authentication info to local store
+        if self.username and self.password:
+            try:
+                subprocess.run(["git", "config", "--global", "credential.helper", "store"], check=True)
+                subprocess.run(["git", "credential", "approve"], input=f"url={self.url}\nusername={self.username}\npassword={self.password}", text=True, check=True)
+            except subprocess.CalledProcessError as e:
+                raise CriticalError(f"Could not configure git authentication for watched repo: {e}")
+        
+        # create watch dir if necessary
+        if not os.path.isdir(self.watch_path):
+            os.makedirs(self.watch_path, exist_ok=True)
 
+        if subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=self.watch_path).returncode != 0:
+            # clone if repo does not exist
+            subprocess.run(["git", "clone", self.url], cwd=self.watch_path)
+        else:
+            # otherwise just fetch updates
+            self.fetch()
+    
         self._notify_thread = threading.Thread(target=self._run_loop)
         self._stop_event = threading.Event()
         self._notify_thread.start()
     
     def stop(self):
-        """In practice this probably won't be called because monitor completely kills running coordinators."""
+        """In practice this probably won't be called because monitor completely kills all child coordinators."""
         self._stop_event.set()
         self._notify_thread.join()
+        
+    def update_ready(self) -> bool:
+        """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
+        return self.update_event.is_set()
+        
+    def fetch(self):
+        try:
+            subprocess.run(["git", "fetch"], cwd=self.watch_path, check=True)
+        except subprocess.CalledProcessError as e:
+            raise CriticalError(f"Could not fetch remote: {e}")
 
     def _run_loop(self):
         while not self._stop_event.is_set():
             # get local hash
-            local = subprocess.check_output(["git", "rev-parse", "HEAD"], pwd=self.watch_path, text=True)
+            local = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.watch_path, text=True)
             
             # get remote hash
-            remote = subprocess.check_output(["git", "ls-remote", "origin", "HEAD"], pwd=self.watch_path, text=True).split()[0]
+            remote = subprocess.check_output(["git", "ls-remote", "origin", "HEAD"], cwd=self.watch_path, text=True).split()[0]
             
             # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
             if local != remote:
                 self.update_event.set()
+                break
                 
             time.sleep(self.watch_interval)
 
@@ -238,7 +274,7 @@ class Coordinator:
         local_streams: list[StorageProxyFile] = None,
     ) -> dict[str, JobResult]:
         """Perform a local run of plugin, with timeout and error capture."""
-        if self._watched and self._watched.check_updated():
+        if self._watchrepo and self._watchrepo.update_ready():
             self._recreate_plugin()
             logger.info("Plugin has been restarted due to a file change")
         # keep newest result for each multiplugin
@@ -267,7 +303,7 @@ class Coordinator:
             if self._repoevent and self._repoevent.is_set():
                 logger.info("Plugin being restarted due to a file change")
                 # pull from remote
-                subprocess.run("git pull ")
+                subprocess.run(["git", "pull", f"https://{os.getenv("GITSYNC_USERNAME")}:{os.getenv("GITSYNC_PASSWORD")}@{}")
                 raise RecreateException()
             # ensure plugin is (still) ready to receive jobs
             if not self._plugin.is_ready():
