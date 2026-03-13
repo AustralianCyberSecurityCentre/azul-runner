@@ -125,6 +125,16 @@ class Settings(BaseSettings):
     # wait x seconds after first change event before restarting plugin
     watch_wait: int = 10
 
+    # Repo watching info (used if watch_type=="git")
+    # remote url to clone from on initialization
+    git_url: str = ""
+    # username to be stored in the local credential store for HTTPS authentication
+    git_username: str = ""
+    # password to be stored in the local credential store for HTTPS authentication
+    git_password: str = ""
+    # interval at which remote is polled to check for changes
+    git_watch_interval: int = 600
+
     # Memory limits
     # Enable the memory limiting functionality (disable by default because only works in Kubernetes).
     enable_mem_limits: bool = False

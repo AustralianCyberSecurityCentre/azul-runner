@@ -9,7 +9,9 @@ import os
 import pathlib
 import shutil
 import signal
+import subprocess
 import tempfile
+import threading
 import time
 import traceback
 import uuid
@@ -239,6 +241,87 @@ class MonitorTask:
         return counted_jobs
 
 
+class WatchRepo:
+    """Notifies main thread when a watched git repository has been updated."""
+
+    def __init__(
+        self, git_url: str, watch_path: str, git_watch_interval: int, git_username: str = "", git_password: str = ""
+    ):
+        self.git_url: str = git_url
+        self.watch_path: str = watch_path
+        self.git_watch_interval: int = git_watch_interval
+        self.git_username: str = git_username
+        self.git_password: str = git_password
+
+        self._notify_thread: threading.Thread = threading.Thread(target=self._run_loop)
+        self._stop_event: threading.Event = threading.Event()
+        self._update_event: threading.Event = threading.Event()
+
+    def start(self):
+        """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
+        if self._notify_thread:
+            raise CriticalError("WatchRepo thread is already running")
+
+        # add authentication info to local store if username/password
+        if self.git_username and self.git_password:
+            try:
+                subprocess.run(["git", "config", "--global", "credential.helper", "store"], check=True)
+                subprocess.run(
+                    ["git", "credential", "approve"],
+                    input=f"url={self.git_url}\nusername={self.git_username}\npassword={self.git_password}",
+                    text=True,
+                    check=True,
+                )
+            except subprocess.CalledProcessError as e:
+                raise CriticalError(f"Could not configure git authentication for watched repo: {e}")
+
+        # create watch dir if necessary
+        if not os.path.isdir(self.watch_path):
+            os.makedirs(self.watch_path, exist_ok=True)
+
+            if subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=self.watch_path).returncode != 0:
+                # clone if repo does not exist
+                subprocess.run(["git", "clone", self.git_url], cwd=self.watch_path)
+
+        # fetch any updates
+        self.fetch()
+        self._notify_thread.start()
+
+    def stop(self):
+        """Tell notify thread to exit then wait for it to join."""
+        self._stop_event.set()
+        self._notify_thread.join()
+
+    def update_pending(self) -> bool:
+        """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
+        return self._update_event.is_set()
+
+    def clear_pending(self):
+        self._update_event.clear()
+
+    def fetch(self):
+        try:
+            subprocess.run(["git", "fetch"], cwd=self.watch_path, check=True)
+        except subprocess.CalledProcessError as e:
+            raise CriticalError(f"Could not fetch remote: {e}")
+
+    def _run_loop(self):
+        while not self._stop_event.is_set():
+            local = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.watch_path, text=True)
+
+            # get remote hash
+            remote = subprocess.check_output(
+                ["git", "ls-remote", "origin", "HEAD"], cwd=self.watch_path, text=True
+            ).split()[0]
+
+            # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
+            if local != remote:
+                self._update_event.set()
+
+            # wait until it is either time to check remote again or the main thread tell this thread to stop with WatchRepo.stop()
+            self._stop_event.wait(timeout=self.git_watch_interval)
+
+
 class Monitor:
     """Monitor the plugin coordinator and check if it is Out of Memory, perform heart beats and capture timeouts."""
 
@@ -287,6 +370,17 @@ class Monitor:
                         f"Could not cast the value '{max_mem_bytes}' into an integer to set max_memusage_bytes."
                     )
                 raise
+
+        # Git monitoring setup
+        self._watchrepo: WatchRepo | None = None
+        if self._cfg.watch_type == settings.WatchTypeEnum.GIT:
+            self._watchrepo = WatchRepo(
+                git_url=self._cfg.git_url,
+                watch_path=self._cfg.watch_path,
+                git_watch_interval=self._cfg.git_watch_interval,
+                git_username=self._cfg.git_username,
+                git_password=self._cfg.git_password,
+            )
 
     def _recreate_plugin(self):
         """Recreate the plugin and networking for monitor."""
@@ -435,6 +529,10 @@ class Monitor:
         is_any_job_active = False
         try:
             with AddLoggingQueueListener(logging_queue, logging.getLogger()):
+                # initialize repo locally / pull updates if necessary
+                if self._watchrepo:
+                    self._watchrepo.start()
+
                 # Delete temp files out of temp if any exist. This prevents tmp files building up.
                 self.delete_tempfiles()
                 for _ in range(self._cfg.concurrent_plugin_instances):
@@ -530,12 +628,22 @@ class Monitor:
                                 start_child_process_func, job_limit, queue, logging_queue
                             )
 
+                        # Check for any updates to the remote repository that we may be monitoring
+                        if self._watchrepo and self._watchrepo.update_pending():
+                            self._watchrepo.clear_pending()
+                            self._watchrepo.fetch()
+                            recreate_plugin_requested = True
+
         finally:
             self._kill_child_processes(concurrent_task_list)
             # Close all the queues.
             for c_task in concurrent_task_list:
                 c_task.queue.close()
             logging_queue.close()
+            
+            # Stop the thread monitoring the repo
+            if self._watchrepo:
+                self._watchrepo.stop()
 
     def _refine_current_memory_value(self, current_mem_bytes) -> int:
         """Further refine a memory value by subtracting the inactive file from the total amount of memory in use.
