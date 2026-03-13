@@ -245,13 +245,24 @@ class WatchRepo:
     """Notifies main thread when a watched git repository has been updated."""
 
     def __init__(
-        self, git_url: str, watch_path: str, git_watch_interval: int, git_username: str = "", git_password: str = ""
+        self,
+        url: str,
+        ref: str,
+        watch_path: str,
+        interval: int,
+        username: str = "",
+        password: str = "",
+        do_ssh_auth: bool = False,
+        ssh_key_path: str = "",
     ):
-        self.git_url: str = git_url
+        self.url: str = url
+        self.ref: str = ref
         self.watch_path: str = watch_path
-        self.git_watch_interval: int = git_watch_interval
-        self.git_username: str = git_username
-        self.git_password: str = git_password
+        self.interval: int = interval
+        self.username: str = username
+        self.password: str = password
+        self.do_ssh_auth: bool = do_ssh_auth
+        self.ssh_key_path: str = ssh_key_path
 
         self._notify_thread: threading.Thread = threading.Thread(target=self._run_loop)
         self._stop_event: threading.Event = threading.Event()
@@ -262,18 +273,13 @@ class WatchRepo:
         if self._notify_thread:
             raise CriticalError("WatchRepo thread is already running")
 
-        # add authentication info to local store if username/password
-        if self.git_username and self.git_password:
+        if self.do_ssh_auth:
             try:
-                subprocess.run(["git", "config", "--global", "credential.helper", "store"], check=True)
                 subprocess.run(
-                    ["git", "credential", "approve"],
-                    input=f"url={self.git_url}\nusername={self.git_username}\npassword={self.git_password}",
-                    text=True,
-                    check=True,
+                    ["git", "config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"], check=True
                 )
             except subprocess.CalledProcessError as e:
-                raise CriticalError(f"Could not configure git authentication for watched repo: {e}")
+                raise CriticalError(f"Could not configure SSH authentication for watched repo: {e}")
 
         # create watch dir if necessary
         if not os.path.isdir(self.watch_path):
@@ -281,7 +287,8 @@ class WatchRepo:
 
             if subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=self.watch_path).returncode != 0:
                 # clone if repo does not exist
-                subprocess.run(["git", "clone", self.git_url], cwd=self.watch_path)
+                subprocess.run(["git", "clone", self.url], cwd=self.watch_path, check=True)
+                subprocess.run(["git", "checkout", self.ref], cwd=self.watch_path, check=True)
 
         # fetch any updates
         self.fetch()
@@ -300,18 +307,34 @@ class WatchRepo:
         self._update_event.clear()
 
     def fetch(self):
+        if not self.do_ssh_auth and self.username and self.password:
+            # Refresh creds in memory since we are using cache as the storage mechanism
+            self._refresh_https_auth()
+
         try:
             subprocess.run(["git", "fetch"], cwd=self.watch_path, check=True)
         except subprocess.CalledProcessError as e:
             raise CriticalError(f"Could not fetch remote: {e}")
 
+    def _refresh_https_auth(self):
+        try:
+            subprocess.run(["git", "config", "--global", "credential.helper", "cache"], check=True)
+            subprocess.run(
+                ["git", "credential", "approve"],
+                input=f"url={self.url}\nusername={self.username}\npassword={self.password}",
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise CriticalError(f"Could not configure HTTPS authentication for watched repo: {e}")
+
     def _run_loop(self):
         while not self._stop_event.is_set():
-            local = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.watch_path, text=True)
+            local = subprocess.check_output(["git", "rev-parse", self.ref], cwd=self.watch_path, text=True)
 
             # get remote hash
             remote = subprocess.check_output(
-                ["git", "ls-remote", "origin", "HEAD"], cwd=self.watch_path, text=True
+                ["git", "ls-remote", "origin", self.ref], cwd=self.watch_path, text=True
             ).split()[0]
 
             # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
@@ -319,7 +342,7 @@ class WatchRepo:
                 self._update_event.set()
 
             # wait until it is either time to check remote again or the main thread tell this thread to stop with WatchRepo.stop()
-            self._stop_event.wait(timeout=self.git_watch_interval)
+            self._stop_event.wait(timeout=self.interval)
 
 
 class Monitor:
@@ -375,11 +398,14 @@ class Monitor:
         self._watchrepo: WatchRepo | None = None
         if self._cfg.watch_type == settings.WatchTypeEnum.GIT:
             self._watchrepo = WatchRepo(
-                git_url=self._cfg.git_url,
+                url=self._cfg.git_watch_url,
+                ref=self._cfg.git_watch_ref,
                 watch_path=self._cfg.watch_path,
-                git_watch_interval=self._cfg.git_watch_interval,
-                git_username=self._cfg.git_username,
-                git_password=self._cfg.git_password,
+                interval=self._cfg.git_watch_interval,
+                username=self._cfg.git_watch_username,
+                password=self._cfg.git_watch_password,
+                do_ssh_auth=self._cfg.git_watch_do_ssh_auth,
+                ssh_key_path=self._cfg.git_watch_ssh_key_path,
             )
 
     def _recreate_plugin(self):
@@ -640,7 +666,7 @@ class Monitor:
             for c_task in concurrent_task_list:
                 c_task.queue.close()
             logging_queue.close()
-            
+
             # Stop the thread monitoring the repo
             if self._watchrepo:
                 self._watchrepo.stop()

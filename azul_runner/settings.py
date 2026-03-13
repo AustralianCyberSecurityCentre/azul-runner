@@ -71,6 +71,8 @@ class Settings(BaseSettings):
                 raise SetupError("cannot combine server with events_url or data_url")
             self.data_url = self.events_url = self.server
 
+        # TODO: validate git-related args here
+
     # Seconds between heartbeat status messages.
     heartbeat_interval: int = 30
     # Seconds a plugin can run on a single sample before being aborted, 0 to never time out.
@@ -127,13 +129,19 @@ class Settings(BaseSettings):
 
     # Repo watching info (used if watch_type=="git")
     # remote url to clone from on initialization
-    git_url: str = ""
+    git_watch_url: str = ""
+    # ref to pull from on remote
+    git_watch_ref: str = "HEAD"
     # username to be stored in the local credential store for HTTPS authentication
-    git_username: str = ""
+    git_watch_username: str = ""
     # password to be stored in the local credential store for HTTPS authentication
-    git_password: str = ""
+    git_watch_password: str = ""
     # interval at which remote is polled to check for changes
     git_watch_interval: int = 600
+    # whether or not to authenticate to repo with SSH
+    git_watch_do_ssh_auth: bool = False
+    # location of private RSA key if SSH is enabled
+    git_watch_ssh_key_path: str = "/etc/git-secret/ssh/id_rsa"
 
     # Memory limits
     # Enable the memory limiting functionality (disable by default because only works in Kubernetes).
