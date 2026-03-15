@@ -62,6 +62,12 @@ class NoNetworkResultError(Exception):
         self.result = result
 
 
+class GitError(RuntimeError):
+    """Raised if the remote git server for the repository being watched cannot be reached or cannot be authenticated to."""
+
+    pass
+
+
 def kill_child_proc_tree(pid: int, sig=signal.SIGKILL):
     """Kill all child processes via process tree (including grandchildren) with signal KILL."""
     try:
@@ -271,24 +277,52 @@ class WatchRepo:
     def start(self):
         """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
         if self._notify_thread:
-            raise CriticalError("WatchRepo thread is already running")
+            raise GitError("WatchRepo thread is already running")
 
         if self.do_ssh_auth:
             try:
-                subprocess.run(
-                    ["git", "config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"], check=True
+                subprocess.check_output(  # noqa: S603
+                    [  # noqa: S607
+                        "git",
+                        "config",
+                        "--global",
+                        "core.sshCommand",
+                        f"ssh -i {self.ssh_key_path}",
+                    ],
+                    text=True,
                 )
             except subprocess.CalledProcessError as e:
-                raise CriticalError(f"Could not configure SSH authentication for watched repo: {e}")
+                raise GitError(
+                    f"Could not configure SSH authentication for watched repo: {e.output}:{e.returncode}"
+                ) from e
 
-        # create watch dir if necessary
-        if not os.path.isdir(self.watch_path):
-            os.makedirs(self.watch_path, exist_ok=True)
+        try:
+            # create watch dir if necessary
+            if not os.path.isdir(self.watch_path):
+                os.makedirs(self.watch_path, exist_ok=True)
 
-            if subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=self.watch_path).returncode != 0:
-                # clone if repo does not exist
-                subprocess.run(["git", "clone", self.url], cwd=self.watch_path, check=True)
-                subprocess.run(["git", "checkout", self.ref], cwd=self.watch_path, check=True)
+                if (
+                    subprocess.run(
+                        ["git", "rev-parse", "--is-inside-work-tree"],  # noqa: S607
+                        cwd=self.watch_path,
+                    ).returncode
+                    != 0
+                ):
+                    # clone if repo does not exist
+                    subprocess.check_output(  # noqa: S603
+                        ["git", "clone", self.url],  # noqa: S607
+                        cwd=self.watch_path,
+                        text=True,
+                    )
+
+                    subprocess.check_output(  # noqa: S603
+                        ["git", "checkout", self.ref],  # noqa: S607
+                        cwd=self.watch_path,
+                        text=True,
+                    )
+
+        except subprocess.CalledProcessError as e:
+            raise GitError(f"Could not clone/checkout repo from remote: {e.output}:{e.returncode}") from e
 
         # fetch any updates
         self.fetch()
@@ -303,46 +337,64 @@ class WatchRepo:
         """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
         return self._update_event.is_set()
 
-    def clear_pending(self):
-        self._update_event.clear()
-
     def fetch(self):
+        """Fetch updates from the remote, if available."""
         if not self.do_ssh_auth and self.username and self.password:
             # Refresh creds in memory since we are using cache as the storage mechanism
             self._refresh_https_auth()
 
         try:
-            subprocess.run(["git", "fetch"], cwd=self.watch_path, check=True)
+            subprocess.check_output(
+                ["git", "fetch"],  # noqa: S607
+                cwd=self.watch_path,
+            )
         except subprocess.CalledProcessError as e:
-            raise CriticalError(f"Could not fetch remote: {e}")
+            raise GitError(f"Could not fetch remote: {e.output}:{e.returncode}") from e
+
+        if self._update_event.is_set():
+            self._update_event.clear()
 
     def _refresh_https_auth(self):
         try:
-            subprocess.run(["git", "config", "--global", "credential.helper", "cache"], check=True)
-            subprocess.run(
-                ["git", "credential", "approve"],
+            subprocess.check_output(
+                ["git", "config", "--global", "credential.helper", "cache"],  # noqa: S607
+                check=True,
+                text=True,
+            )
+            subprocess.check_output(
+                ["git", "credential", "approve"],  # noqa: S607
                 input=f"url={self.url}\nusername={self.username}\npassword={self.password}",
                 text=True,
                 check=True,
             )
         except subprocess.CalledProcessError as e:
-            raise CriticalError(f"Could not configure HTTPS authentication for watched repo: {e}")
+            raise GitError(f"Could not configure git HTTP(S) authentication: {e.output}:{e.returncode}") from e
 
     def _run_loop(self):
         while not self._stop_event.is_set():
-            local = subprocess.check_output(["git", "rev-parse", self.ref], cwd=self.watch_path, text=True)
+            try:
+                local = subprocess.check_output(  # noqa: S603
+                    ["git", "rev-parse", self.ref],  # noqa: S607
+                    cwd=self.watch_path,
+                    text=True,
+                )
 
-            # get remote hash
-            remote = subprocess.check_output(
-                ["git", "ls-remote", "origin", self.ref], cwd=self.watch_path, text=True
-            ).split()[0]
+                # get remote hash
+                remote = subprocess.check_output(  # noqa: S603
+                    ["git", "ls-remote", "origin", self.ref],  # noqa: S607
+                    cwd=self.watch_path,
+                    text=True,
+                ).split()[0]
 
-            # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
-            if local != remote:
-                self._update_event.set()
+                # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
+                if local != remote:
+                    self._update_event.set()
 
-            # wait until it is either time to check remote again or the main thread tell this thread to stop with WatchRepo.stop()
-            self._stop_event.wait(timeout=self.interval)
+                # wait until it is either time to check remote again or the main thread tell this thread to stop with WatchRepo.stop()
+                self._stop_event.wait(timeout=self.interval)
+
+            except subprocess.CalledProcessError as e:
+                raise GitError(f"Could not complete check for updates: {e.output}:{e.returncode}") from e
 
 
 class Monitor:
@@ -656,7 +708,6 @@ class Monitor:
 
                         # Check for any updates to the remote repository that we may be monitoring
                         if self._watchrepo and self._watchrepo.update_pending():
-                            self._watchrepo.clear_pending()
                             self._watchrepo.fetch()
                             recreate_plugin_requested = True
 
