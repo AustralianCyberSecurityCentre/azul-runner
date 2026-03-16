@@ -277,7 +277,9 @@ class GitSync:
     def start(self):
         """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
         if self._notify_thread.is_alive():
-            raise GitError("GitSync thread is already running")
+            msg = "GitSync thread is already running"
+            logger.error(msg)
+            raise GitError(msg)
 
         if self.do_ssh_auth:
             try:
@@ -291,10 +293,11 @@ class GitSync:
                     ],
                     text=True,
                 )
+                logger.info(f"Configured SSH authentication for git repository at {self.url}")
             except subprocess.CalledProcessError as e:
-                raise GitError(
-                    f"Could not configure SSH authentication for watched repo: {e.output}:{e.returncode}"
-                ) from e
+                msg = f"Could not configure SSH authentication for watched repo: {e.output}:{e.returncode}"
+                logger.error(msg)
+                raise GitError(msg) from e
 
         # create watch dir if necessary
         if not os.path.isdir(self.watch_path):
@@ -303,11 +306,13 @@ class GitSync:
         try:
             if not os.path.exists(os.path.join(self.watch_path, ".git")):
                 # clone if repo does not exist
+                logger.info(f"Cloning repository from {self.url} to {self.watch_path}")
                 subprocess.check_output(  # noqa: S603
                     ["git", "clone", self.url, "."],  # noqa: S607
                     cwd=self.watch_path,
                     text=True,
                 )
+                logger.info(f"Successfully cloned repository from {self.url}")
 
             if self.branch:
                 subprocess.check_output(  # noqa: S603
@@ -315,6 +320,7 @@ class GitSync:
                     cwd=self.watch_path,
                     text=True,
                 )
+                logger.info(f"Checked out branch {self.branch}")
 
         except subprocess.CalledProcessError as e:
             msg = f"Could not clone repo from remote: {e.output}:{e.returncode}"
@@ -324,9 +330,11 @@ class GitSync:
         # pull any updates to the branch we are on
         self.pull()
         self._notify_thread.start()
+        logger.info("GitSync thread started")
 
     def stop(self):
         """Tell notify thread to exit then wait for it to join."""
+        logger.info("Stopping GitSync notification thread")
         self._stop_event.set()
         self._notify_thread.join()
 
@@ -336,6 +344,7 @@ class GitSync:
 
     def pull(self):
         """Fetch updates from the remote, if available."""
+        logger.info(f"Pulling updates from remote repository at {self.watch_path}")
         if not self.do_ssh_auth and self.username and self.password:
             # Refresh creds in memory since we are using cache as the storage mechanism
             self._refresh_https_auth()
@@ -346,12 +355,15 @@ class GitSync:
                 cwd=self.watch_path,
             )
         except subprocess.CalledProcessError as e:
-            raise GitError(f"Could not fetch remote: {e.output}:{e.returncode}") from e
+            msg = f"Could not fetch remote: {e.output}:{e.returncode}"
+            logger.error(msg)
+            raise GitError(msg) from e
 
         if self._update_event.is_set():
             self._update_event.clear()
 
     def _refresh_https_auth(self):
+        logger.info("Refreshing HTTPS authentication for git")
         try:
             subprocess.check_output(
                 ["git", "config", "--global", "credential.helper", "cache"],  # noqa: S607
@@ -365,7 +377,9 @@ class GitSync:
                 check=True,
             )
         except subprocess.CalledProcessError as e:
-            raise GitError(f"Could not configure git HTTP(S) authentication: {e.output}:{e.returncode}") from e
+            msg = f"Could not configure git HTTP(S) authentication: {e.output}:{e.returncode}"
+            logger.error(msg)
+            raise GitError(msg) from e
 
     def _run_loop(self):
         while not self._stop_event.is_set():
