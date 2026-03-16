@@ -247,22 +247,22 @@ class MonitorTask:
         return counted_jobs
 
 
-class WatchRepo:
+class GitSync:
     """Notifies main thread when a watched git repository has been updated."""
 
     def __init__(
         self,
         url: str,
-        ref: str,
         watch_path: str,
         interval: int,
+        branch: str = "",
         username: str = "",
         password: str = "",
         do_ssh_auth: bool = False,
         ssh_key_path: str = "",
     ):
         self.url: str = url
-        self.ref: str = ref
+        self.branch: str = branch
         self.watch_path: str = watch_path
         self.interval: int = interval
         self.username: str = username
@@ -276,8 +276,8 @@ class WatchRepo:
 
     def start(self):
         """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
-        if self._notify_thread:
-            raise GitError("WatchRepo thread is already running")
+        if self._notify_thread.is_alive():
+            raise GitError("GitSync thread is already running")
 
         if self.do_ssh_auth:
             try:
@@ -296,36 +296,33 @@ class WatchRepo:
                     f"Could not configure SSH authentication for watched repo: {e.output}:{e.returncode}"
                 ) from e
 
+        # create watch dir if necessary
+        if not os.path.isdir(self.watch_path):
+            os.makedirs(self.watch_path, exist_ok=True)
+
         try:
-            # create watch dir if necessary
-            if not os.path.isdir(self.watch_path):
-                os.makedirs(self.watch_path, exist_ok=True)
+            if not os.path.exists(os.path.join(self.watch_path, ".git")):
+                # clone if repo does not exist
+                subprocess.check_output(  # noqa: S603
+                    ["git", "clone", self.url, "."],  # noqa: S607
+                    cwd=self.watch_path,
+                    text=True,
+                )
 
-                if (
-                    subprocess.run(
-                        ["git", "rev-parse", "--is-inside-work-tree"],  # noqa: S607
-                        cwd=self.watch_path,
-                    ).returncode
-                    != 0
-                ):
-                    # clone if repo does not exist
-                    subprocess.check_output(  # noqa: S603
-                        ["git", "clone", self.url],  # noqa: S607
-                        cwd=self.watch_path,
-                        text=True,
-                    )
-
-                    subprocess.check_output(  # noqa: S603
-                        ["git", "checkout", self.ref],  # noqa: S607
-                        cwd=self.watch_path,
-                        text=True,
-                    )
+            if self.branch:
+                subprocess.check_output(  # noqa: S603
+                    ["git", "checkout", self.branch],  # noqa: S607
+                    cwd=self.watch_path,
+                    text=True,
+                )
 
         except subprocess.CalledProcessError as e:
-            raise GitError(f"Could not clone/checkout repo from remote: {e.output}:{e.returncode}") from e
+            msg = f"Could not clone repo from remote: {e.output}:{e.returncode}"
+            logger.error(msg)
+            raise GitError(msg) from e
 
-        # fetch any updates
-        self.fetch()
+        # pull any updates to the branch we are on
+        self.pull()
         self._notify_thread.start()
 
     def stop(self):
@@ -337,7 +334,7 @@ class WatchRepo:
         """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
         return self._update_event.is_set()
 
-    def fetch(self):
+    def pull(self):
         """Fetch updates from the remote, if available."""
         if not self.do_ssh_auth and self.username and self.password:
             # Refresh creds in memory since we are using cache as the storage mechanism
@@ -345,7 +342,7 @@ class WatchRepo:
 
         try:
             subprocess.check_output(
-                ["git", "fetch"],  # noqa: S607
+                ["git", "pull", "origin"],  # noqa: S607
                 cwd=self.watch_path,
             )
         except subprocess.CalledProcessError as e:
@@ -374,27 +371,30 @@ class WatchRepo:
         while not self._stop_event.is_set():
             try:
                 local = subprocess.check_output(  # noqa: S603
-                    ["git", "rev-parse", self.ref],  # noqa: S607
+                    ["git", "rev-parse", "HEAD"],  # noqa: S607
                     cwd=self.watch_path,
                     text=True,
                 )
 
-                # get remote hash
+                ls_cmd = ["git", "ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
                 remote = subprocess.check_output(  # noqa: S603
-                    ["git", "ls-remote", "origin", self.ref],  # noqa: S607
+                    ls_cmd,  # noqa: S607
                     cwd=self.watch_path,
                     text=True,
                 ).split()[0]
 
                 # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
                 if local != remote:
+                    logger.info(
+                        f"Remote repo has new updates (local HEAD: {local.strip()} remote HEAD: {remote.strip()})."
+                    )
                     self._update_event.set()
 
-                # wait until it is either time to check remote again or the main thread tell this thread to stop with WatchRepo.stop()
+                # wait until it is either time to check remote again or the main thread tell this thread to stop with GitSync.stop()
                 self._stop_event.wait(timeout=self.interval)
 
             except subprocess.CalledProcessError as e:
-                raise GitError(f"Could not complete check for updates: {e.output}:{e.returncode}") from e
+                logger.error(f"Error checking for updates from remote repo: {e.output}:{e.returncode}")
 
 
 class Monitor:
@@ -447,11 +447,11 @@ class Monitor:
                 raise
 
         # Git monitoring setup
-        self._watchrepo: WatchRepo | None = None
+        self._gitsync: GitSync | None = None
         if self._cfg.watch_type == settings.WatchTypeEnum.GIT:
-            self._watchrepo = WatchRepo(
+            self._gitsync = GitSync(
                 url=self._cfg.git_watch_url,
-                ref=self._cfg.git_watch_ref,
+                branch=self._cfg.git_watch_branch,
                 watch_path=self._cfg.watch_path,
                 interval=self._cfg.git_watch_interval,
                 username=self._cfg.git_watch_username,
@@ -608,8 +608,8 @@ class Monitor:
         try:
             with AddLoggingQueueListener(logging_queue, logging.getLogger()):
                 # initialize repo locally / pull updates if necessary
-                if self._watchrepo:
-                    self._watchrepo.start()
+                if self._gitsync:
+                    self._gitsync.start()
 
                 # Delete temp files out of temp if any exist. This prevents tmp files building up.
                 self.delete_tempfiles()
@@ -707,8 +707,9 @@ class Monitor:
                             )
 
                         # Check for any updates to the remote repository that we may be monitoring
-                        if self._watchrepo and self._watchrepo.update_pending():
-                            self._watchrepo.fetch()
+                        if self._gitsync and self._gitsync.update_pending():
+                            self._gitsync.pull()
+                            # Plugins should exit anyway when files are updated, but recreate explicitly for good measure
                             recreate_plugin_requested = True
 
         finally:
@@ -719,8 +720,8 @@ class Monitor:
             logging_queue.close()
 
             # Stop the thread monitoring the repo
-            if self._watchrepo:
-                self._watchrepo.stop()
+            if self._gitsync:
+                self._gitsync.stop()
 
     def _refine_current_memory_value(self, current_mem_bytes) -> int:
         """Further refine a memory value by subtracting the inactive file from the total amount of memory in use.

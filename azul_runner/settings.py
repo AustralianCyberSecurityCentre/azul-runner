@@ -131,7 +131,7 @@ class Settings(BaseSettings):
     # remote url to clone from on initialization
     git_watch_url: str = ""
     # ref to pull from on remote
-    git_watch_ref: str = "HEAD"
+    git_watch_branch: str = ""
     # username to be stored in the local credential store for HTTPS authentication
     git_watch_username: str = ""
     # password to be stored in the local credential store for HTTPS authentication
