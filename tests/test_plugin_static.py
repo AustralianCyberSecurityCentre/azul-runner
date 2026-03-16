@@ -163,7 +163,7 @@ class TestBasePluginStatic(unittest.TestCase):
                 "git_watch_do_ssh_auth": False,
                 "git_watch_interval": 600,
                 "git_watch_password": "",
-                "git_watch_ref": "",
+                "git_watch_repo": "",
                 "git_watch_ssh_key_path": "/etc/git-secret/ssh/id_rsa",
                 "git_watch_url": "",
                 "git_watch_username": "",
