@@ -471,7 +471,7 @@ class Monitor:
         if self._cfg.watch_type == settings.WatchTypeEnum.GIT:
             self._gitsync = GitSync(
                 repo=self._cfg.git_sync_repo,
-                ref=self._cfg.git_sync_ref,
+                branch=self._cfg.git_sync_ref,
                 watch_path=self._cfg.watch_path,
                 period=self._cfg.git_sync_period,
                 username=self._cfg.git_sync_username,
