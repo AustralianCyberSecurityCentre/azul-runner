@@ -167,7 +167,7 @@ class TestBasePluginStatic(unittest.TestCase):
                 "git_sync_ssh_key_path": "/etc/git-secret/ssh/id_rsa",
                 "git_sync_repo": "",
                 "git_sync_username": "",
-                "git_sync_max_failures": 0,
+                "git_sync_max_sync_failures": 0,
                 "git_sync_clone_depth": 0,
                 "git_sync_submodules": "off",
                 "enable_mem_limits": False,

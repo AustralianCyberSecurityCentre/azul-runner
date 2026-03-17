@@ -294,64 +294,31 @@ class GitSync:
             raise GitError(msg)
 
         if self.do_ssh_auth:
-            try:
-                subprocess.check_output(  # noqa: S603
-                    [  # noqa: S607
-                        "git",
-                        "config",
-                        "--global",
-                        "core.sshCommand",
-                        f"ssh -i {self.ssh_key_path}",
-                    ],
-                    text=True,
-                )
-                logger.info(f"Configured SSH authentication for git repository at {self.repo}")
-            except subprocess.CalledProcessError as e:
-                msg = f"Could not configure SSH authentication for watched repo: {e.output}:{e.returncode}"
-                logger.error(msg)
-                raise GitError(msg) from e
+            self._run_git(["git", "config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"])
+            logger.info(f"Configured SSH authentication for git repository at {self.repo}")
 
         # create watch dir if necessary
         if not os.path.isdir(self.watch_path):
             os.makedirs(self.watch_path, exist_ok=True)
 
-        try:
-            if not os.path.exists(os.path.join(self.watch_path, ".git")):
-                # clone if repo does not exist
-                logger.info(f"Cloning repository from {self.repo} to {self.watch_path}")
-                clone_cmd = ["git", "clone", "--verbose", self.repo, "."]  # noqa: S607
-                if self.clone_depth > 0:
-                    clone_cmd.insert(2, f"--depth={self.clone_depth}")
-                subprocess.check_output(  # noqa: S603
-                    clone_cmd,  # noqa: S607
-                    cwd=self.watch_path,
-                    text=True,
-                )
-                logger.info(f"Successfully cloned repository from {self.repo}")
+        if not os.path.exists(os.path.join(self.watch_path, ".git")):
+            # clone if repo does not exist
+            logger.info(f"Cloning repository from {self.repo} to {self.watch_path}")
+            clone_cmd = ["git", "clone", "--verbose", self.repo, "."]  # noqa: S607
+            if self.clone_depth > 0:
+                clone_cmd.insert(2, f"--depth={self.clone_depth}")
+            self._run_git(clone_cmd)
 
-            if self.branch:
-                subprocess.check_output(  # noqa: S603
-                    ["git", "checkout", self.branch],  # noqa: S607
-                    cwd=self.watch_path,
-                    text=True,
-                )
-                logger.info(f"Checked out branch {self.branch}")
+        if self.branch:
+            self._run_git(["git", "checkout", self.branch])
+            logger.info(f"Checked out branch {self.branch}")
 
-            if self.submodules != "off":
-                submodule_cmd = ["git", "submodule", "update", "--init"]
-                if self.submodules == "recursive":
-                    submodule_cmd.append("--recursive")
-                subprocess.check_output(  # noqa: S603
-                    submodule_cmd,  # noqa: S607
-                    cwd=self.watch_path,
-                    text=True,
-                )
-                logger.info(f"Initialized submodules with option {self.submodules}")
-
-        except subprocess.CalledProcessError as e:
-            msg = f"Could not clone repo from remote: {e.output}:{e.returncode}"
-            logger.error(msg)
-            raise GitError(msg) from e
+        if self.submodules != "off":
+            submodule_cmd = ["git", "submodule", "update", "--init"]
+            if self.submodules == "recursive":
+                submodule_cmd.append("--recursive")
+            self._run_git(submodule_cmd)
+            logger.info(f"Initialized submodules with option {self.submodules}")
 
         # pull any updates to the branch we are on
         self.pull()
@@ -381,57 +348,43 @@ class GitSync:
             # Refresh creds in memory since we are using cache as the storage mechanism
             self._refresh_https_auth()
 
-        try:
-            pull_cmd = ["git", "pull", "origin", "--verbose", "--no-progress", "--prune"]  # noqa: S607
-            if self.clone_depth > 0:
-                pull_cmd.insert(2, f"--depth={self.clone_depth}")
-            subprocess.check_output(  # noqa: S603
-                pull_cmd,
-                cwd=self.watch_path,
-            )
-            self._sync_failures = 0
-        except subprocess.CalledProcessError as e:
-            msg = f"Could not pull remote: {e.output}:{e.returncode}"
-            logger.error(msg)
-            raise GitError(msg) from e
+        pull_cmd = ["git", "pull", "origin", "--verbose", "--no-progress", "--prune"]  # noqa: S607
+        if self.clone_depth > 0:
+            pull_cmd.insert(2, f"--depth={self.clone_depth}")
+        self._run_git(pull_cmd)
+        self._sync_failures = 0
 
         if self._update_event.is_set():
             self._update_event.clear()
 
-    def _refresh_https_auth(self):
-        logger.info("Refreshing HTTPS authentication for git")
+    def _run_git(self, cmd: list[str], input: str = None) -> str:
+        """Run a git command in the watch path and return the output."""
         try:
-            subprocess.check_output(
-                ["git", "config", "--global", "credential.helper", "cache"],  # noqa: S607
-                check=True,
+            return subprocess.check_output(  # noqa: S603
+                cmd,  # noqa: S607
+                cwd=self.watch_path,
                 text=True,
-            )
-            subprocess.check_output(
-                ["git", "credential", "approve"],  # noqa: S607
-                input=f"url={self.repo}\nusername={self.username}\npassword={self.password}",
-                text=True,
-                check=True,
             )
         except subprocess.CalledProcessError as e:
-            msg = f"Could not configure git HTTP(S) authentication: {e.output}:{e.returncode}"
+            msg = f"Git command '{' '.join(cmd)}' failed: {e.output}:{e.returncode}"
             logger.error(msg)
             raise GitError(msg) from e
+
+    def _refresh_https_auth(self):
+        logger.info("Refreshing HTTPS authentication for git")
+        self._run_git(["git", "config", "--global", "credential.helper", "cache"])
+        self._run_git(
+            ["git", "credential", "approve"],
+            input=f"url={self.repo}\nusername={self.username}\npassword={self.password}",
+        )
 
     def _run_loop(self):
         while not self._stop_event.is_set():
             try:
-                local = subprocess.check_output(  # noqa: S603
-                    ["git", "rev-parse", "HEAD"],  # noqa: S607
-                    cwd=self.watch_path,
-                    text=True,
-                )
+                local = self._run_git(["git", "rev-parse", "HEAD"])
 
                 ls_cmd = ["git", "ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
-                remote = subprocess.check_output(  # noqa: S603
-                    ls_cmd,  # noqa: S607
-                    cwd=self.watch_path,
-                    text=True,
-                ).split()[0]
+                remote = self._run_git(ls_cmd)
 
                 # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
                 if local != remote:
@@ -443,8 +396,8 @@ class GitSync:
                 # wait until it is either time to check remote again or the main thread tell this thread to stop with GitSync.stop()
                 self._stop_event.wait(timeout=self.period)
                 self._sync_failures = 0
-            except subprocess.CalledProcessError as e:
-                logger.error(f"Error checking for updates from remote repo: {e.output}:{e.returncode}")
+            except GitError as e:
+                logger.error(f"Error checking for updates from remote repo: {e}")
                 self._sync_failures += 1
 
 
