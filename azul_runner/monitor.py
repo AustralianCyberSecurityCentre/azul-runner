@@ -304,19 +304,19 @@ class GitSync:
         if not os.path.exists(os.path.join(self.watch_path, ".git")):
             # clone if repo does not exist
             logger.info(f"Cloning repository from {self.repo} to {self.watch_path}")
-            clone_cmd = ["git", "clone", "--verbose", self.repo, "."]  # noqa: S607
+            clone_cmd = ["git", "clone", "--verbose", self.repo, "."]
+            if self.branch:
+                clone_cmd.insert(2, f"--branch={self.branch}")
             if self.clone_depth > 0:
                 clone_cmd.insert(2, f"--depth={self.clone_depth}")
             self._run_git(clone_cmd)
-
-        if self.branch:
-            self._run_git(["git", "checkout", self.branch])
-            logger.info(f"Checked out branch {self.branch}")
 
         if self.submodules != "off":
             submodule_cmd = ["git", "submodule", "update", "--init"]
             if self.submodules == "recursive":
                 submodule_cmd.append("--recursive")
+            if self.clone_depth > 0:
+                submodule_cmd.append(f"--depth={self.clone_depth}")
             self._run_git(submodule_cmd)
             logger.info(f"Initialized submodules with option {self.submodules}")
 
@@ -348,7 +348,7 @@ class GitSync:
             # Refresh creds in memory since we are using cache as the storage mechanism
             self._refresh_https_auth()
 
-        pull_cmd = ["git", "pull", "origin", "--verbose", "--no-progress", "--prune"]  # noqa: S607
+        pull_cmd = ["git", "pull", "origin", "--verbose", "--no-progress", "--prune"]
         self._run_git(pull_cmd)
         self._sync_failures = 0
 
@@ -359,9 +359,10 @@ class GitSync:
         """Run a git command in the watch path and return the output."""
         try:
             return subprocess.check_output(  # noqa: S603
-                cmd,  # noqa: S607
+                cmd,
                 cwd=self.watch_path,
                 text=True,
+                input=input,
             )
         except subprocess.CalledProcessError as e:
             msg = f"Git command '{' '.join(cmd)}' failed: {e.output}:{e.returncode}"

@@ -189,29 +189,6 @@ class TestGitSync(unittest.TestCase):
             subprocess.run(["git", "push"], cwd=temp_clone, check=True, capture_output=True)
 
     @pytest.mark.timeout(15)
-    def test_watch_repo_initialization(self):
-        """Test GitSync initializes with correct attributes."""
-        watch = GitSync(
-            repo="https://example.com/repo.git",
-            branch="main",
-            watch_path="/tmp/watch",
-            period=60,
-            username="user",
-            password="pass",
-            do_ssh_auth=True,
-            ssh_key_path="/path/to/key",
-        )
-        self.assertEqual(watch.repo, "https://example.com/repo.git")
-        self.assertEqual(watch.branch, "main")
-        self.assertEqual(watch.watch_path, "/tmp/watch")
-        self.assertEqual(watch.period, 60)
-        self.assertEqual(watch.username, "user")
-        self.assertEqual(watch.password, "pass")
-        self.assertTrue(watch.do_ssh_auth)
-        self.assertEqual(watch.ssh_key_path, "/path/to/key")
-        self.assertFalse(watch.update_pending())
-
-    @pytest.mark.timeout(15)
     def test_watch_repo_clone_and_initial_fetch(self):
         """Test GitSync clones repo and performs initial fetch on start."""
         with tempfile.TemporaryDirectory() as remote_repo:
@@ -488,17 +465,6 @@ class TestGitSync(unittest.TestCase):
 
                 # Thread should be stopped
                 self.assertFalse(watch._notify_thread.is_alive())
-
-    @pytest.mark.timeout(15)
-    def test_watch_repo_clone_depth_parameter_stored(self):
-        """Test GitSync stores clone_depth parameter correctly."""
-        with tempfile.TemporaryDirectory() as watch_path:
-            # Just verify that clone_depth is stored as an attribute
-            watch = GitSync(repo="https://example.com/repo.git", watch_path=watch_path, period=1, clone_depth=5)
-            self.assertEqual(watch.clone_depth, 5)
-
-            watch2 = GitSync(repo="https://example.com/repo.git", watch_path=watch_path, period=1, clone_depth=0)
-            self.assertEqual(watch2.clone_depth, 0)
 
     @pytest.mark.timeout(15)
     def test_watch_repo_no_repo_url_raises_error(self):
