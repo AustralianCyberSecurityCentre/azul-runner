@@ -252,19 +252,19 @@ class GitSync:
 
     def __init__(
         self,
-        url: str,
+        repo: str,
         watch_path: str,
-        interval: int,
+        period: int,
         branch: str = "",
         username: str = "",
         password: str = "",
         do_ssh_auth: bool = False,
         ssh_key_path: str = "",
     ):
-        self.url: str = url
+        self.repo: str = repo
         self.branch: str = branch
         self.watch_path: str = watch_path
-        self.interval: int = interval
+        self.period: int = period
         self.username: str = username
         self.password: str = password
         self.do_ssh_auth: bool = do_ssh_auth
@@ -281,6 +281,11 @@ class GitSync:
             logger.error(msg)
             raise GitError(msg)
 
+        if not self.repo:
+            msg = "GitSync repo URL is not set"
+            logger.error(msg)
+            raise GitError(msg)
+
         if self.do_ssh_auth:
             try:
                 subprocess.check_output(  # noqa: S603
@@ -293,7 +298,7 @@ class GitSync:
                     ],
                     text=True,
                 )
-                logger.info(f"Configured SSH authentication for git repository at {self.url}")
+                logger.info(f"Configured SSH authentication for git repository at {self.repo}")
             except subprocess.CalledProcessError as e:
                 msg = f"Could not configure SSH authentication for watched repo: {e.output}:{e.returncode}"
                 logger.error(msg)
@@ -306,13 +311,13 @@ class GitSync:
         try:
             if not os.path.exists(os.path.join(self.watch_path, ".git")):
                 # clone if repo does not exist
-                logger.info(f"Cloning repository from {self.url} to {self.watch_path}")
+                logger.info(f"Cloning repository from {self.repo} to {self.watch_path}")
                 subprocess.check_output(  # noqa: S603
-                    ["git", "clone", self.url, "."],  # noqa: S607
+                    ["git", "clone", self.repo, "."],  # noqa: S607
                     cwd=self.watch_path,
                     text=True,
                 )
-                logger.info(f"Successfully cloned repository from {self.url}")
+                logger.info(f"Successfully cloned repository from {self.repo}")
 
             if self.branch:
                 subprocess.check_output(  # noqa: S603
@@ -336,7 +341,8 @@ class GitSync:
         """Tell notify thread to exit then wait for it to join."""
         logger.info("Stopping GitSync notification thread")
         self._stop_event.set()
-        self._notify_thread.join()
+        if self._notify_thread.is_alive():
+            self._notify_thread.join()
 
     def update_pending(self) -> bool:
         """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
@@ -372,7 +378,7 @@ class GitSync:
             )
             subprocess.check_output(
                 ["git", "credential", "approve"],  # noqa: S607
-                input=f"url={self.url}\nusername={self.username}\npassword={self.password}",
+                input=f"url={self.repo}\nusername={self.username}\npassword={self.password}",
                 text=True,
                 check=True,
             )
@@ -405,7 +411,7 @@ class GitSync:
                     self._update_event.set()
 
                 # wait until it is either time to check remote again or the main thread tell this thread to stop with GitSync.stop()
-                self._stop_event.wait(timeout=self.interval)
+                self._stop_event.wait(timeout=self.period)
 
             except subprocess.CalledProcessError as e:
                 logger.error(f"Error checking for updates from remote repo: {e.output}:{e.returncode}")
@@ -464,14 +470,14 @@ class Monitor:
         self._gitsync: GitSync | None = None
         if self._cfg.watch_type == settings.WatchTypeEnum.GIT:
             self._gitsync = GitSync(
-                url=self._cfg.git_watch_url,
-                branch=self._cfg.git_watch_branch,
+                repo=self._cfg.git_sync_repo,
+                ref=self._cfg.git_sync_ref,
                 watch_path=self._cfg.watch_path,
-                interval=self._cfg.git_watch_interval,
-                username=self._cfg.git_watch_username,
-                password=self._cfg.git_watch_password,
-                do_ssh_auth=self._cfg.git_watch_do_ssh_auth,
-                ssh_key_path=self._cfg.git_watch_ssh_key_path,
+                period=self._cfg.git_sync_period,
+                username=self._cfg.git_sync_username,
+                password=self._cfg.git_sync_password,
+                do_ssh_auth=self._cfg.git_sync_ssh,
+                ssh_key_path=self._cfg.git_sync_ssh_key_path,
             )
 
     def _recreate_plugin(self):

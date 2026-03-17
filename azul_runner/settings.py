@@ -129,19 +129,19 @@ class Settings(BaseSettings):
 
     # Repo watching info (used if watch_type=="git")
     # remote url to clone from on initialization
-    git_watch_url: str = ""
+    git_sync_repo: str = ""
     # ref to pull from on remote
-    git_watch_branch: str = ""
+    git_sync_ref: str = ""
     # username to be stored in the local credential store for HTTPS authentication
-    git_watch_username: str = ""
+    git_sync_username: str = ""
     # password to be stored in the local credential store for HTTPS authentication
-    git_watch_password: str = ""
+    git_sync_password: str = ""
     # interval at which remote is polled to check for changes
-    git_watch_interval: int = 600
+    git_sync_period: int = 600
     # whether or not to authenticate to repo with SSH
-    git_watch_do_ssh_auth: bool = False
+    git_sync_ssh: bool = False
     # location of private RSA key if SSH is enabled
-    git_watch_ssh_key_path: str = "/etc/git-secret/ssh/id_rsa"
+    git_sync_ssh_key_path: str = "/etc/git-secret/ssh/id_rsa"
 
     # Memory limits
     # Enable the memory limiting functionality (disable by default because only works in Kubernetes).

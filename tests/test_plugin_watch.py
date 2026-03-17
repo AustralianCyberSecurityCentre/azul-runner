@@ -192,19 +192,19 @@ class TestGitSync(unittest.TestCase):
     def test_watch_repo_initialization(self):
         """Test GitSync initializes with correct attributes."""
         watch = GitSync(
-            url="https://example.com/repo.git",
+            repo="https://example.com/repo.git",
             branch="main",
             watch_path="/tmp/watch",
-            interval=60,
+            period=60,
             username="user",
             password="pass",
             do_ssh_auth=True,
             ssh_key_path="/path/to/key",
         )
-        self.assertEqual(watch.url, "https://example.com/repo.git")
+        self.assertEqual(watch.repo, "https://example.com/repo.git")
         self.assertEqual(watch.branch, "main")
         self.assertEqual(watch.watch_path, "/tmp/watch")
-        self.assertEqual(watch.interval, 60)
+        self.assertEqual(watch.period, 60)
         self.assertEqual(watch.username, "user")
         self.assertEqual(watch.password, "pass")
         self.assertTrue(watch.do_ssh_auth)
@@ -218,7 +218,7 @@ class TestGitSync(unittest.TestCase):
             with tempfile.TemporaryDirectory() as watch_path:
                 self._setup_bare_repo_with_content(remote_repo, "initial content")
 
-                watch = GitSync(url=remote_repo, watch_path=watch_path, interval=1)
+                watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
                 watch.start()
 
                 # Verify clone and checkout happened
@@ -243,7 +243,7 @@ class TestGitSync(unittest.TestCase):
                     f.write("local modification")
 
                 # Start watch - should not overwrite local modification
-                watch = GitSync(url=remote_repo, watch_path=watch_path, interval=1)
+                watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
                 watch.start()
 
                 with open(os.path.join(watch_path, "test.txt")) as f:
@@ -259,7 +259,7 @@ class TestGitSync(unittest.TestCase):
             with tempfile.TemporaryDirectory() as watch_path:
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
-                watch = GitSync(url=remote_repo, watch_path=watch_path, interval=1)
+                watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
                 watch.start()
 
                 # Should not have updates initially
@@ -285,7 +285,7 @@ class TestGitSync(unittest.TestCase):
             with tempfile.TemporaryDirectory() as watch_path:
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
-                watch = GitSync(url=remote_repo, watch_path=watch_path, interval=1)
+                watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
                 watch.start()
 
                 # Push an update
@@ -314,7 +314,7 @@ class TestGitSync(unittest.TestCase):
     def test_watch_repo_bad_url_raises_error(self):
         """Test GitSync raises GitError for invalid repo URL."""
         with tempfile.TemporaryDirectory() as watch_path:
-            watch = GitSync(url="/nonexistent/repo/path", watch_path=watch_path, interval=1)
+            watch = GitSync(repo="/nonexistent/repo/path", watch_path=watch_path, period=1)
             with self.assertRaises(GitError):
                 watch.start()
 
@@ -325,7 +325,7 @@ class TestGitSync(unittest.TestCase):
             with tempfile.TemporaryDirectory() as watch_path:
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
-                watch = GitSync(url=remote_repo, watch_path=watch_path, interval=1)
+                watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
                 watch.start()
 
                 # Attempting to start again should raise
@@ -341,7 +341,7 @@ class TestGitSync(unittest.TestCase):
             with tempfile.TemporaryDirectory() as watch_path:
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
-                watch = GitSync(url=remote_repo, watch_path=watch_path, interval=1)
+                watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
 
                 # Thread should not be running initially
                 self.assertFalse(watch._notify_thread.is_alive())
@@ -363,7 +363,7 @@ class TestGitSync(unittest.TestCase):
             with tempfile.TemporaryDirectory() as watch_path:
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
-                watch = GitSync(url=remote_repo, watch_path=watch_path, interval=1)
+                watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
                 watch.start()
 
                 # Fetch when nothing has changed should not raise
@@ -403,7 +403,7 @@ class TestGitSync(unittest.TestCase):
                     )
 
                 # Watch dev branch
-                watch = GitSync(url=remote_repo, branch="dev", watch_path=watch_path, interval=1)
+                watch = GitSync(repo=remote_repo, branch="dev", watch_path=watch_path, period=1)
                 watch.start()
 
                 # Should have dev content
