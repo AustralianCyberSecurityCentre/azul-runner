@@ -349,8 +349,6 @@ class GitSync:
             self._refresh_https_auth()
 
         pull_cmd = ["git", "pull", "origin", "--verbose", "--no-progress", "--prune"]  # noqa: S607
-        if self.clone_depth > 0:
-            pull_cmd.insert(2, f"--depth={self.clone_depth}")
         self._run_git(pull_cmd)
         self._sync_failures = 0
 
