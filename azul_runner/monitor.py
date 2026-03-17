@@ -260,6 +260,9 @@ class GitSync:
         password: str = "",
         do_ssh_auth: bool = False,
         ssh_key_path: str = "",
+        max_sync_failures: int = 0,
+        clone_depth: int = 0,
+        submodules: str = "off",
     ):
         self.repo: str = repo
         self.branch: str = branch
@@ -269,7 +272,11 @@ class GitSync:
         self.password: str = password
         self.do_ssh_auth: bool = do_ssh_auth
         self.ssh_key_path: str = ssh_key_path
+        self.max_sync_failures: int = max_sync_failures
+        self.clone_depth: int = clone_depth
+        self.submodules: str = submodules
 
+        self._sync_failures = 0
         self._notify_thread: threading.Thread = threading.Thread(target=self._run_loop)
         self._stop_event: threading.Event = threading.Event()
         self._update_event: threading.Event = threading.Event()
@@ -312,8 +319,11 @@ class GitSync:
             if not os.path.exists(os.path.join(self.watch_path, ".git")):
                 # clone if repo does not exist
                 logger.info(f"Cloning repository from {self.repo} to {self.watch_path}")
+                clone_cmd = ["git", "clone", "--verbose", self.repo, "."]  # noqa: S607
+                if self.clone_depth > 0:
+                    clone_cmd.insert(2, f"--depth={self.clone_depth}")
                 subprocess.check_output(  # noqa: S603
-                    ["git", "clone", self.repo, "."],  # noqa: S607
+                    clone_cmd,  # noqa: S607
                     cwd=self.watch_path,
                     text=True,
                 )
@@ -326,6 +336,17 @@ class GitSync:
                     text=True,
                 )
                 logger.info(f"Checked out branch {self.branch}")
+
+            if self.submodules != "off":
+                submodule_cmd = ["git", "submodule", "update", "--init"]
+                if self.submodules == "recursive":
+                    submodule_cmd.append("--recursive")
+                subprocess.check_output(  # noqa: S603
+                    submodule_cmd,  # noqa: S607
+                    cwd=self.watch_path,
+                    text=True,
+                )
+                logger.info(f"Initialized submodules with option {self.submodules}")
 
         except subprocess.CalledProcessError as e:
             msg = f"Could not clone repo from remote: {e.output}:{e.returncode}"
@@ -346,6 +367,11 @@ class GitSync:
 
     def update_pending(self) -> bool:
         """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
+        if self._sync_failures > self.max_sync_failures:
+            msg = f"GitSync has failed to check for updates {self._sync_failures} times which is above the max_sync_failures threshold of {self.max_sync_failures}."
+            logger.error(msg)
+            self.stop()
+            raise GitError(msg)
         return self._update_event.is_set()
 
     def pull(self):
@@ -356,12 +382,16 @@ class GitSync:
             self._refresh_https_auth()
 
         try:
-            subprocess.check_output(
-                ["git", "pull", "origin"],  # noqa: S607
+            pull_cmd = ["git", "pull", "origin", "--verbose", "--no-progress", "--prune"]  # noqa: S607
+            if self.clone_depth > 0:
+                pull_cmd.insert(2, f"--depth={self.clone_depth}")
+            subprocess.check_output(  # noqa: S603
+                pull_cmd,
                 cwd=self.watch_path,
             )
+            self._sync_failures = 0
         except subprocess.CalledProcessError as e:
-            msg = f"Could not fetch remote: {e.output}:{e.returncode}"
+            msg = f"Could not pull remote: {e.output}:{e.returncode}"
             logger.error(msg)
             raise GitError(msg) from e
 
@@ -412,9 +442,10 @@ class GitSync:
 
                 # wait until it is either time to check remote again or the main thread tell this thread to stop with GitSync.stop()
                 self._stop_event.wait(timeout=self.period)
-
+                self._sync_failures = 0
             except subprocess.CalledProcessError as e:
                 logger.error(f"Error checking for updates from remote repo: {e.output}:{e.returncode}")
+                self._sync_failures += 1
 
 
 class Monitor:
@@ -478,6 +509,9 @@ class Monitor:
                 password=self._cfg.git_sync_password,
                 do_ssh_auth=self._cfg.git_sync_ssh,
                 ssh_key_path=self._cfg.git_sync_ssh_key_path,
+                max_sync_failures=self._cfg.git_sync_max_sync_failures,
+                clone_depth=self._cfg.git_sync_clone_depth,
+                submodules=self._cfg.git_sync_submodules,
             )
 
     def _recreate_plugin(self):
