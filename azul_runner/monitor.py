@@ -316,7 +316,7 @@ class GitSync:
             # Refresh creds in memory since we are using cache as the storage mechanism
             self._refresh_https_auth()
 
-        pull_cmd = ["git", "pull", "origin", "--verbose", "--no-progress", "--prune"]
+        pull_cmd = ["pull", "origin", "--verbose", "--no-progress", "--prune"]
         self._run_git(pull_cmd)
         self._sync_failures = 0
 
@@ -331,8 +331,12 @@ class GitSync:
             raise GitError(msg)
 
         logger.info(f"Initializing git repository at {self.watch_path} with remote {self.repo}")
+
+        if not self.do_ssh_auth and self.username and self.password:
+            # Refresh creds in memory since we are using cache as the storage mechanism
+            self._refresh_https_auth()
         if self.do_ssh_auth:
-            self._run_git(["git", "config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"])
+            self._run_git(["config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"])
             logger.info(f"Configured SSH authentication for git repository at {self.repo}")
 
         # create watch dir if necessary
@@ -343,7 +347,7 @@ class GitSync:
         if not os.path.exists(os.path.join(self.watch_path, ".git")):
             # clone if repo does not exist
             logger.info(f"Cloning repository from {self.repo} to {self.watch_path}")
-            clone_cmd = ["git", "clone", "--verbose", self.repo, "."]
+            clone_cmd = ["clone", "--verbose", self.repo, "."]
             if self.branch:
                 clone_cmd.insert(2, f"--branch={self.branch}")
             if self.clone_depth > 0:
@@ -351,7 +355,7 @@ class GitSync:
             self._run_git(clone_cmd)
 
         if self.submodules != "off":
-            submodule_cmd = ["git", "submodule", "update", "--init"]
+            submodule_cmd = ["submodule", "update", "--init"]
             if self.submodules == "recursive":
                 submodule_cmd.append("--recursive")
             if self.clone_depth > 0:
@@ -363,7 +367,7 @@ class GitSync:
         """Run a git command in the watch path and return the output."""
         try:
             return subprocess.check_output(  # noqa: S603
-                cmd,
+                ["git"] + cmd,
                 cwd=self.watch_path,
                 text=True,
                 input=input,
@@ -375,18 +379,18 @@ class GitSync:
 
     def _refresh_https_auth(self):
         logger.info("Refreshing HTTPS authentication for git")
-        self._run_git(["git", "config", "--global", "credential.helper", "cache"])
+        self._run_git(["config", "--global", "credential.helper", "cache"])
         self._run_git(
-            ["git", "credential", "approve"],
+            ["credential", "approve"],
             input=f"url={self.repo}\nusername={self.username}\npassword={self.password}",
         )
 
     def _run_loop(self):
         while not self._stop_event.is_set():
             try:
-                local = self._run_git(["git", "rev-parse", "HEAD"])
+                local = self._run_git(["rev-parse", "HEAD"])
 
-                ls_cmd = ["git", "ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
+                ls_cmd = ["ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
                 remote = self._run_git(ls_cmd)
 
                 # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
