@@ -330,6 +330,7 @@ class GitSync:
             logger.error(msg)
             raise GitError(msg)
 
+        logger.info(f"Initializing git repository at {self.watch_path} with remote {self.repo}")
         if self.do_ssh_auth:
             self._run_git(["git", "config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"])
             logger.info(f"Configured SSH authentication for git repository at {self.repo}")
@@ -337,6 +338,7 @@ class GitSync:
         # create watch dir if necessary
         if not os.path.isdir(self.watch_path):
             os.makedirs(self.watch_path, exist_ok=True)
+            logger.info(f"Created watch directory at {self.watch_path}")
 
         if not os.path.exists(os.path.join(self.watch_path, ".git")):
             # clone if repo does not exist
