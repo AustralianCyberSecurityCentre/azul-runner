@@ -196,14 +196,14 @@ class TestGitSync(unittest.TestCase):
                 self._setup_bare_repo_with_content(remote_repo, "initial content")
 
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Verify clone and checkout happened
                 self.assertTrue(os.path.exists(os.path.join(watch_path, "test.txt")))
                 with open(os.path.join(watch_path, "test.txt")) as f:
                     self.assertEqual(f.read(), "initial content")
 
-                watch.stop()
+                watch.stop_notify_thread()
 
     @pytest.mark.timeout(15)
     def test_watch_repo_skips_clone_if_exists(self):
@@ -221,13 +221,13 @@ class TestGitSync(unittest.TestCase):
 
                 # Start watch - should not overwrite local modification
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
-                watch.start()
+                watch.start_notify_thread()
 
                 with open(os.path.join(watch_path, "test.txt")) as f:
                     content = f.read()
                 self.assertEqual(content, "local modification")
 
-                watch.stop()
+                watch.stop_notify_thread()
 
     @pytest.mark.timeout(15)
     def test_watch_repo_detects_remote_updates(self):
@@ -237,7 +237,7 @@ class TestGitSync(unittest.TestCase):
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Should not have updates initially
                 self.assertFalse(watch.update_pending())
@@ -253,7 +253,7 @@ class TestGitSync(unittest.TestCase):
                     time.sleep(0.1)
 
                 self.assertTrue(watch.update_pending())
-                watch.stop()
+                watch.stop_notify_thread()
 
     @pytest.mark.timeout(15)
     def test_watch_repo_fetch_clears_update_event(self):
@@ -263,7 +263,7 @@ class TestGitSync(unittest.TestCase):
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Push an update
                 self._push_update_to_remote(remote_repo, "v2")
@@ -285,15 +285,14 @@ class TestGitSync(unittest.TestCase):
                 with open(os.path.join(watch_path, "test.txt")) as f:
                     self.assertEqual(f.read(), "v2")
 
-                watch.stop()
+                watch.stop_notify_thread()
 
     @pytest.mark.timeout(15)
     def test_watch_repo_bad_url_raises_error(self):
         """Test GitSync raises GitError for invalid repo URL."""
         with tempfile.TemporaryDirectory() as watch_path:
-            watch = GitSync(repo="/nonexistent/repo/path", watch_path=watch_path, period=1)
             with self.assertRaises(GitError):
-                watch.start()
+                GitSync(repo="/nonexistent/repo/path", watch_path=watch_path, period=1)
 
     @pytest.mark.timeout(15)
     def test_watch_repo_double_start_raises_error(self):
@@ -303,13 +302,13 @@ class TestGitSync(unittest.TestCase):
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Attempting to start again should raise
                 with self.assertRaises(GitError):
-                    watch.start()
+                    watch.start_notify_thread()
 
-                watch.stop()
+                watch.stop_notify_thread()
 
     @pytest.mark.timeout(15)
     def test_watch_repo_thread_lifecycle(self):
@@ -323,11 +322,11 @@ class TestGitSync(unittest.TestCase):
                 # Thread should not be running initially
                 self.assertFalse(watch._notify_thread.is_alive())
 
-                watch.start()
+                watch.start_notify_thread()
                 # Thread should be running after start
                 self.assertTrue(watch._notify_thread.is_alive())
 
-                watch.stop()
+                watch.stop_notify_thread()
                 # Give thread time to exit
                 time.sleep(0.5)
                 # Thread should be stopped after stop
@@ -341,7 +340,7 @@ class TestGitSync(unittest.TestCase):
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Fetch when nothing has changed should not raise
                 watch.pull()
@@ -349,7 +348,7 @@ class TestGitSync(unittest.TestCase):
                 with open(os.path.join(watch_path, "test.txt")) as f:
                     self.assertEqual(f.read(), "v1")
 
-                watch.stop()
+                watch.stop_notify_thread()
 
     @pytest.mark.timeout(15)
     def test_watch_repo_specified_branch(self):
@@ -381,13 +380,13 @@ class TestGitSync(unittest.TestCase):
 
                 # Watch dev branch
                 watch = GitSync(repo=remote_repo, branch="dev", watch_path=watch_path, period=1)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Should have dev content
                 with open(os.path.join(watch_path, "test.txt")) as f:
                     self.assertEqual(f.read(), "dev content")
 
-                watch.stop()
+                watch.stop_notify_thread()
 
     @pytest.mark.timeout(15)
     def test_watch_repo_shallow_clone_with_depth(self):
@@ -412,14 +411,14 @@ class TestGitSync(unittest.TestCase):
 
                 # Shallow clone with depth=2
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1, clone_depth=2)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Should have cloned with shallow history
                 self.assertTrue(os.path.exists(os.path.join(watch_path, "test.txt")))
                 with open(os.path.join(watch_path, "test.txt")) as f:
                     self.assertEqual(f.read(), "commit 4")
 
-                watch.stop()
+                watch.stop_notify_thread()
 
     @pytest.mark.timeout(15)
     def test_watch_repo_max_sync_failures_raises_error(self):
@@ -430,7 +429,7 @@ class TestGitSync(unittest.TestCase):
 
                 # Create watch with max_sync_failures=2
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1, max_sync_failures=2)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Simulate sync failures by moving the remote repo to break git operations
                 broken_repo_path = remote_repo + "_broken"
@@ -454,13 +453,13 @@ class TestGitSync(unittest.TestCase):
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Verify thread is alive
                 self.assertTrue(watch._notify_thread.is_alive())
 
                 # Stop and wait for thread to join
-                watch.stop()
+                watch.stop_notify_thread()
                 time.sleep(1)
 
                 # Thread should be stopped
@@ -470,9 +469,8 @@ class TestGitSync(unittest.TestCase):
     def test_watch_repo_no_repo_url_raises_error(self):
         """Test GitSync raises GitError if repo URL is empty."""
         with tempfile.TemporaryDirectory() as watch_path:
-            watch = GitSync(repo="", watch_path=watch_path, period=1)
             with self.assertRaises(GitError):
-                watch.start()
+                GitSync(repo="", watch_path=watch_path, period=1)
 
     @pytest.mark.timeout(15)
     def test_watch_repo_update_event_detection_and_pull(self):
@@ -482,7 +480,7 @@ class TestGitSync(unittest.TestCase):
                 self._setup_bare_repo_with_content(remote_repo, "v1")
 
                 watch = GitSync(repo=remote_repo, watch_path=watch_path, period=1)
-                watch.start()
+                watch.start_notify_thread()
 
                 # Initially no update
                 self.assertFalse(watch.update_pending())
@@ -504,7 +502,7 @@ class TestGitSync(unittest.TestCase):
                 watch.pull()
                 self.assertFalse(watch.update_pending())
 
-                watch.stop()
+                watch.stop_notify_thread()
 
     @pytest.mark.timeout(15)
     def test_watch_repo_multiple_branch_tracking(self):
@@ -545,11 +543,11 @@ class TestGitSync(unittest.TestCase):
 
                     # Watch main branch
                     watch_main_sync = GitSync(repo=remote_repo, watch_path=watch_main, period=1, branch="master")
-                    watch_main_sync.start()
+                    watch_main_sync.start_notify_thread()
 
                     # Watch dev branch
                     watch_dev_sync = GitSync(repo=remote_repo, watch_path=watch_dev, period=1, branch="dev")
-                    watch_dev_sync.start()
+                    watch_dev_sync.start_notify_thread()
 
                     # Verify content matches branch
                     with open(os.path.join(watch_main, "test.txt")) as f:
@@ -557,5 +555,5 @@ class TestGitSync(unittest.TestCase):
                     with open(os.path.join(watch_dev, "test.txt")) as f:
                         self.assertEqual(f.read(), "dev")
 
-                    watch_main_sync.stop()
-                    watch_dev_sync.stop()
+                    watch_main_sync.stop_notify_thread()
+                    watch_dev_sync.stop_notify_thread()

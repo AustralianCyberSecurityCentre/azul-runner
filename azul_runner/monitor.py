@@ -281,13 +281,50 @@ class GitSync:
         self._stop_event: threading.Event = threading.Event()
         self._update_event: threading.Event = threading.Event()
 
-    def start(self):
+        self._init_repo()
+
+    def start_notify_thread(self):
         """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
         if self._notify_thread.is_alive():
             msg = "GitSync thread is already running"
             logger.error(msg)
             raise GitError(msg)
 
+        self._notify_thread.start()
+        logger.info("GitSync thread started")
+
+    def stop_notify_thread(self):
+        """Tell notify thread to exit then wait for it to join."""
+        logger.info("Stopping GitSync notification thread")
+        self._stop_event.set()
+        if self._notify_thread.is_alive():
+            self._notify_thread.join()
+
+    def update_pending(self) -> bool:
+        """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
+        if self._sync_failures > self.max_sync_failures:
+            msg = f"GitSync has failed to check for updates {self._sync_failures} times which is above the max_sync_failures threshold of {self.max_sync_failures}."
+            logger.error(msg)
+            self.stop_notify_thread()
+            raise GitError(msg)
+        return self._update_event.is_set()
+
+    def pull(self):
+        """Fetch updates from the remote, if available."""
+        logger.info(f"Pulling updates from remote repository at {self.watch_path}")
+        if not self.do_ssh_auth and self.username and self.password:
+            # Refresh creds in memory since we are using cache as the storage mechanism
+            self._refresh_https_auth()
+
+        pull_cmd = ["git", "pull", "origin", "--verbose", "--no-progress", "--prune"]
+        self._run_git(pull_cmd)
+        self._sync_failures = 0
+
+        if self._update_event.is_set():
+            self._update_event.clear()
+
+    def _init_repo(self):
+        """Initialize the git repository in the watch path if it doesn't exist."""
         if not self.repo:
             msg = "GitSync repo URL is not set"
             logger.error(msg)
@@ -319,41 +356,6 @@ class GitSync:
                 submodule_cmd.append(f"--depth={self.clone_depth}")
             self._run_git(submodule_cmd)
             logger.info(f"Initialized submodules with option {self.submodules}")
-
-        # pull any updates to the branch we are on
-        self.pull()
-        self._notify_thread.start()
-        logger.info("GitSync thread started")
-
-    def stop(self):
-        """Tell notify thread to exit then wait for it to join."""
-        logger.info("Stopping GitSync notification thread")
-        self._stop_event.set()
-        if self._notify_thread.is_alive():
-            self._notify_thread.join()
-
-    def update_pending(self) -> bool:
-        """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
-        if self._sync_failures > self.max_sync_failures:
-            msg = f"GitSync has failed to check for updates {self._sync_failures} times which is above the max_sync_failures threshold of {self.max_sync_failures}."
-            logger.error(msg)
-            self.stop()
-            raise GitError(msg)
-        return self._update_event.is_set()
-
-    def pull(self):
-        """Fetch updates from the remote, if available."""
-        logger.info(f"Pulling updates from remote repository at {self.watch_path}")
-        if not self.do_ssh_auth and self.username and self.password:
-            # Refresh creds in memory since we are using cache as the storage mechanism
-            self._refresh_https_auth()
-
-        pull_cmd = ["git", "pull", "origin", "--verbose", "--no-progress", "--prune"]
-        self._run_git(pull_cmd)
-        self._sync_failures = 0
-
-        if self._update_event.is_set():
-            self._update_event.clear()
 
     def _run_git(self, cmd: list[str], input: str = None) -> str:
         """Run a git command in the watch path and return the output."""
@@ -409,6 +411,23 @@ class Monitor:
         self._cfg = settings.parse_config(self._plugin_class, config)
         self.mp_ctx = multiprocessing.get_context("forkserver")
 
+        # Git monitoring setup
+        self._gitsync: GitSync | None = None
+        if self._cfg.watch_type == settings.WatchTypeEnum.GIT:
+            self._gitsync = GitSync(
+                repo=self._cfg.git_sync_repo,
+                branch=self._cfg.git_sync_ref,
+                watch_path=self._cfg.watch_path,
+                period=self._cfg.git_sync_period,
+                username=self._cfg.git_sync_username,
+                password=self._cfg.git_sync_password,
+                do_ssh_auth=self._cfg.git_sync_ssh,
+                ssh_key_path=self._cfg.git_sync_ssh_key_path,
+                max_sync_failures=self._cfg.git_sync_max_sync_failures,
+                clone_depth=self._cfg.git_sync_clone_depth,
+                submodules=self._cfg.git_sync_submodules,
+            )
+
         # Setup plugin
         self._recreate_plugin()
 
@@ -448,23 +467,6 @@ class Monitor:
                         f"Could not cast the value '{max_mem_bytes}' into an integer to set max_memusage_bytes."
                     )
                 raise
-
-        # Git monitoring setup
-        self._gitsync: GitSync | None = None
-        if self._cfg.watch_type == settings.WatchTypeEnum.GIT:
-            self._gitsync = GitSync(
-                repo=self._cfg.git_sync_repo,
-                branch=self._cfg.git_sync_ref,
-                watch_path=self._cfg.watch_path,
-                period=self._cfg.git_sync_period,
-                username=self._cfg.git_sync_username,
-                password=self._cfg.git_sync_password,
-                do_ssh_auth=self._cfg.git_sync_ssh,
-                ssh_key_path=self._cfg.git_sync_ssh_key_path,
-                max_sync_failures=self._cfg.git_sync_max_sync_failures,
-                clone_depth=self._cfg.git_sync_clone_depth,
-                submodules=self._cfg.git_sync_submodules,
-            )
 
     def _recreate_plugin(self):
         """Recreate the plugin and networking for monitor."""
@@ -615,7 +617,7 @@ class Monitor:
             with AddLoggingQueueListener(logging_queue, logging.getLogger()):
                 # initialize repo locally / pull updates if necessary
                 if self._gitsync:
-                    self._gitsync.start()
+                    self._gitsync.start_notify_thread()
 
                 # Delete temp files out of temp if any exist. This prevents tmp files building up.
                 self.delete_tempfiles()
@@ -727,7 +729,7 @@ class Monitor:
 
             # Stop the thread monitoring the repo
             if self._gitsync:
-                self._gitsync.stop()
+                self._gitsync.stop_notify_thread()
 
     def _refine_current_memory_value(self, current_mem_bytes) -> int:
         """Further refine a memory value by subtracting the inactive file from the total amount of memory in use.
