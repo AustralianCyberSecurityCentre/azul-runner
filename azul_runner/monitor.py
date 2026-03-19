@@ -386,7 +386,14 @@ class GitSync:
 
     def _refresh_https_auth(self):
         logger.info("Refreshing HTTPS authentication for git")
-        self._run_git(["config", "--global", "credential.helper", "cache"])
+        cmd = ["config", "--global", "credential.helper"]
+        # home directory may not be writable, but cache needs home directory to be writable
+        if os.access(os.path.expanduser("~"), os.W_OK):
+            cmd += ["cache"]
+        else:
+            cmd += ["store --file=/tmp/.gitcredential"]
+
+        self._run_git(cmd)
         if "@" in self.repo:
             # if @ is in repo url, it contains a username and we need to use it instead of self.username
             input = f"url={self.repo}\npassword={self.password}\n"
