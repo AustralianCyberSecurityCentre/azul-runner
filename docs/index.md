@@ -70,7 +70,7 @@ Check your current version via `file --version`
 Update libmagic via
 
 ```
-git clone --depth 1 --branch FILE5_46 https://github.com/file/file
+git clone --depth 1 --branch FILE5_47 https://github.com/file/file
 cd file/ && \
     autoreconf -f -i && \
     ./configure --disable-silent-rules && \
