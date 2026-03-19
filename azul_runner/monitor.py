@@ -332,17 +332,17 @@ class GitSync:
 
         logger.info(f"Initializing git repository at {self.watch_path} with remote {self.repo}")
 
+        # create watch dir if necessary
+        if not os.path.isdir(self.watch_path):
+            os.makedirs(self.watch_path, exist_ok=True)
+            logger.info(f"Created watch directory at {self.watch_path}")
+
         if not self.do_ssh_auth and (self.username or self.password):
             # Refresh creds in memory since we are using cache as the storage mechanism
             self._refresh_https_auth()
         if self.do_ssh_auth:
             self._run_git(["config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"])
             logger.info(f"Configured SSH authentication for git repository at {self.repo}")
-
-        # create watch dir if necessary
-        if not os.path.isdir(self.watch_path):
-            os.makedirs(self.watch_path, exist_ok=True)
-            logger.info(f"Created watch directory at {self.watch_path}")
 
         if not os.path.exists(os.path.join(self.watch_path, ".git")):
             # clone if repo does not exist
