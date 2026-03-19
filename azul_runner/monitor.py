@@ -312,7 +312,7 @@ class GitSync:
     def pull(self):
         """Fetch updates from the remote, if available."""
         logger.info(f"Pulling updates from remote repository at {self.watch_path}")
-        if not self.do_ssh_auth and self.username and self.password:
+        if not self.do_ssh_auth and (self.username or self.password):
             # Refresh creds in memory since we are using cache as the storage mechanism
             self._refresh_https_auth()
 
@@ -332,7 +332,7 @@ class GitSync:
 
         logger.info(f"Initializing git repository at {self.watch_path} with remote {self.repo}")
 
-        if not self.do_ssh_auth and self.username and self.password:
+        if not self.do_ssh_auth and (self.username or self.password):
             # Refresh creds in memory since we are using cache as the storage mechanism
             self._refresh_https_auth()
         if self.do_ssh_auth:
@@ -380,9 +380,15 @@ class GitSync:
     def _refresh_https_auth(self):
         logger.info("Refreshing HTTPS authentication for git")
         self._run_git(["config", "--global", "credential.helper", "cache"])
+        if "@" in self.repo:
+            # if @ is in repo url, it contains a username and we need to use it instead of self.username
+            input = f"url={self.repo}\npassword={self.password}\n"
+        else:
+            # if @ is not in repo url, we can use self.username
+            input = f"url={self.repo}\nusername={self.username}\npassword={self.password}\n"
         self._run_git(
             ["credential", "approve"],
-            input=f"url={self.repo}\nusername={self.username}\npassword={self.password}",
+            input=input,
         )
 
     def _run_loop(self):
