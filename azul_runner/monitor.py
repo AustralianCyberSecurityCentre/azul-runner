@@ -281,9 +281,6 @@ class GitSync:
         self._stop_event: threading.Event = threading.Event()
         self._update_event: threading.Event = threading.Event()
 
-        logger.error(
-            f"Initializing GitSync with:\nrepo: {repo}\n branch: {branch}\n watch_path: {watch_path}\n period: {period}\n username: {username}\n do_ssh_auth: {do_ssh_auth}\n ssh_key_path: {ssh_key_path}\n max_sync_failures: {max_sync_failures}\n clone_depth: {clone_depth}\n submodules: {submodules}"
-        )
         self._init_repo()
 
     def start_notify_thread(self):
