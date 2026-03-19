@@ -281,6 +281,9 @@ class GitSync:
         self._stop_event: threading.Event = threading.Event()
         self._update_event: threading.Event = threading.Event()
 
+        logger.info(
+            f"Setting up GitSync to watch repo {self.repo} at path {self.watch_path} with period {self.period} seconds"
+        )
         self._init_repo()
 
     def start_notify_thread(self):
