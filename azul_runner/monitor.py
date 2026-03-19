@@ -342,7 +342,7 @@ class GitSync:
 
         # ~/.gitconfig may not be writable
         if not os.access(os.path.expanduser("~"), os.W_OK):
-            os.environ["GIT_CONFIG_GLOBAL"] = "/tmp/.gitconfig"
+            os.environ["GIT_CONFIG_GLOBAL"] = "/tmp/.gitconfig"  # noqa: S108
 
         if not self.do_ssh_auth and (self.username or self.password):
             # Refresh creds in memory since we are using cache as the storage mechanism
