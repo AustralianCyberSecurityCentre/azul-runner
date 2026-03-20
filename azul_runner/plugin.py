@@ -76,7 +76,7 @@ class Plugin:
             for k, v in self.cfg.model_dump(
                 exclude_defaults=True,
                 exclude_unset=True,
-                exclude=["git_sync_password"],
+                exclude=["git_sync_username", "git_sync_password"],
             ).items():
                 logger.info(f"{k:20}: {v}")
 
