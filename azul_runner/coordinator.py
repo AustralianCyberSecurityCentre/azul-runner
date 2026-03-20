@@ -149,7 +149,7 @@ class Coordinator:
         self._watched: WatchPath | None = None
 
         # start watchdog
-        if self._cfg.watch_path:
+        if self._cfg.watch_path and self._cfg.watch_type != settings.WatchTypeEnum.GIT:
             self._watchdog = Observer()
             self._watched = WatchPath(self._cfg.watch_wait)
             # sleep before starting plugin
