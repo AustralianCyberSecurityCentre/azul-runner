@@ -73,7 +73,11 @@ class Plugin:
         to_print = self.cfg.model_dump(exclude_defaults=True, exclude_unset=True)
         if to_print:
             logger.info("custom startup options:")
-            for k, v in self.cfg.model_dump(exclude_defaults=True, exclude_unset=True).items():
+            for k, v in self.cfg.model_dump(
+                exclude_defaults=True,
+                exclude_unset=True,
+                exclude=["git_sync_username", "git_sync_password"],
+            ).items():
                 logger.info(f"{k:20}: {v}")
 
         self.shutting_down = False
