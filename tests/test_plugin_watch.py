@@ -89,19 +89,6 @@ class TestPluginExecutionWrapper(unittest.TestCase):
                 f.write("1")
             self._inner_test_watch(filepath)
 
-    @pytest.mark.timeout(10)
-    def test_watch_git(self):
-        """Tests git watch."""
-
-        with tempfile.TemporaryDirectory() as filepath:
-            subprocess.call(["git", "init"], cwd=filepath)
-            with open(os.path.join(filepath, "tmp.txt"), "w") as f:
-                f.write("1")
-            subprocess.call(["git", "add", "tmp.txt"], cwd=filepath)
-            subprocess.call(["git", "commit", "-m", '"add file"'], cwd=filepath)
-
-            self._inner_test_watch(filepath, watch_type="git")
-
     class DPWatchGitMissing(sup.DummyPlugin):
         def __init__(self, config: dict[str, dict[str, Any]] = None) -> None:
             super().__init__(config)

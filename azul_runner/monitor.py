@@ -342,7 +342,7 @@ class GitSync:
 
         # ~/.gitconfig may not be writable
         if not os.access(os.path.expanduser("~"), os.W_OK):
-            os.environ["GIT_CONFIG_GLOBAL"] = "/tmp/.gitconfig"  # noqa: S108
+            os.environ["GIT_CONFIG_GLOBAL"] = tempfile.NamedTemporaryFile(delete=False).name
 
         if not self.do_ssh_auth and (self.username or self.password):
             # Refresh creds in memory since we are using cache as the storage mechanism
@@ -391,7 +391,7 @@ class GitSync:
         if os.access(os.path.expanduser("~"), os.W_OK):
             cmd += ["cache"]
         else:
-            cmd += ["store --file=/tmp/.gitcredential"]
+            cmd += [f"store --file={tempfile.NamedTemporaryFile(delete=False).name}"]
 
         self._run_git(cmd)
         if "@" in self.repo:
@@ -639,6 +639,7 @@ class Monitor:
         recreate_plugin_requested = False
         plugin_clean_exit_requested = False
         is_any_job_active = False
+        git_update_pending = False
         try:
             with AddLoggingQueueListener(logging_queue, logging.getLogger()):
                 # initialize repo locally / pull updates if necessary
@@ -667,12 +668,25 @@ class Monitor:
                         time.sleep(self.time_to_wait_between_checks)
                         pass
 
+                    if self._gitsync and self._gitsync.update_pending():
+                        git_update_pending = True
+                        if is_any_job_active:
+                            logger.info(
+                                "Git update detected but waiting to restart plugin until there are no active jobs."
+                            )
+
                     # Confirm at least one task wants to be recreated and none have any active jobs.
-                    if recreate_plugin_requested and not is_any_job_active:
+                    if (recreate_plugin_requested or git_update_pending) and not is_any_job_active:
                         self.purge_temp_directory()
                         self._recreate_plugin()
                         # Ensure all child processes were terminated before re-creating them.
                         self._kill_child_processes(concurrent_task_list)
+
+                        if git_update_pending:
+                            logger.info("Restarting plugin after git update was detected.")
+                            self._gitsync.pull()
+                            git_update_pending = False
+
                         for monitor_task in concurrent_task_list:
                             # Ensure the jobs in the child tasks queue are cleared before starting plugin to prevent
                             # Deadlocks.
@@ -739,12 +753,6 @@ class Monitor:
                             child_process = self._create_and_start_child_process(
                                 start_child_process_func, job_limit, queue, logging_queue
                             )
-
-                        # Check for any updates to the remote repository that we may be monitoring
-                        if self._gitsync and self._gitsync.update_pending():
-                            self._gitsync.pull()
-                            # Plugins should exit anyway when files are updated, but recreate explicitly for good measure
-                            recreate_plugin_requested = True
 
         finally:
             self._kill_child_processes(concurrent_task_list)
