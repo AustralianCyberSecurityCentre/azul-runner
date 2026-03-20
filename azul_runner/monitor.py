@@ -408,7 +408,7 @@ class GitSync:
     def _run_loop(self):
         while not self._stop_event.is_set():
             try:
-                local = self._run_git(["rev-parse", "HEAD"])
+                local = self._run_git(["rev-parse", "HEAD"]).split()[0]
 
                 ls_cmd = ["ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
                 remote = self._run_git(ls_cmd)
