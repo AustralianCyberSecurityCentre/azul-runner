@@ -58,7 +58,7 @@ class RecreateException(Exception):
 
 def get_git_version_suffix(config: settings.Settings) -> str | None:
     """Get the git version suffix for the watched repo if there is one."""
-    if config.watch_path and config.watch_type == settings.WatchTypeEnum.GIT:
+    if config.watch_path:
         # wait for valid git repo on disk
         for _ in range(3):
             retcode = subprocess.call(
