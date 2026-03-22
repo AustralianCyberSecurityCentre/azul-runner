@@ -415,9 +415,7 @@ class GitSync:
 
                 # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
                 if local != remote:
-                    logger.info(
-                        f"Remote repo has new updates (local HEAD: {local} remote HEAD: {remote})."
-                    )
+                    logger.info(f"Remote repo has new updates (local HEAD: {local} remote HEAD: {remote}).")
                     self._update_event.set()
 
                 # wait until it is either time to check remote again or the main thread tell this thread to stop with GitSync.stop()
