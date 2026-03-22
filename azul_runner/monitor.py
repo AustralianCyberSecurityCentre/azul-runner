@@ -303,7 +303,7 @@ class GitSync:
         logger.info("Stopping GitSync notification thread")
         self._stop_event.set()
         if self._notify_thread.is_alive():
-            self._notify_thread.join()
+            self._notify_thread.join(timeout=30.0)
 
     def update_pending(self) -> bool:
         """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
@@ -316,14 +316,9 @@ class GitSync:
 
     def pull(self):
         """Fetch updates from the remote, if available."""
-        logger.info(f"Pulling updates from remote repository at {self.watch_path}")
+        logger.info(f"Pulling updates from {self.repo} to {self.watch_path}")
         self._refresh_auth()
-        if not self.do_ssh_auth and (self.username or self.password):
-            # Refresh creds in memory since we are using cache as the storage mechanism
-            self._refresh_https_auth()
-
-        pull_cmd = ["pull", "origin", "--verbose", "--no-progress", "--prune"]
-        self._run_git(pull_cmd, refresh_auth=True)
+        self._run_git(["pull", "origin", "--verbose", "--no-progress", "--prune"])
         self._sync_failures = 0
 
         if self._update_event.is_set():
@@ -349,13 +344,15 @@ class GitSync:
 
         if not os.path.exists(os.path.join(self.watch_path, ".git")):
             # clone if repo does not exist
-            logger.info(f"Cloning repository from {self.repo} to {self.watch_path}")
             clone_cmd = ["clone", "--verbose", self.repo, "."]
             if self.branch:
                 clone_cmd.insert(2, f"--branch={self.branch}")
             if self.clone_depth > 0:
                 clone_cmd.insert(2, f"--depth={self.clone_depth}")
-            self._run_git(clone_cmd, refresh_auth=True)
+
+            self._refresh_auth()
+            logger.info(f"Cloning repository from {self.repo} to {self.watch_path}")
+            self._run_git(clone_cmd)
 
             if self.submodules != "off":
                 submodule_cmd = ["submodule", "update", "--init"]
@@ -366,16 +363,15 @@ class GitSync:
                 self._run_git(submodule_cmd)
                 logger.info(f"Initialized submodules with option {self.submodules}")
 
-    def _run_git(self, cmd: list[str], input: str = None, refresh_auth=False) -> str:
+    def _run_git(self, cmd: list[str], input: str = None) -> str:
         """Run a git command in the watch path and return the output."""
         try:
-            if refresh_auth:
-                self._refresh_auth()
             return subprocess.check_output(  # noqa: S603
                 ["git"] + cmd,
                 cwd=self.watch_path,
                 text=True,
                 input=input,
+                stderr=subprocess.STDOUT,
             )
         except subprocess.CalledProcessError as e:
             msg = f"Git command '{' '.join(cmd)}' failed: {e.output}:{e.returncode}"
@@ -414,7 +410,8 @@ class GitSync:
                 local = self._run_git(["rev-parse", "HEAD"]).strip()
 
                 ls_cmd = ["ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
-                remote = self._run_git(ls_cmd, refresh_auth=True).split()[0].strip()
+                self._refresh_auth()
+                remote = self._run_git(ls_cmd).split()[0].strip()
 
                 # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
                 if local != remote:
