@@ -408,15 +408,15 @@ class GitSync:
     def _run_loop(self):
         while not self._stop_event.is_set():
             try:
-                local = self._run_git(["rev-parse", "HEAD"])
+                local = self._run_git(["rev-parse", "HEAD"]).strip()
 
                 ls_cmd = ["ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
-                remote = self._run_git(ls_cmd).split()[0]
+                remote = self._run_git(ls_cmd).split()[0].strip()
 
                 # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
                 if local != remote:
                     logger.info(
-                        f"Remote repo has new updates (local HEAD: {local.strip()} remote HEAD: {remote.strip()})."
+                        f"Remote repo has new updates (local HEAD: {local} remote HEAD: {remote})."
                     )
                     self._update_event.set()
 
