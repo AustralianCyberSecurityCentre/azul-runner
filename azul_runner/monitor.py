@@ -667,9 +667,7 @@ class Monitor:
                     if self._gitsync and self._gitsync.update_pending():
                         git_update_pending = True
                         if is_any_job_active:
-                            logger.info(
-                                "Git update detected but waiting to restart plugin until there are no active jobs."
-                            )
+                            logger.info("Git update detected; restarting plugin when there are no active jobs.")
 
                     # Confirm at least one task wants to be recreated and none have any active jobs.
                     if (recreate_plugin_requested or git_update_pending) and not is_any_job_active:
@@ -740,7 +738,7 @@ class Monitor:
                                 # prevent temp file buildup.
                                 self._kill_child_processes(concurrent_task_list)
                                 self.delete_tempfiles()
-                                child_process = self._create_and_start_child_process(
+                                monitor_task.child_process = self._create_and_start_child_process(
                                     start_child_process_func, job_limit, queue, logging_queue
                                 )
 
@@ -749,7 +747,7 @@ class Monitor:
                             self._kill_child_processes(concurrent_task_list)
                             # prevent temp file buildup.
                             self.delete_tempfiles()
-                            child_process = self._create_and_start_child_process(
+                            monitor_task.child_process = self._create_and_start_child_process(
                                 start_child_process_func, job_limit, queue, logging_queue
                             )
 
