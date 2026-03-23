@@ -78,6 +78,7 @@ def get_git_version_suffix(config: settings.Settings) -> str | None:
                 ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
                 cwd=config.watch_path,
                 shell=False,
+                stderr=subprocess.STDOUT,
             )
         except subprocess.CalledProcessError as e:
             raise CriticalError(f"is git not installed or {config.watch_path} not a valid git checkout?") from e

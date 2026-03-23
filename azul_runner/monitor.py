@@ -574,17 +574,12 @@ class Monitor:
 
     def _kill_child_processes(self, concurrent_task_list: list[MonitorTask]):
         """Continually kill the child process until it's no longer alive."""
-        killing_attempt = 0
         for cur_task in concurrent_task_list:
-            while cur_task.child_process.is_alive():
-                # Keep trying to kill the child process and all of it's children.
-                kill_child_proc_tree(cur_task.child_process.pid)
-                cur_task.child_process.kill()
-                time.sleep(0.1)
-                killing_attempt += 1
-                if killing_attempt > MAX_ATTEMPTS_TO_KILL_CHILD_PROCESS:
-                    # Failed to kill child process.
-                    raise TimeoutError()
+            kill_child_proc_tree(cur_task.child_process.pid)
+            cur_task.child_process.kill()
+            cur_task.child_process.join(timeout=15)
+            if cur_task.child_process.is_alive():
+                raise TimeoutError("Child did not exit after receiving SIGKILL")
 
     def run_once(
         self,
@@ -708,7 +703,10 @@ class Monitor:
 
                     # If the child process has stopped handle that case.
                     for monitor_task in concurrent_task_list:
-                        if not child_process.is_alive():
+                        if not monitor_task.child_process.is_alive():
+                            if monitor_task.child_process.exitcode is None:
+                                # Process is either just started up or is in the process of being killed
+                                continue
                             if monitor_task.child_process.exitcode == TaskExitCodeEnum.COMPLETED.value:
                                 plugin_clean_exit_requested = True
                                 continue
