@@ -667,8 +667,6 @@ class Monitor:
 
                     if self._gitsync and self._gitsync.update_pending():
                         git_update_pending = True
-                        if is_any_job_active:
-                            logger.info("Git update detected; restarting plugin when there are no active jobs.")
 
                     # Confirm at least one task wants to be recreated and none have any active jobs.
                     if (recreate_plugin_requested or git_update_pending) and not is_any_job_active:
