@@ -687,7 +687,7 @@ class Monitor:
                             monitor_task.set_current_job_and_count_completed_jobs()
                             # Start child process again
                             monitor_task.child_process = self._create_and_start_child_process(
-                                start_child_process_func, job_limit, queue, logging_queue
+                                start_child_process_func, job_limit, monitor_task.queue, logging_queue
                             )
 
                     # Confirm at least one task wants to exit and there are no active tasks.
@@ -739,7 +739,7 @@ class Monitor:
                                 self._kill_child_processes(concurrent_task_list)
                                 self.delete_tempfiles()
                                 monitor_task.child_process = self._create_and_start_child_process(
-                                    start_child_process_func, job_limit, queue, logging_queue
+                                    start_child_process_func, job_limit, monitor_task.queue, logging_queue
                                 )
 
                         # Check for timeout and raise heartbeat if required.
@@ -748,7 +748,7 @@ class Monitor:
                             # prevent temp file buildup.
                             self.delete_tempfiles()
                             monitor_task.child_process = self._create_and_start_child_process(
-                                start_child_process_func, job_limit, queue, logging_queue
+                                start_child_process_func, job_limit, monitor_task.queue, logging_queue
                             )
 
         finally:
