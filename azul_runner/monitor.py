@@ -578,7 +578,7 @@ class Monitor:
         for cur_task in concurrent_task_list:
             kill_child_proc_tree(cur_task.child_process.pid)
             cur_task.child_process.kill()
-            cur_task.child_process.join(timeout=15)
+            cur_task.child_process.join(timeout=10)
             if cur_task.child_process.is_alive():
                 raise TimeoutError("Child did not exit after receiving SIGKILL")
 
@@ -655,7 +655,10 @@ class Monitor:
                 self.propagate_termination_signal(concurrent_task_list, signal.SIGINT)
                 self.propagate_termination_signal(concurrent_task_list, signal.SIGTERM)
 
+                idx = 0
                 while True:
+                    logger.debug(f"Monitor loop: {idx}")
+                    idx += 1
                     # Sleep only if the job_limit isn't set and if the limit is set start waiting once you have
                     # processed that many jobs. (makes testing much faster)
                     if job_limit and job_count > job_limit:
@@ -701,9 +704,10 @@ class Monitor:
                     # If the child process has stopped handle that case.
                     for monitor_task in concurrent_task_list:
                         if not monitor_task.child_process.is_alive():
-                            if monitor_task.child_process.exitcode is None:
-                                # Process is either just started up or is in the process of being killed
-                                continue
+                            # TODO: add sleep to check if process is still not alive after a few seconds before killing to prevent killing processes that are in the process of restarting.
+                            # if monitor_task.child_process.exitcode is None:
+                            #     # Process is either just started up or is in the process of being killed
+                            #     continue
                             if monitor_task.child_process.exitcode == TaskExitCodeEnum.COMPLETED.value:
                                 plugin_clean_exit_requested = True
                                 continue
