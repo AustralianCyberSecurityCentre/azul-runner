@@ -22,6 +22,7 @@ import pydantic
 from azul_bedrock import models_network as azm
 
 from azul_runner.coordinator import (
+    RESTART_SIGNAL,
     Coordinator,
     CriticalError,
     RecreateException,
@@ -35,7 +36,6 @@ from . import network, settings
 from . import plugin as mplugin
 from .storage import StorageProxyFile
 
-MAX_ATTEMPTS_TO_KILL_CHILD_PROCESS = 10
 LOCAL_RESULT_SUFFIX = "-result"
 logger = logging.getLogger(__name__)
 
@@ -582,6 +582,11 @@ class Monitor:
             if cur_task.child_process.is_alive():
                 raise TimeoutError("Child did not exit after receiving SIGKILL")
 
+    def _send_signal_to_child_processes(self, tasks: list[MonitorTask], send_sig: signal.Signals):
+        """Send a specified signal to all child processes referred to by `tasks`."""
+        for t in tasks:
+            os.kill(t.child_process.pid, send_sig)
+
     def run_once(
         self,
         event: azm.BinaryEvent,
@@ -655,10 +660,7 @@ class Monitor:
                 self.propagate_termination_signal(concurrent_task_list, signal.SIGINT)
                 self.propagate_termination_signal(concurrent_task_list, signal.SIGTERM)
 
-                idx = 0
                 while True:
-                    logger.debug(f"Monitor loop: {idx}")
-                    idx += 1
                     # Sleep only if the job_limit isn't set and if the limit is set start waiting once you have
                     # processed that many jobs. (makes testing much faster)
                     if job_limit and job_count > job_limit:
@@ -669,6 +671,8 @@ class Monitor:
                         pass
 
                     if self._gitsync and self._gitsync.update_pending():
+                        # Notify child that it is time to exit
+                        self._send_signal_to_child_processes(concurrent_task_list, RESTART_SIGNAL)
                         git_update_pending = True
 
                     # Confirm at least one task wants to be recreated and none have any active jobs.
@@ -704,10 +708,10 @@ class Monitor:
                     # If the child process has stopped handle that case.
                     for monitor_task in concurrent_task_list:
                         if not monitor_task.child_process.is_alive():
-                            # TODO: add sleep to check if process is still not alive after a few seconds before killing to prevent killing processes that are in the process of restarting.
-                            # if monitor_task.child_process.exitcode is None:
-                            #     # Process is either just started up or is in the process of being killed
-                            #     continue
+                            if monitor_task.child_process.exitcode is None:
+                                # TODO: confirm the following statement is correct:
+                                # Process is either just started up or is in the process of being killed
+                                continue
                             if monitor_task.child_process.exitcode == TaskExitCodeEnum.COMPLETED.value:
                                 plugin_clean_exit_requested = True
                                 continue
