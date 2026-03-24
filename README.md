@@ -21,7 +21,7 @@ $ azul-plugin-(name) local_folder/
 # against remote dispatcher
 $ azul-plugin-(name) --server http://server.address/path
 
-# with custom config
+# with custom config 
 $ azul-plugin-(name) -c KEY VALUE -c KEY2 VALUE2
 ```
 
