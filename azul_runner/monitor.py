@@ -196,22 +196,21 @@ def _start_loop_coordinator(
         loop.run_loop(queue=queue, job_limit=job_limit)
         # clean exit
         logger.info("Plugin has stopped cleanly.")
-        exit(TaskExitCodeEnum.COMPLETED)
+        exit(TaskExitCodeEnum.COMPLETED.value)
     except CriticalError:
         logger.info("closing program after critical error.")
-        exit(TaskExitCodeEnum.TERMINATE)
+        exit(TaskExitCodeEnum.TERMINATE.value)
     except SigTermExitError:
         logger.info("closing program after SigTerm recieved error.")
-        exit(TaskExitCodeEnum.TERMINATE)
+        exit(TaskExitCodeEnum.TERMINATE.value)
     except RecreateException:
         # Kill process tree to remove any bad child processes launched with subprocess module.
         logger.info("Re-creating the plugin.")
         kill_child_proc_tree(pid)
-        logger.info(f"ENUM: {TaskExitCodeEnum.RECREATE_PLUGIN} VALUE: {TaskExitCodeEnum.RECREATE_PLUGIN.value}")
         exit(TaskExitCodeEnum.RECREATE_PLUGIN.value)
     except Exception:
         logger.error(f"Plugin crashed with generic error {traceback.format_exc()}")
-        exit(TaskExitCodeEnum.TERMINATE)
+        exit(TaskExitCodeEnum.TERMINATE.value)
 
 
 class MonitorTask:
