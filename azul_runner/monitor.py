@@ -207,7 +207,8 @@ def _start_loop_coordinator(
         # Kill process tree to remove any bad child processes launched with subprocess module.
         logger.info("Re-creating the plugin.")
         kill_child_proc_tree(pid)
-        exit(TaskExitCodeEnum.RECREATE_PLUGIN)
+        logger.info(f"ENUM: {TaskExitCodeEnum.RECREATE_PLUGIN} VALUE: {TaskExitCodeEnum.RECREATE_PLUGIN.value}")
+        exit(TaskExitCodeEnum.RECREATE_PLUGIN.value)
     except Exception:
         logger.error(f"Plugin crashed with generic error {traceback.format_exc()}")
         exit(TaskExitCodeEnum.TERMINATE)
