@@ -585,7 +585,8 @@ class Monitor:
     def _send_signal_to_child_processes(self, tasks: list[MonitorTask], send_sig: signal.Signals):
         """Send a specified signal to all child processes referred to by `tasks`."""
         for t in tasks:
-            os.kill(t.child_process.pid, send_sig)
+            if t.child_process.is_alive():
+                os.kill(t.child_process.pid, send_sig)
 
     def run_once(
         self,
