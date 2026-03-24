@@ -66,6 +66,7 @@ def get_git_version_suffix(config: settings.Settings) -> str | None:
                 cwd=config.watch_path,
                 shell=False,
                 stderr=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
             )
             if retcode == 0:
                 break
