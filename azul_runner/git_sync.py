@@ -16,7 +16,12 @@ class GitError(RuntimeError):
 
 
 class GitSync:
-    """Notifies main thread when a watched git repository has been updated."""
+    """Notifies main thread when a watched git repository has been updated.
+
+    Security Note: When using HTTPS authentication with credential store, credentials are stored
+    in plaintext in ~/.gitcredential. For sensitive credentials, consider using SSH authentication
+    instead (do_ssh_auth=True with ssh_key_path).
+    """
 
     def __init__(
         self,
@@ -32,6 +37,21 @@ class GitSync:
         clone_depth: int = 0,
         submodules: str = "off",
     ):
+        # Validate inputs
+        if not repo:
+            raise ValueError("repo URL must not be empty")
+        if period <= 0:
+            raise ValueError(f"period must be > 0, got {period}")
+        if do_ssh_auth and not ssh_key_path:
+            raise ValueError("ssh_key_path must be provided when do_ssh_auth is True")
+        if not do_ssh_auth and (username or password):
+            if not username or not password:
+                raise ValueError("Both username and password must be provided for HTTPS auth")
+        if clone_depth < 0:
+            raise ValueError(f"clone_depth must be >= 0, got {clone_depth}")
+        if submodules not in ("off", "on", "recursive"):
+            raise ValueError(f"submodules must be 'off', 'on', or 'recursive', got {submodules}")
+
         self.repo: str = repo
         self.branch: str = branch
         self.watch_path: str = watch_path
@@ -44,57 +64,16 @@ class GitSync:
         self.clone_depth: int = clone_depth
         self.submodules: str = submodules
 
-        self._gitconfig = tempfile.NamedTemporaryFile(delete=False, prefix=".git").name
-        self._gitcredential = tempfile.NamedTemporaryFile(delete=False, prefix=".git").name
-        self._sync_failures = 0
-        self._notify_thread: threading.Thread = threading.Thread(target=self._run_loop)
+        self._gitconfig: str = os.path.join(os.path.expanduser("~"), ".gitconfig")
+        self._gitcredential: str = os.path.join(os.path.expanduser("~"), ".gitcredential")
+        self._sync_failures: int = 0
+        self._sync_failures_lock: threading.Lock = threading.Lock()
+        self._notify_thread: threading.Thread | None = None
         self._stop_event: threading.Event = threading.Event()
         self._update_event: threading.Event = threading.Event()
-
-        logger.info(
-            f"Setting up GitSync to watch repo {self.repo} at path {self.watch_path} with period {self.period} seconds"
-        )
+        self._original_git_config_global: str | None = None  # store for reset, if needed
+        
         self._init_repo()
-
-    def start_notify_thread(self):
-        """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
-        if self._notify_thread.is_alive():
-            msg = "GitSync thread is already running"
-            logger.error(msg)
-            raise GitError(msg)
-
-        self._notify_thread.start()
-        logger.info("GitSync thread started")
-
-    def stop_notify_thread(self):
-        """Tell notify thread to exit then wait for it to join."""
-        logger.info("Stopping GitSync notification thread")
-        self._stop_event.set()
-        if self._notify_thread.is_alive():
-            self._notify_thread.join(timeout=30.0)
-
-    def update_pending(self) -> bool:
-        """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
-        if self._sync_failures > self.max_sync_failures:
-            msg = f"GitSync has failed to check for updates {self._sync_failures} times which is above the max_sync_failures threshold of {self.max_sync_failures}."
-            logger.error(msg)
-            self.stop_notify_thread()
-            raise GitError(msg)
-        return self._update_event.is_set()
-
-    def pull(self):
-        """Fetch updates from the remote, if available."""
-        logger.info(f"Pulling updates from {self.repo} to {self.watch_path}")
-        self._refresh_auth()
-        pull_output = self._run_git(["pull", "origin", "--verbose", "--no-progress", "--prune"])
-        logger.info(f"{self.repo} pull complete: {pull_output}")
-        self._sync_failures = 0
-
-        if self.submodules != "off":
-            self._sync_submodules()
-
-        if self._update_event.is_set():
-            self._update_event.clear()
 
     def _init_repo(self):
         """Initialize the git repository in the watch path if it doesn't exist."""
@@ -103,15 +82,20 @@ class GitSync:
             logger.error(msg)
             raise GitError(msg)
 
-        logger.info(f"Initializing git repository at {self.watch_path} with remote {self.repo}")
+        logger.info(f"GitSync repo {self.repo} at {self.watch_path} with period {self.period} seconds")
 
         # create watch dir if necessary
         if not os.path.isdir(self.watch_path):
             os.makedirs(self.watch_path, exist_ok=True)
             logger.info(f"Created watch directory at {self.watch_path}")
 
-        # ~/.gitconfig may not be writable
+        # ~/.gitconfig and ~/.gitcredential may not be writable
         if not os.access(os.path.expanduser("~"), os.W_OK):
+            with tempfile.NamedTemporaryFile(delete=False, prefix=".git") as f:
+                self._gitconfig = f.name
+            with tempfile.NamedTemporaryFile(delete=False, prefix=".git") as f:
+                self._gitcredential = f.name
+            self._original_git_config_global = os.environ.get("GIT_CONFIG_GLOBAL")
             os.environ["GIT_CONFIG_GLOBAL"] = self._gitconfig
 
         if not os.path.exists(os.path.join(self.watch_path, ".git")):
@@ -130,30 +114,6 @@ class GitSync:
             if self.submodules != "off":
                 self._sync_submodules()
 
-    def _sync_submodules(self):
-        submodule_cmd = ["submodule", "update", "--init", "--no-progress"]
-        if self.submodules == "recursive":
-            submodule_cmd.append("--recursive")
-        if self.clone_depth > 0:
-            submodule_cmd.append(f"--depth={self.clone_depth}")
-        self._run_git(submodule_cmd)
-        logger.info(f"Synced {self.repo} submodules with option {self.submodules}")
-
-    def _run_git(self, cmd: list[str], input: str = None) -> str:
-        """Run a git command in the watch path and return the output."""
-        try:
-            return subprocess.check_output(  # noqa: S603
-                ["git"] + cmd,
-                cwd=self.watch_path,
-                text=True,
-                input=input,
-                stderr=subprocess.STDOUT,
-            )
-        except subprocess.CalledProcessError as e:
-            msg = f"Git command '{' '.join(cmd)}' failed: {e.output}:{e.returncode}"
-            logger.error(msg)
-            raise GitError(msg) from e
-
     def _refresh_auth(self):
         if not self.do_ssh_auth and (self.username or self.password):
             # Refresh creds in memory since we are using cache as the storage mechanism
@@ -164,6 +124,7 @@ class GitSync:
                 cmd += ["cache"]
             else:
                 cmd += [f"store --file={self._gitcredential}"]
+                logger.warning(f"HTTPS credentials for {self.repo} are stored in plaintext at {self._gitcredential}")
 
             self._run_git(cmd)
             if "@" in self.repo:
@@ -176,11 +137,83 @@ class GitSync:
                 ["credential", "approve"],
                 input=input,
             )
-        if self.do_ssh_auth:
+        elif self.do_ssh_auth:
             logger.debug(f"Refreshing SSH authentication for git repository at {self.repo}")
             self._run_git(["config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"])
 
+    def _run_git(self, cmd: list[str], input: str = None) -> str:
+        """Run a git command in the watch path and return the output."""
+        try:
+            return subprocess.check_output(  # noqa: S603
+                ["git"] + cmd,
+                cwd=self.watch_path,
+                text=True,
+                input=input,
+                stderr=subprocess.STDOUT,
+            )
+        except subprocess.CalledProcessError as e:
+            msg = f"Git command '{' '.join(cmd)}' failed with code {e.returncode}: {e.output}"
+            logger.error(msg)
+            raise GitError(msg) from e
+
+    def _sync_submodules(self):
+        submodule_cmd = ["submodule", "update", "--init", "--no-progress"]
+        if self.submodules == "recursive":
+            submodule_cmd.append("--recursive")
+        if self.clone_depth > 0:
+            submodule_cmd.append(f"--depth={self.clone_depth}")
+        self._run_git(submodule_cmd)
+        logger.info(f"Synced {self.repo} submodules with option {self.submodules}")
+
+    def update_pending(self) -> bool:
+        """Return whether or not the notification thread has set the update_event flag, indicating the remote has new content."""
+        with self._sync_failures_lock:
+            sync_failures = self._sync_failures
+        if sync_failures > self.max_sync_failures:
+            msg = f"GitSync has failed to check for updates {sync_failures} times which is above the max_sync_failures threshold of {self.max_sync_failures}."
+            logger.error(msg)
+            self.stop_notify_thread()
+            raise GitError(msg)
+        return self._update_event.is_set()
+
+    def pull(self):
+        """Fetch updates from the remote, if available."""
+        logger.info(f"Pulling updates from {self.repo} to {self.watch_path}")
+        self._refresh_auth()
+        pull_output = self._run_git(["pull", "origin", "--verbose", "--no-progress", "--prune"])
+        logger.info(f"{self.repo} pull complete: {pull_output}")
+        with self._sync_failures_lock:
+            self._sync_failures = 0
+
+        if self.submodules != "off":
+            self._sync_submodules()
+
+        self._update_event.clear()
+
+    def start_notify_thread(self):
+        """Start a thread that watches a remote repo for updates and notifies the main thread when updates are available."""
+        if self._notify_thread is not None and self._notify_thread.is_alive():
+            msg = "GitSync thread is already running"
+            logger.error(msg)
+            raise GitError(msg)
+
+        self._stop_event.clear()
+        self._notify_thread = threading.Thread(target=self._run_loop)
+        self._notify_thread.start()
+        logger.info("GitSync thread started")
+
+    def stop_notify_thread(self):
+        """Tell notify thread to exit then wait for it to join."""
+        logger.info("Stopping GitSync notification thread")
+        self._stop_event.set()
+        if self._notify_thread is not None and self._notify_thread.is_alive():
+            self._notify_thread.join(timeout=10)
+            if self._notify_thread.is_alive():
+                logger.warning("GitSync thread did not exit within 10 seconds")
+        self._cleanup()
+
     def _run_loop(self):
+        """Loop that runs in a separate thread to check for updates from the remote repo and notify the main thread when updates are available."""
         while not self._stop_event.is_set():
             try:
                 local = self._run_git(["rev-parse", "HEAD"]).strip()
@@ -198,12 +231,30 @@ class GitSync:
 
                 # wait until it is either time to check remote again or the main thread tell this thread to stop with GitSync.stop()
                 self._stop_event.wait(timeout=self.period)
-                self._sync_failures = 0
+                with self._sync_failures_lock:
+                    self._sync_failures = 0
             except GitError as e:
                 logger.error(f"Error checking for updates from remote repo: {e}")
-                self._sync_failures += 1
-                if self._sync_failures > self.max_sync_failures:
+                with self._sync_failures_lock:
+                    self._sync_failures += 1
+                    sync_failures = self._sync_failures
+                if sync_failures > self.max_sync_failures:
                     logger.error(
                         f"Maximum sync failures reached ({self.max_sync_failures}); terminating watch thread."
                     )
                     break
+
+    def _cleanup(self):
+        """Clean up temporary files created for git config/credentials."""
+        for temp_file in [self._gitconfig, self._gitcredential]:
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    logger.debug(f"Cleaned up temporary file {temp_file}")
+            except OSError as e:
+                logger.warning(f"Failed to clean up temporary file {temp_file}: {e}")
+        # Restore original GIT_CONFIG_GLOBAL if it was set
+        if self._original_git_config_global is not None:
+            os.environ["GIT_CONFIG_GLOBAL"] = self._original_git_config_global
+        elif "GIT_CONFIG_GLOBAL" in os.environ:
+            del os.environ["GIT_CONFIG_GLOBAL"]
