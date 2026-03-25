@@ -13,7 +13,8 @@ from typing import Any, ClassVar
 
 import pytest
 
-from azul_runner import coordinator, settings
+from azul_runner import coordinator, monitor, settings
+from azul_runner.settings import WatchTypeEnum
 
 from . import mock_dispatcher as md
 from . import plugin_support as sup
@@ -141,3 +142,99 @@ class TestPluginExecutionWrapper(unittest.TestCase):
             p.start()
             with self.assertRaises(SystemExit):
                 loop.run_loop(queue=self.dummy_queue, job_limit=6)
+
+
+def modify_watched_file_in_background(filepath: str, delay: float = 0.5):
+    """Modify a watched file after a specified delay."""
+    time.sleep(delay)
+    watch_file = os.path.join(filepath, "tmp.txt")
+    with open(watch_file, "w") as f:
+        f.write("modified")
+
+
+class TestMonitorWatch(unittest.TestCase):
+    """
+    Tests Monitor's watch functionality and coordinator recreation behavior.
+    Verifies that Monitor properly detects file changes, handles coordinator exit codes,
+    and recreates the coordinator instance.
+    """
+
+    mock_server: ClassVar[md.MockDispatcher]
+    server: ClassVar[str]  # Endpoint to the mock server
+    maxDiff = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.mock_server, cls.server = sup.setup_mock_dispatcher()
+        cls.editor = md.Editor(cls.server)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.mock_server.stop()
+        cls.mock_server.kill()
+
+    class DPQuickExecute(sup.DummyPlugin):
+        """Plugin that executes quickly for testing."""
+
+        def execute(self, job):
+            # Execute quickly so we can test file watching and recreation
+            time.sleep(0.1)
+
+    @pytest.mark.timeout(20)
+    def test_monitor_watch_detects_file_change_and_recreates_coordinator(self):
+        """Test that Monitor properly detects file changes and recreates the coordinator.
+
+        This test verifies that:
+        1. Monitor detects when a watched file is modified
+        2. The Coordinator exits with the correct RECREATE_PLUGIN exit code
+        3. Monitor properly recreates a new Coordinator instance
+        4. The monitor continues to function correctly after recreation
+        """
+        with tempfile.TemporaryDirectory(prefix="donotdelete_") as watch_dir:
+            # Create initial file to watch
+            watch_file = os.path.join(watch_dir, "tmp.txt")
+            with open(watch_file, "w") as f:
+                f.write("initial")
+
+            # Create a Monitor instance with watch_path configured
+            config_dict = {
+                "server": self.server + "/test_data",
+                "watch_path": watch_dir,
+                "watch_type": WatchTypeEnum.PLAIN,  # Use plain file watching, not git
+                "watch_wait": 0,  # No wait between detecting change and recreating
+            }
+
+            monitor_instance = monitor.Monitor(self.DPQuickExecute, config_dict)
+
+            # Start a background process that will modify the watched file after a short delay
+            file_modifier = Process(
+                target=modify_watched_file_in_background,
+                args=(watch_dir, 1),  # Modify after 1 second
+            )
+            file_modifier.start()
+
+            # Create a temporary file that will be deleted when the monitor recreates the coordinator
+            with tempfile.NamedTemporaryFile(delete=False, mode="wb") as f_tmp_deleted:
+                temp_deleted_path = f_tmp_deleted.name
+                f_tmp_deleted.write(b"temporary file content")
+
+            try:
+                self.assertTrue(os.path.exists(temp_deleted_path))
+                # Run the monitor with a job_limit to allow it to complete
+                # If Monitor doesn't properly handle the RECREATE_PLUGIN exit code,
+                # it will raise an error here instead of completing successfully
+                monitor_instance.run_loop(job_limit=2)
+
+                # If we reach here, Monitor successfully handled the recreation
+                # (This validates both points 2 and 3: the exit code was RECREATE_PLUGIN
+                # and Monitor properly recreated without crashing)
+
+            finally:
+                self.assertFalse(
+                    os.path.exists(temp_deleted_path), "Temporary file should have been deleted on restart"
+                )
+                self.assertTrue(os.path.exists(watch_file), "Watch file should not have been deleted on restart")
+                file_modifier.join(timeout=5)
+                if file_modifier.is_alive():
+                    file_modifier.terminate()
+                    file_modifier.join()
