@@ -382,7 +382,7 @@ class GitSync:
     def _refresh_auth(self):
         if not self.do_ssh_auth and (self.username or self.password):
             # Refresh creds in memory since we are using cache as the storage mechanism
-            logger.info("Refreshing HTTPS authentication for git")
+            logger.debug("Refreshing HTTPS authentication for git")
             cmd = ["config", "--global", "credential.helper"]
             # home directory may not be writable, but cache needs home directory to be writable
             if os.access(os.path.expanduser("~"), os.W_OK):
@@ -402,7 +402,7 @@ class GitSync:
                 input=input,
             )
         if self.do_ssh_auth:
-            logger.info(f"Refreshing SSH authentication for git repository at {self.repo}")
+            logger.debug(f"Refreshing SSH authentication for git repository at {self.repo}")
             self._run_git(["config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"])
 
     def _run_loop(self):
@@ -574,7 +574,7 @@ class Monitor:
         return child_process
 
     def _kill_child_processes(self, concurrent_task_list: list[MonitorTask]):
-        """Continually kill the child process until it's no longer alive."""
+        """Kill the children and children's children."""
         for cur_task in concurrent_task_list:
             kill_child_proc_tree(cur_task.child_process.pid)
             cur_task.child_process.kill()
@@ -678,7 +678,7 @@ class Monitor:
 
                     # Confirm at least one task wants to be recreated and none have any active jobs.
                     if (recreate_plugin_requested or git_update_pending) and not is_any_job_active:
-                        # self.purge_temp_directory()
+                        self.delete_tempfiles()
                         self._recreate_plugin()
                         # Ensure all child processes were terminated before re-creating them.
                         self._kill_child_processes(concurrent_task_list)
@@ -743,9 +743,11 @@ class Monitor:
                         # Perform memory checks if enabled
                         if self._cfg.enable_mem_limits:
                             if not self._are_memory_limits_good(monitor_task):
-                                # prevent temp file buildup.
                                 self._kill_child_processes(concurrent_task_list)
-                                self.delete_tempfiles()
+                                # prevent temp file buildup.
+                                self.purge_temp_directory()
+                                # Recreate multiprocessing context because we just wiped its socket by purging temp
+                                self.mp_ctx = multiprocessing.get_context("forkserver")
                                 monitor_task.child_process = self._create_and_start_child_process(
                                     start_child_process_func, job_limit, monitor_task.queue, logging_queue
                                 )
@@ -754,7 +756,9 @@ class Monitor:
                         if not self._is_healthy_heartbeat_and_memory_checks(monitor_task):
                             self._kill_child_processes(concurrent_task_list)
                             # prevent temp file buildup.
-                            self.delete_tempfiles()
+                            self.purge_temp_directory()
+                            # Recreate multiprocessing context because we just wiped its socket by purging temp
+                            self.mp_ctx = multiprocessing.get_context("forkserver")
                             monitor_task.child_process = self._create_and_start_child_process(
                                 start_child_process_func, job_limit, monitor_task.queue, logging_queue
                             )
