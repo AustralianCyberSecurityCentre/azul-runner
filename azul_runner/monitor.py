@@ -522,11 +522,16 @@ class Monitor:
             )
 
     @staticmethod
-    def purge_temp_directory():
+    def purge_temp_directory(exclude_prefixes: list[str] | None = None):
         """Delete everything in the temporary directory (needed during plugin recreation requests)."""
+        if exclude_prefixes is None:
+            exclude_prefixes = []
+
         folder = tempfile.gettempdir()
         try:
             for filename in os.listdir(folder):
+                if any(filename.startswith(prefix) for prefix in exclude_prefixes):
+                    continue
                 file_path = os.path.join(folder, filename)
                 # Delete file
                 if os.path.isfile(file_path) or os.path.islink(file_path):
@@ -744,10 +749,8 @@ class Monitor:
                         if self._cfg.enable_mem_limits:
                             if not self._are_memory_limits_good(monitor_task):
                                 self._kill_child_processes(concurrent_task_list)
-                                # prevent temp file buildup.
-                                self.purge_temp_directory()
-                                # Recreate multiprocessing context because we just wiped its socket by purging temp
-                                self.mp_ctx = multiprocessing.get_context("forkserver")
+                                # prevent temp file buildup (exclude sockets used by multiprocessing).
+                                self.purge_temp_directory(exclude_prefixes=["pymp"])
                                 monitor_task.child_process = self._create_and_start_child_process(
                                     start_child_process_func, job_limit, monitor_task.queue, logging_queue
                                 )
@@ -755,10 +758,8 @@ class Monitor:
                         # Check for timeout and raise heartbeat if required.
                         if not self._is_healthy_heartbeat_and_memory_checks(monitor_task):
                             self._kill_child_processes(concurrent_task_list)
-                            # prevent temp file buildup.
-                            self.purge_temp_directory()
-                            # Recreate multiprocessing context because we just wiped its socket by purging temp
-                            self.mp_ctx = multiprocessing.get_context("forkserver")
+                            # prevent temp file buildup (exclude sockets used by multiprocessing).
+                            self.purge_temp_directory(exclude_prefixes=["pymp"])
                             monitor_task.child_process = self._create_and_start_child_process(
                                 start_child_process_func, job_limit, monitor_task.queue, logging_queue
                             )
