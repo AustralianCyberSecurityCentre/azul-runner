@@ -144,11 +144,10 @@ class TestPluginExecutionWrapper(unittest.TestCase):
                 loop.run_loop(queue=self.dummy_queue, job_limit=6)
 
 
-def modify_watched_file_in_background(filepath: str, delay: float = 0.5):
+def modify_watched_file_in_background(filepath: str):
     """Modify a watched file after a specified delay."""
-    time.sleep(delay)
-    watch_file = os.path.join(filepath, "tmp.txt")
-    with open(watch_file, "w") as f:
+    time.sleep(1.0)
+    with open(filepath, "w") as f:
         f.write("modified")
 
 
@@ -189,9 +188,9 @@ class TestMonitorWatch(unittest.TestCase):
         2. The Coordinator exits with the correct RECREATE_PLUGIN exit code
         3. Monitor properly recreates a new Coordinator instance
         4. The monitor continues to function correctly after recreation
+        5. Files/directories with prefix "tmp" are deleted on restart, but other files in /tmp are not.
         """
-        with tempfile.TemporaryDirectory(prefix="donotdelete_") as watch_dir:
-            # Create initial file to watch
+        with tempfile.TemporaryDirectory(prefix="donotdelete") as watch_dir:
             watch_file = os.path.join(watch_dir, "tmp.txt")
             with open(watch_file, "w") as f:
                 f.write("initial")
@@ -200,16 +199,15 @@ class TestMonitorWatch(unittest.TestCase):
             config_dict = {
                 "server": self.server + "/test_data",
                 "watch_path": watch_dir,
-                "watch_type": WatchTypeEnum.PLAIN,  # Use plain file watching, not git
-                "watch_wait": 0,  # No wait between detecting change and recreating
+                "watch_type": WatchTypeEnum.PLAIN,
+                "watch_wait": 0,
             }
-
             monitor_instance = monitor.Monitor(self.DPQuickExecute, config_dict)
 
             # Start a background process that will modify the watched file after a short delay
             file_modifier = Process(
                 target=modify_watched_file_in_background,
-                args=(watch_dir, 1),  # Modify after 1 second
+                args=(watch_file,),
             )
             file_modifier.start()
 
@@ -226,8 +224,6 @@ class TestMonitorWatch(unittest.TestCase):
                 monitor_instance.run_loop(job_limit=2)
 
                 # If we reach here, Monitor successfully handled the recreation
-                # (This validates both points 2 and 3: the exit code was RECREATE_PLUGIN
-                # and Monitor properly recreated without crashing)
 
             finally:
                 self.assertFalse(
