@@ -678,10 +678,10 @@ class Monitor:
 
                     # Confirm at least one task wants to be recreated and none have any active jobs.
                     if (recreate_plugin_requested or git_update_pending) and not is_any_job_active:
-                        self.purge_temp_directory()
+                        # self.purge_temp_directory()
                         self._recreate_plugin()
                         # Ensure all child processes were terminated before re-creating them.
-                        self._kill_child_processes(concurrent_task_list)
+                        # self._kill_child_processes(concurrent_task_list)
 
                         if git_update_pending:
                             logger.info("Restarting plugin after git update was detected.")
