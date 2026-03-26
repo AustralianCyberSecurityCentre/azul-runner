@@ -77,11 +77,6 @@ class GitSync:
 
     def _init_repo(self):
         """Initialize the git repository in the watch path if it doesn't exist."""
-        if not self.repo:
-            msg = "GitSync repo URL is not set"
-            logger.error(msg)
-            raise GitError(msg)
-
         logger.info(f"GitSync repo {self.repo} at {self.watch_path} with period {self.period} seconds")
 
         # create watch dir if necessary
@@ -98,8 +93,8 @@ class GitSync:
             self._original_git_config_global = os.environ.get("GIT_CONFIG_GLOBAL")
             os.environ["GIT_CONFIG_GLOBAL"] = self._gitconfig
 
+        # clone if repo does not exist locally yet
         if not os.path.exists(os.path.join(self.watch_path, ".git")):
-            # clone if repo does not exist
             clone_cmd = ["clone", "--verbose", self.repo, "."]
             if self.branch:
                 clone_cmd.insert(2, f"--branch={self.branch}")
@@ -116,8 +111,7 @@ class GitSync:
 
     def _refresh_auth(self):
         if not self.do_ssh_auth and (self.username or self.password):
-            # Refresh creds in memory since we are using cache as the storage mechanism
-            logger.debug("Refreshing HTTPS authentication for git")
+            logger.debug(f"Refreshing HTTPS authentication for git repository at {self.repo}")
             cmd = ["config", "--global", "credential.helper"]
             # home directory may not be writable, but cache needs home directory to be writable
             if os.access(os.path.expanduser("~"), os.W_OK):
@@ -198,9 +192,9 @@ class GitSync:
             raise GitError(msg)
 
         self._stop_event.clear()
-        self._notify_thread = threading.Thread(target=self._run_loop)
+        self._notify_thread = threading.Thread(target=self._run_notify_thread)
         self._notify_thread.start()
-        logger.info("GitSync thread started")
+        logger.info(f"Notification thread started for {self.repo} at {self.watch_path} with {self.period}s period")
 
     def stop_notify_thread(self):
         """Tell notify thread to exit then wait for it to join."""
@@ -212,8 +206,8 @@ class GitSync:
                 logger.warning("GitSync thread did not exit within 10 seconds")
         self._cleanup()
 
-    def _run_loop(self):
-        """Loop that runs in a separate thread to check for updates from the remote repo and notify the main thread when updates are available."""
+    def _run_notify_thread(self):
+        """Thread function to check for updates from the remote repo and notify the main thread when updates are available."""
         while not self._stop_event.is_set():
             try:
                 local = self._run_git(["rev-parse", "HEAD"]).strip()
@@ -239,9 +233,7 @@ class GitSync:
                     self._sync_failures += 1
                     sync_failures = self._sync_failures
                 if sync_failures > self.max_sync_failures:
-                    logger.error(
-                        f"Maximum sync failures reached ({self.max_sync_failures}); terminating watch thread."
-                    )
+                    logger.error(f"Max sync failures reached ({self.max_sync_failures}); terminating watch thread.")
                     break
 
     def _cleanup(self):
