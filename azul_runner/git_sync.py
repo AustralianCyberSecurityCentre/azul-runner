@@ -65,12 +65,12 @@ class GitSync:
         self.submodules: str = submodules
 
         with tempfile.NamedTemporaryFile(delete=False, prefix=".gitsync") as f:
-            self._gitconfig = f.name
+            self._gitconfig: str = f.name
         with tempfile.NamedTemporaryFile(delete=False, prefix=".gitsync") as f:
-            self._gitcredential = f.name
+            self._gitcredential: str = f.name
 
         # preserve old git config if it exists
-        self._original_git_config_global = os.environ.get("GIT_CONFIG_GLOBAL")
+        self._original_git_config_global: str | None = os.environ.get("GIT_CONFIG_GLOBAL")
         if self._original_git_config_global:
             with open(self._original_git_config_global, "r") as original, open(self._gitconfig, "w") as new:
                 new.write(original.read())
@@ -81,7 +81,6 @@ class GitSync:
         self._notify_thread: threading.Thread | None = None
         self._stop_event: threading.Event = threading.Event()
         self._update_event: threading.Event = threading.Event()
-        self._original_git_config_global: str | None = None  # store for reset, if needed
 
         self._init_repo()
 
