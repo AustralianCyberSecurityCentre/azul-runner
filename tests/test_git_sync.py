@@ -98,7 +98,7 @@ def git_sync_running(repo: str, watch_path: str, **kwargs):
         time.sleep(0.5)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def set_git_config():
     """Fixture to set up a temporary git config for testing."""
     with tempfile.NamedTemporaryFile(delete=False, prefix=".gitsync") as f:
