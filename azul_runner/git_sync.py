@@ -68,7 +68,12 @@ class GitSync:
             self._gitconfig = f.name
         with tempfile.NamedTemporaryFile(delete=False, prefix=".gitsync") as f:
             self._gitcredential = f.name
+
+        # preserve old git config if it exists
         self._original_git_config_global = os.environ.get("GIT_CONFIG_GLOBAL")
+        if self._original_git_config_global:
+            with open(self._original_git_config_global, "r") as original, open(self._gitconfig, "w") as new:
+                new.write(original.read())
         os.environ["GIT_CONFIG_GLOBAL"] = self._gitconfig
 
         self._sync_failures: int = 0

@@ -98,6 +98,25 @@ def git_sync_running(repo: str, watch_path: str, **kwargs):
         time.sleep(0.5)
 
 
+@pytest.fixture(scope="module")
+def set_git_config():
+    """Fixture to set up a temporary git config for testing."""
+    with tempfile.NamedTemporaryFile(delete=False, prefix=".gitsync") as f:
+        gitconfig = f.name
+
+    original_git_config_global = os.environ.get("GIT_CONFIG_GLOBAL")
+    os.environ["GIT_CONFIG_GLOBAL"] = gitconfig
+
+    yield
+
+    # Cleanup
+    os.remove(gitconfig)
+    if original_git_config_global is not None:
+        os.environ["GIT_CONFIG_GLOBAL"] = original_git_config_global
+    else:
+        del os.environ["GIT_CONFIG_GLOBAL"]
+
+
 @pytest.fixture
 def tmp_git_repos(tmp_path):
     """Fixture providing remote and watch paths."""
