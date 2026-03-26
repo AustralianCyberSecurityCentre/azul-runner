@@ -321,13 +321,10 @@ class Monitor:
         try:
             temp_dir = pathlib.Path(tempfile.gettempdir())
             for file in temp_dir.iterdir():
-                # All temp files/directories created by a plugin should start with tmp
-                if file.name.lower().startswith(file_prefix.lower()):
-                    if file.is_file() or file.is_symlink():
-                        file.unlink(missing_ok=True)
-                    elif file.is_dir():
-                        shutil.rmtree(file)
-                    logger.info(f"azul-runner is deleting {file} for cleanup purposes.")
+                # All temp files created by a plugin should start with tmp
+                if file.is_file() and file.name.lower().startswith(file_prefix.lower()):
+                    file.unlink(missing_ok=True)
+                    logger.info(f"azul-runner is deleting temporary file {file} for cleanup purposes.")
         except Exception:
             logger.warning(
                 f"Unable to clear all the files from temp dir '{tempfile.gettempdir()}'"

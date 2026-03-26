@@ -76,8 +76,9 @@ class Plugin:
             for k, v in self.cfg.model_dump(
                 exclude_defaults=True,
                 exclude_unset=True,
-                exclude=["git_sync_username", "git_sync_password"],
             ).items():
+                if k in ["git_sync_username", "git_sync_password", "git_sync_ssh_key_path"]:
+                    v = "REDACTED"
                 logger.info(f"{k:20}: {v}")
 
         self.shutting_down = False

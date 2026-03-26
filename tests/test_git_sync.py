@@ -97,6 +97,37 @@ def git_sync_running(repo: str, watch_path: str, **kwargs):
         time.sleep(0.5)
 
 
+@pytest.fixture(scope="module", autouse=True)
+def restore_git_config(tmp_path_factory):
+    """Fixture to restore global git config after tests."""
+    temp_dir = tmp_path_factory.getbasetemp()
+    original_name = subprocess.run(
+        ["git", "config", "--global", "user.name"], capture_output=True, text=True, cwd=temp_dir
+    ).stdout.strip()
+    original_email = subprocess.run(
+        ["git", "config", "--global", "user.email"], capture_output=True, text=True, cwd=temp_dir
+    ).stdout.strip()
+
+    yield
+
+    if original_name:
+        run_git(["git", "config", "--global", "user.name", original_name], temp_dir)
+    else:
+        run_git(["git", "config", "--global", "--unset", "user.name"], temp_dir, check=False)
+    if original_email:
+        run_git(["git", "config", "--global", "user.email", original_email], temp_dir)
+    else:
+        run_git(["git", "config", "--global", "--unset", "user.email"], temp_dir, check=False)
+
+
+@pytest.fixture(autouse=True)
+def configure_git_identity(tmp_path_factory, restore_git_config):
+    """Fixture to set global git user.name and user.email for tests."""
+    temp_dir = tmp_path_factory.getbasetemp()
+    run_git(["git", "config", "--global", "user.name", "Test User"], temp_dir)
+    run_git(["git", "config", "--global", "user.email", "test@example.com"], temp_dir)
+
+
 @pytest.fixture
 def tmp_git_repos(tmp_path):
     """Fixture providing remote and watch paths."""

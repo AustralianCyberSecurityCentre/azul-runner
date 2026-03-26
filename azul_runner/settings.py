@@ -71,8 +71,6 @@ class Settings(BaseSettings):
                 raise SetupError("cannot combine server with events_url or data_url")
             self.data_url = self.events_url = self.server
 
-        # TODO: validate git-related args here
-
     # Seconds between heartbeat status messages.
     heartbeat_interval: int = 30
     # Seconds a plugin can run on a single sample before being aborted, 0 to never time out.
