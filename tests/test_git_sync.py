@@ -98,7 +98,7 @@ def git_sync_running(repo: str, watch_path: str, **kwargs):
         time.sleep(0.5)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function", autouse=True)
 def set_git_config():
     """Fixture to set up a temporary git config for testing."""
     with tempfile.NamedTemporaryFile(delete=False, prefix=".gitsync") as f:
@@ -107,8 +107,8 @@ def set_git_config():
     original_git_config_global = os.environ.get("GIT_CONFIG_GLOBAL")
     os.environ["GIT_CONFIG_GLOBAL"] = gitconfig
 
-    run_git(["config", "--global", "user.name", "Test User"])
-    run_git(["config", "--global", "user.email", "test@example.com"])
+    run_git(["config", "--global", "user.name", "Test User"], cwd=".")
+    run_git(["config", "--global", "user.email", "test@example.com"], cwd=".")
 
     yield
 
