@@ -107,6 +107,9 @@ def set_git_config():
     original_git_config_global = os.environ.get("GIT_CONFIG_GLOBAL")
     os.environ["GIT_CONFIG_GLOBAL"] = gitconfig
 
+    run_git(["config", "--global", "user.name", "Test User"])
+    run_git(["config", "--global", "user.email", "test@example.com"])
+
     yield
 
     # Cleanup
