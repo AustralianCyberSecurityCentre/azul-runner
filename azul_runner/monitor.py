@@ -524,7 +524,7 @@ class Monitor:
 
                     # If the child process has stopped handle that case.
                     for monitor_task in concurrent_task_list:
-                        if not monitor_task.child_process.is_alive(): 
+                        if not monitor_task.child_process.is_alive():
                             monitor_task.child_process.join(timeout=10)
                             if monitor_task.child_process.exitcode == TaskExitCodeEnum.COMPLETED.value:
                                 plugin_clean_exit_requested = True
