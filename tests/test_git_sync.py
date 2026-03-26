@@ -1,5 +1,6 @@
 """Unit tests for GitSync functionality in azul_runner.monitor."""
 
+import os
 import subprocess
 import tempfile
 import time
@@ -18,20 +19,20 @@ from azul_runner.git_sync import GitSync, GitError
 
 def run_git(cmd: list[str], cwd: str, check: bool = True) -> None:
     """Run git command with standard options."""
-    subprocess.run(cmd, cwd=cwd, check=check, capture_output=True)
+    subprocess.run(["git"] + cmd, cwd=cwd, check=check, capture_output=True)
 
 
 def setup_bare_repo_with_content(remote_path: str, content: str = "v1") -> None:
     """Create a bare repo with initial test content."""
-    run_git(["git", "init", "--bare"], remote_path)
+    run_git(["init", "--bare"], remote_path)
 
     with tempfile.TemporaryDirectory() as temp_clone:
-        run_git(["git", "clone", remote_path, "."], temp_clone)
+        run_git(["clone", remote_path, "."], temp_clone)
         test_file = Path(temp_clone) / "test.txt"
         test_file.write_text(content)
-        run_git(["git", "add", "."], temp_clone)
-        run_git(["git", "commit", "-m", "initial"], temp_clone)
-        run_git(["git", "push"], temp_clone)
+        run_git(["add", "."], temp_clone)
+        run_git(["commit", "-m", "initial"], temp_clone)
+        run_git(["push"], temp_clone)
 
 
 def setup_multiword_branch_repo(remote_path: str, branches: dict[str, str]) -> None:
@@ -41,38 +42,38 @@ def setup_multiword_branch_repo(remote_path: str, branches: dict[str, str]) -> N
         remote_path: Path to bare repo
         branches: Dict of {branch_name: content}
     """
-    run_git(["git", "init", "--bare"], remote_path)
+    run_git(["init", "--bare"], remote_path)
 
     with tempfile.TemporaryDirectory() as temp_clone:
-        run_git(["git", "clone", remote_path, "."], temp_clone)
+        run_git(["clone", remote_path, "."], temp_clone)
 
         # Create first branch
         first_branch = next(iter(branches.keys()))
         first_content = branches[first_branch]
         test_file = Path(temp_clone) / "test.txt"
         test_file.write_text(first_content)
-        run_git(["git", "add", "test.txt"], temp_clone)
-        run_git(["git", "commit", "-m", first_branch], temp_clone)
-        run_git(["git", "push", "-u", "origin", first_branch], temp_clone)
+        run_git(["add", "test.txt"], temp_clone)
+        run_git(["commit", "-m", first_branch], temp_clone)
+        run_git(["push", "-u", "origin", first_branch], temp_clone)
 
         # Create additional branches
         for branch, content in list(branches.items())[1:]:
-            run_git(["git", "checkout", "-b", branch], temp_clone)
+            run_git(["checkout", "-b", branch], temp_clone)
             test_file.write_text(content)
-            run_git(["git", "add", "test.txt"], temp_clone)
-            run_git(["git", "commit", "-m", branch], temp_clone)
-            run_git(["git", "push", "-u", "origin", branch], temp_clone)
+            run_git(["add", "test.txt"], temp_clone)
+            run_git(["commit", "-m", branch], temp_clone)
+            run_git(["push", "-u", "origin", branch], temp_clone)
 
 
 def push_update_to_remote(remote_path: str, new_content: str) -> None:
     """Push an update to an existing remote repo."""
     with tempfile.TemporaryDirectory() as temp_clone:
-        run_git(["git", "clone", remote_path, "."], temp_clone)
+        run_git(["clone", remote_path, "."], temp_clone)
         test_file = Path(temp_clone) / "test.txt"
         test_file.write_text(new_content)
-        run_git(["git", "add", "test.txt"], temp_clone)
-        run_git(["git", "commit", "-m", f"update to {new_content}"], temp_clone)
-        run_git(["git", "push"], temp_clone)
+        run_git(["add", "test.txt"], temp_clone)
+        run_git(["commit", "-m", f"update to {new_content}"], temp_clone)
+        run_git(["push"], temp_clone)
 
 
 def wait_for_update_pending(watch: GitSync, timeout: float = 5) -> bool:
@@ -95,37 +96,6 @@ def git_sync_running(repo: str, watch_path: str, **kwargs):
     finally:
         watch.stop_notify_thread()
         time.sleep(0.5)
-
-
-@pytest.fixture(scope="module", autouse=True)
-def restore_git_config(tmp_path_factory):
-    """Fixture to restore global git config after tests."""
-    temp_dir = tmp_path_factory.getbasetemp()
-    original_name = subprocess.run(
-        ["git", "config", "--global", "user.name"], capture_output=True, text=True, cwd=temp_dir
-    ).stdout.strip()
-    original_email = subprocess.run(
-        ["git", "config", "--global", "user.email"], capture_output=True, text=True, cwd=temp_dir
-    ).stdout.strip()
-
-    yield
-
-    if original_name:
-        run_git(["git", "config", "--global", "user.name", original_name], temp_dir)
-    else:
-        run_git(["git", "config", "--global", "--unset", "user.name"], temp_dir, check=False)
-    if original_email:
-        run_git(["git", "config", "--global", "user.email", original_email], temp_dir)
-    else:
-        run_git(["git", "config", "--global", "--unset", "user.email"], temp_dir, check=False)
-
-
-@pytest.fixture(autouse=True)
-def configure_git_identity(tmp_path_factory, restore_git_config):
-    """Fixture to set global git user.name and user.email for tests."""
-    temp_dir = tmp_path_factory.getbasetemp()
-    run_git(["git", "config", "--global", "user.name", "Test User"], temp_dir)
-    run_git(["git", "config", "--global", "user.email", "test@example.com"], temp_dir)
 
 
 @pytest.fixture
@@ -170,7 +140,7 @@ def test_git_sync_skips_clone_if_exists(tmp_git_repos):
     remote_path, watch_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    run_git(["git", "clone", remote_path, "."], watch_path)
+    run_git(["clone", remote_path, "."], watch_path)
     test_file = Path(watch_path) / "test.txt"
     test_file.write_text("local modification")
 
@@ -292,17 +262,17 @@ def test_git_sync_shallow_clone_with_depth(tmp_git_repos):
     """Test GitSync can perform shallow clone with specified depth."""
     remote_path, watch_path = tmp_git_repos
 
-    run_git(["git", "init", "--bare"], remote_path)
+    run_git(["init", "--bare"], remote_path)
 
     with tempfile.TemporaryDirectory() as temp_clone:
-        run_git(["git", "clone", remote_path, "."], temp_clone)
+        run_git(["clone", remote_path, "."], temp_clone)
 
         for i in range(5):
             test_file = Path(temp_clone) / "test.txt"
             test_file.write_text(f"commit {i}")
-            run_git(["git", "add", "test.txt"], temp_clone)
-            run_git(["git", "commit", "-m", f"commit {i}"], temp_clone)
-        run_git(["git", "push"], temp_clone)
+            run_git(["add", "test.txt"], temp_clone)
+            run_git(["commit", "-m", f"commit {i}"], temp_clone)
+        run_git(["push"], temp_clone)
 
     with git_sync_running(remote_path, watch_path, clone_depth=2) as watch:
         test_file = Path(watch_path) / "test.txt"

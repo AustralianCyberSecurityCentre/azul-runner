@@ -64,8 +64,13 @@ class GitSync:
         self.clone_depth: int = clone_depth
         self.submodules: str = submodules
 
-        self._gitconfig: str = os.path.join(os.path.expanduser("~"), ".gitconfig")
-        self._gitcredential: str = os.path.join(os.path.expanduser("~"), ".gitcredential")
+        with tempfile.NamedTemporaryFile(delete=False, prefix=".gitsync") as f:
+            self._gitconfig = f.name
+        with tempfile.NamedTemporaryFile(delete=False, prefix=".gitsync") as f:
+            self._gitcredential = f.name
+        self._original_git_config_global = os.environ.get("GIT_CONFIG_GLOBAL")
+        os.environ["GIT_CONFIG_GLOBAL"] = self._gitconfig
+
         self._sync_failures: int = 0
         self._sync_failures_lock: threading.Lock = threading.Lock()
         self._notify_thread: threading.Thread | None = None
@@ -83,15 +88,6 @@ class GitSync:
         if not os.path.isdir(self.watch_path):
             os.makedirs(self.watch_path, exist_ok=True)
             logger.info(f"Created watch directory at {self.watch_path}")
-
-        # ~/.gitconfig and ~/.gitcredential may not be writable
-        if not os.access(os.path.expanduser("~"), os.W_OK):
-            with tempfile.NamedTemporaryFile(delete=False, prefix=".git") as f:
-                self._gitconfig = f.name
-            with tempfile.NamedTemporaryFile(delete=False, prefix=".git") as f:
-                self._gitcredential = f.name
-            self._original_git_config_global = os.environ.get("GIT_CONFIG_GLOBAL")
-            os.environ["GIT_CONFIG_GLOBAL"] = self._gitconfig
 
         # clone if repo does not exist locally yet
         if not os.path.exists(os.path.join(self.watch_path, ".git")):
