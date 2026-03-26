@@ -394,11 +394,12 @@ class Monitor:
     def _kill_child_processes(self, concurrent_task_list: list[MonitorTask]):
         """Kill the children and children's children."""
         for cur_task in concurrent_task_list:
-            kill_child_proc_tree(cur_task.child_process.pid)
-            cur_task.child_process.kill()
-            cur_task.child_process.join(timeout=10)
             if cur_task.child_process.is_alive():
-                raise TimeoutError("Child did not exit after receiving SIGKILL")
+                kill_child_proc_tree(cur_task.child_process.pid)
+                cur_task.child_process.kill()
+                cur_task.child_process.join(timeout=10)
+                if cur_task.child_process.is_alive():
+                    raise TimeoutError("Child did not exit after receiving SIGKILL")
 
     def _send_signal_to_child_processes(self, tasks: list[MonitorTask], send_sig: signal.Signals):
         """Send a specified signal to all child processes referred to by `tasks`."""
@@ -460,7 +461,6 @@ class Monitor:
         recreate_plugin_requested = False
         plugin_clean_exit_requested = False
         is_any_job_active = False
-        git_update_pending = False
         try:
             with AddLoggingQueueListener(logging_queue, logging.getLogger()):
                 # initialize repo locally / pull updates if necessary
@@ -492,19 +492,17 @@ class Monitor:
                     if self._gitsync and self._gitsync.update_pending():
                         # Notify child that it is time to exit
                         self._send_signal_to_child_processes(concurrent_task_list, RESTART_SIGNAL)
-                        git_update_pending = True
 
                     # Confirm at least one task wants to be recreated and none have any active jobs.
-                    if (recreate_plugin_requested or git_update_pending) and not is_any_job_active:
+                    if recreate_plugin_requested and not is_any_job_active:
                         self.delete_tempfiles()
                         self._recreate_plugin()
                         # Ensure all child processes were terminated before re-creating them.
                         self._kill_child_processes(concurrent_task_list)
 
-                        if git_update_pending:
+                        if self._gitsync and self._gitsync.update_pending():
                             logger.info("Restarting plugin after git update was detected.")
                             self._gitsync.pull()
-                            git_update_pending = False
 
                         for monitor_task in concurrent_task_list:
                             # Ensure the jobs in the child tasks queue are cleared before starting plugin to prevent
@@ -526,11 +524,8 @@ class Monitor:
 
                     # If the child process has stopped handle that case.
                     for monitor_task in concurrent_task_list:
-                        if not monitor_task.child_process.is_alive():
-                            if monitor_task.child_process.exitcode is None:
-                                # TODO: confirm the following statement is correct:
-                                # Process is either just started up or is in the process of being killed
-                                continue
+                        if not monitor_task.child_process.is_alive(): 
+                            monitor_task.child_process.join(timeout=10)
                             if monitor_task.child_process.exitcode == TaskExitCodeEnum.COMPLETED.value:
                                 plugin_clean_exit_requested = True
                                 continue
