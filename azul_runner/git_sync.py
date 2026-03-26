@@ -72,7 +72,7 @@ class GitSync:
         self._stop_event: threading.Event = threading.Event()
         self._update_event: threading.Event = threading.Event()
         self._original_git_config_global: str | None = None  # store for reset, if needed
-        
+
         self._init_repo()
 
     def _init_repo(self):
