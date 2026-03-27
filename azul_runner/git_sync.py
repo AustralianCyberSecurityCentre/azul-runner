@@ -36,6 +36,7 @@ class GitSync:
         max_sync_failures: int = 0,
         clone_depth: int = 0,
         submodules: str = "off",
+        git_config: str = "",
     ):
         # Validate inputs
         if not repo:
@@ -51,6 +52,8 @@ class GitSync:
             raise ValueError(f"clone_depth must be >= 0, got {clone_depth}")
         if submodules not in ("off", "on", "recursive"):
             raise ValueError(f"submodules must be 'off', 'on', or 'recursive', got {submodules}")
+        if git_config and ":" not in git_config:
+            raise ValueError(f"git_config must be in 'key:value' format, got {git_config!r}")
 
         self.repo: str = repo
         self.branch: str = branch
@@ -63,6 +66,7 @@ class GitSync:
         self.max_sync_failures: int = max_sync_failures
         self.clone_depth: int = clone_depth
         self.submodules: str = submodules
+        self.git_config: str = git_config
 
         with tempfile.NamedTemporaryFile(delete=False, prefix=".gitsync") as f:
             self._gitconfig: str = f.name
@@ -136,9 +140,13 @@ class GitSync:
 
     def _run_git(self, cmd: list[str], input: str = None) -> str:
         """Run a git command in the watch path and return the output."""
+        config_args = []
+        if self.git_config:
+            key, _, value = self.git_config.partition(":")
+            config_args = ["-c", f"{key}={value}"]
         try:
             return subprocess.check_output(  # noqa: S603
-                ["git"] + cmd,
+                ["git"] + config_args + cmd,
                 cwd=self.watch_path,
                 text=True,
                 input=input,

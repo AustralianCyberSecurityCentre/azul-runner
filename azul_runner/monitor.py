@@ -264,6 +264,7 @@ class Monitor:
                 max_sync_failures=self._cfg.git_sync_max_sync_failures,
                 clone_depth=self._cfg.git_sync_clone_depth,
                 submodules=self._cfg.git_sync_submodules,
+                git_config=self._cfg.git_sync_git_config,
             )
 
         # Setup plugin
