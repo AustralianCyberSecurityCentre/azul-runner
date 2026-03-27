@@ -118,7 +118,6 @@ class GitSync:
                 cmd += ["cache"]
             else:
                 cmd += [f"store --file={self._gitcredential}"]
-                logger.warning(f"HTTPS credentials for {self.repo} are stored in plaintext at {self._gitcredential}")
 
             self._run_git(cmd)
             if "@" in self.repo:
