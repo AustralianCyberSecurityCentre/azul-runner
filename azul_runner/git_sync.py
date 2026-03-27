@@ -227,13 +227,13 @@ class GitSync:
                 self._stop_event.wait(timeout=self.period)
                 with self._sync_failures_lock:
                     self._sync_failures = 0
-            except GitError as e:
-                logger.error(f"Error checking for updates from remote repo: {e}")
+            except Exception as e:
+                logger.error(f"Notify Thread: Error checking for updates from remote repo: {e}")
                 with self._sync_failures_lock:
                     self._sync_failures += 1
                     sync_failures = self._sync_failures
                 if sync_failures > self.max_sync_failures:
-                    logger.error(f"Max sync failures reached ({self.max_sync_failures}); terminating watch thread.")
+                    logger.error(f"Max sync failures reached ({self.max_sync_failures}); terminating notify thread.")
                     break
 
     def _cleanup(self):
