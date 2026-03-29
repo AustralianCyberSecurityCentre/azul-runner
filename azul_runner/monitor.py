@@ -9,7 +9,7 @@ import os
 import pathlib
 import shutil
 import signal
-import stat
+import subprocess
 import tempfile
 import time
 import traceback
@@ -251,8 +251,8 @@ class Monitor:
         self.mp_ctx = multiprocessing.get_context("forkserver")
 
         if os.path.exists("/code"):
-            items = [(f, stat.filemode(os.stat(os.path.join("/code", f)).st_mode)) for f in os.listdir("/code")]
-            logger.info(f"Contents of /code: {items}")
+            ls_output = subprocess.check_output(["ls", "-la", "/code"], text=True)  # noqa: S607
+            logger.info(f"Contents of /code: {ls_output}")
 
         # Git monitoring setup
         self._gitsync: GitSync | None = None
