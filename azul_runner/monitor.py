@@ -250,8 +250,9 @@ class Monitor:
         self._cfg = settings.parse_config(self._plugin_class, config)
         self.mp_ctx = multiprocessing.get_context("forkserver")
 
-        items = [(f, stat.filemode(os.stat(os.path.join("/code", f)).st_mode)) for f in os.listdir("/code")]
-        logger.info(f"Contents of /code: {items}")
+        if os.path.exists("/code"):
+            items = [(f, stat.filemode(os.stat(os.path.join("/code", f)).st_mode)) for f in os.listdir("/code")]
+            logger.info(f"Contents of /code: {items}")
 
         # Git monitoring setup
         self._gitsync: GitSync | None = None
