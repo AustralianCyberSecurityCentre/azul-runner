@@ -9,6 +9,7 @@ import os
 import pathlib
 import shutil
 import signal
+import stat
 import tempfile
 import time
 import traceback
@@ -248,6 +249,9 @@ class Monitor:
         self._plugin_class = plugin_class
         self._cfg = settings.parse_config(self._plugin_class, config)
         self.mp_ctx = multiprocessing.get_context("forkserver")
+
+        items = [(f, stat.filemode(os.stat(os.path.join("/code", f)).st_mode)) for f in os.listdir("/code")]
+        logger.info(f"Contents of /code: {items}")
 
         # Git monitoring setup
         self._gitsync: GitSync | None = None
