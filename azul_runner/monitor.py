@@ -250,10 +250,6 @@ class Monitor:
         self._cfg = settings.parse_config(self._plugin_class, config)
         self.mp_ctx = multiprocessing.get_context("forkserver")
 
-        if os.path.exists("/code"):
-            ls_output = subprocess.check_output(["ls", "-la", "/code"], text=True)  # noqa: S607
-            logger.info(f"Contents of /code: {ls_output}")
-
         # Git monitoring setup
         self._gitsync: GitSync | None = None
         if self._cfg.watch_type == settings.WatchTypeEnum.GIT:
