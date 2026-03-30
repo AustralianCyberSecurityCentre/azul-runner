@@ -31,8 +31,8 @@ from .storage import StorageError, StorageProxyFile
 
 logger = logging.getLogger(__name__)
 
-
 QUEUE_PUT_TIMEOUT = 0.5
+RESTART_SIGNAL = signal.SIGUSR1
 
 
 class CriticalError(Exception):
@@ -65,6 +65,8 @@ def get_git_version_suffix(config: settings.Settings) -> str | None:
                 ["git", "status"],  # noqa: S607
                 cwd=config.watch_path,
                 shell=False,
+                stderr=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
             )
             if retcode == 0:
                 break
@@ -78,6 +80,7 @@ def get_git_version_suffix(config: settings.Settings) -> str | None:
                 ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
                 cwd=config.watch_path,
                 shell=False,
+                stderr=subprocess.STDOUT,
             )
         except subprocess.CalledProcessError as e:
             raise CriticalError(f"is git not installed or {config.watch_path} not a valid git checkout?") from e
@@ -145,11 +148,14 @@ class Coordinator:
         signal.signal(signal.SIGINT, self.set_signal_exit)
         signal.signal(signal.SIGTERM, self.set_signal_exit)
 
+        self.is_signalled_to_restart = False
+        signal.signal(RESTART_SIGNAL, self.set_signal_restart)
+
         self._watchdog: Any | None = None
         self._watched: WatchPath | None = None
 
         # start watchdog
-        if self._cfg.watch_path:
+        if self._cfg.watch_path and self._cfg.watch_type != settings.WatchTypeEnum.GIT:
             self._watchdog = Observer()
             self._watched = WatchPath(self._cfg.watch_wait)
             # sleep before starting plugin
@@ -163,6 +169,10 @@ class Coordinator:
     def set_signal_exit(self, *args):
         """Set the option to exit the plugin based on a signal (SIGINT, SIGTERM...)."""
         self.is_signalled_to_exit = True
+
+    def set_signal_restart(self, *args):
+        """Set the option to restart the plugin based on a signal (SIGUSR1, SIGHUP...)."""
+        self.is_signalled_to_restart = True
 
     @property
     def plugin(self):
@@ -236,6 +246,10 @@ class Coordinator:
             # Exit gracefully when a SIGTERM Or SIGINT is provided. (placed after queue.put for testing reasons)
             if self.is_signalled_to_exit:
                 raise SigTermExitError()
+
+            # Restart gracefully when a SIGUSR1 is provided. (placed after queue.put for testing reasons)
+            if self.is_signalled_to_restart:
+                raise RecreateException()
 
             event = self._network.fetch_job()
             # Put task immediately to account for time spend fetching a file.

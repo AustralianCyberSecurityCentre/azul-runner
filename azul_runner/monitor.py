@@ -20,12 +20,14 @@ import pydantic
 from azul_bedrock import models_network as azm
 
 from azul_runner.coordinator import (
+    RESTART_SIGNAL,
     Coordinator,
     CriticalError,
     RecreateException,
     SigTermExitError,
     get_git_version_suffix,
 )
+from azul_runner.git_sync import GitSync
 from azul_runner.log_setup import AddLoggingQueueListener, LogLevel, setup_logger
 from azul_runner.models import JobResult, State, TaskExitCodeEnum, TaskModel
 
@@ -33,7 +35,6 @@ from . import network, settings
 from . import plugin as mplugin
 from .storage import StorageProxyFile
 
-MAX_ATTEMPTS_TO_KILL_CHILD_PROCESS = 10
 LOCAL_RESULT_SUFFIX = "-result"
 logger = logging.getLogger(__name__)
 
@@ -188,21 +189,21 @@ def _start_loop_coordinator(
         loop.run_loop(queue=queue, job_limit=job_limit)
         # clean exit
         logger.info("Plugin has stopped cleanly.")
-        exit(TaskExitCodeEnum.COMPLETED)
+        exit(TaskExitCodeEnum.COMPLETED.value)
     except CriticalError:
         logger.info("closing program after critical error.")
-        exit(TaskExitCodeEnum.TERMINATE)
+        exit(TaskExitCodeEnum.TERMINATE.value)
     except SigTermExitError:
         logger.info("closing program after SigTerm recieved error.")
-        exit(TaskExitCodeEnum.TERMINATE)
+        exit(TaskExitCodeEnum.TERMINATE.value)
     except RecreateException:
         # Kill process tree to remove any bad child processes launched with subprocess module.
         logger.info("Re-creating the plugin.")
         kill_child_proc_tree(pid)
-        exit(TaskExitCodeEnum.RECREATE_PLUGIN)
+        exit(TaskExitCodeEnum.RECREATE_PLUGIN.value)
     except Exception:
         logger.error(f"Plugin crashed with generic error {traceback.format_exc()}")
-        exit(TaskExitCodeEnum.TERMINATE)
+        exit(TaskExitCodeEnum.TERMINATE.value)
 
 
 class MonitorTask:
@@ -247,6 +248,24 @@ class Monitor:
         self._plugin_class = plugin_class
         self._cfg = settings.parse_config(self._plugin_class, config)
         self.mp_ctx = multiprocessing.get_context("forkserver")
+
+        # Git monitoring setup
+        self._gitsync: GitSync | None = None
+        if self._cfg.watch_type == settings.WatchTypeEnum.GIT:
+            self._gitsync = GitSync(
+                repo=self._cfg.git_sync_repo,
+                branch=self._cfg.git_sync_ref,
+                watch_path=self._cfg.watch_path,
+                period=self._cfg.git_sync_period,
+                username=self._cfg.git_sync_username,
+                password=self._cfg.git_sync_password,
+                do_ssh_auth=self._cfg.git_sync_ssh,
+                ssh_key_path=self._cfg.git_sync_ssh_key_path,
+                max_sync_failures=self._cfg.git_sync_max_sync_failures,
+                clone_depth=self._cfg.git_sync_clone_depth,
+                submodules=self._cfg.git_sync_submodules,
+                git_config=self._cfg.git_sync_git_config,
+            )
 
         # Setup plugin
         self._recreate_plugin()
@@ -314,11 +333,16 @@ class Monitor:
             )
 
     @staticmethod
-    def purge_temp_directory():
+    def purge_temp_directory(exclude_prefixes: list[str] | None = None):
         """Delete everything in the temporary directory (needed during plugin recreation requests)."""
+        if exclude_prefixes is None:
+            exclude_prefixes = []
+
         folder = tempfile.gettempdir()
         try:
             for filename in os.listdir(folder):
+                if any(filename.startswith(prefix) for prefix in exclude_prefixes):
+                    continue
                 file_path = os.path.join(folder, filename)
                 # Delete file
                 if os.path.isfile(file_path) or os.path.islink(file_path):
@@ -366,18 +390,20 @@ class Monitor:
         return child_process
 
     def _kill_child_processes(self, concurrent_task_list: list[MonitorTask]):
-        """Continually kill the child process until it's no longer alive."""
-        killing_attempt = 0
+        """Kill the children and children's children."""
         for cur_task in concurrent_task_list:
-            while cur_task.child_process.is_alive():
-                # Keep trying to kill the child process and all of it's children.
+            if cur_task.child_process.is_alive():
                 kill_child_proc_tree(cur_task.child_process.pid)
                 cur_task.child_process.kill()
-                time.sleep(0.1)
-                killing_attempt += 1
-                if killing_attempt > MAX_ATTEMPTS_TO_KILL_CHILD_PROCESS:
-                    # Failed to kill child process.
-                    raise TimeoutError()
+                cur_task.child_process.join(timeout=10)
+                if cur_task.child_process.is_alive():
+                    raise TimeoutError("Child did not exit after receiving SIGKILL")
+
+    def _send_signal_to_child_processes(self, tasks: list[MonitorTask], send_sig: signal.Signals):
+        """Send a specified signal to all child processes referred to by `tasks`."""
+        for t in tasks:
+            if t.child_process.is_alive():
+                os.kill(t.child_process.pid, send_sig)
 
     def run_once(
         self,
@@ -435,6 +461,10 @@ class Monitor:
         is_any_job_active = False
         try:
             with AddLoggingQueueListener(logging_queue, logging.getLogger()):
+                # initialize repo locally / pull updates if necessary
+                if self._gitsync:
+                    self._gitsync.start_notify_thread()
+
                 # Delete temp files out of temp if any exist. This prevents tmp files building up.
                 self.delete_tempfiles()
                 for _ in range(self._cfg.concurrent_plugin_instances):
@@ -457,19 +487,28 @@ class Monitor:
                         time.sleep(self.time_to_wait_between_checks)
                         pass
 
+                    if self._gitsync and self._gitsync.update_pending():
+                        # Notify child that it is time to exit
+                        self._send_signal_to_child_processes(concurrent_task_list, RESTART_SIGNAL)
+
                     # Confirm at least one task wants to be recreated and none have any active jobs.
                     if recreate_plugin_requested and not is_any_job_active:
-                        self.purge_temp_directory()
+                        self.delete_tempfiles()
                         self._recreate_plugin()
                         # Ensure all child processes were terminated before re-creating them.
                         self._kill_child_processes(concurrent_task_list)
+
+                        if self._gitsync and self._gitsync.update_pending():
+                            logger.info("Restarting plugin after git update was detected.")
+                            self._gitsync.pull()
+
                         for monitor_task in concurrent_task_list:
                             # Ensure the jobs in the child tasks queue are cleared before starting plugin to prevent
                             # Deadlocks.
                             monitor_task.set_current_job_and_count_completed_jobs()
                             # Start child process again
                             monitor_task.child_process = self._create_and_start_child_process(
-                                start_child_process_func, job_limit, queue, logging_queue
+                                start_child_process_func, job_limit, monitor_task.queue, logging_queue
                             )
 
                     # Confirm at least one task wants to exit and there are no active tasks.
@@ -483,7 +522,9 @@ class Monitor:
 
                     # If the child process has stopped handle that case.
                     for monitor_task in concurrent_task_list:
-                        if not child_process.is_alive():
+                        if not monitor_task.child_process.is_alive():
+                            # Make sure waitpid() is called before handling the exitcode.
+                            monitor_task.child_process.join(timeout=10)
                             if monitor_task.child_process.exitcode == TaskExitCodeEnum.COMPLETED.value:
                                 plugin_clean_exit_requested = True
                                 continue
@@ -514,20 +555,20 @@ class Monitor:
                         # Perform memory checks if enabled
                         if self._cfg.enable_mem_limits:
                             if not self._are_memory_limits_good(monitor_task):
-                                # prevent temp file buildup.
                                 self._kill_child_processes(concurrent_task_list)
-                                self.delete_tempfiles()
-                                child_process = self._create_and_start_child_process(
-                                    start_child_process_func, job_limit, queue, logging_queue
+                                # prevent temp file buildup (exclude sockets used by multiprocessing).
+                                self.purge_temp_directory(exclude_prefixes=["pymp", "systemd", ".gitsync"])
+                                monitor_task.child_process = self._create_and_start_child_process(
+                                    start_child_process_func, job_limit, monitor_task.queue, logging_queue
                                 )
 
                         # Check for timeout and raise heartbeat if required.
                         if not self._is_healthy_heartbeat_and_memory_checks(monitor_task):
                             self._kill_child_processes(concurrent_task_list)
-                            # prevent temp file buildup.
-                            self.delete_tempfiles()
-                            child_process = self._create_and_start_child_process(
-                                start_child_process_func, job_limit, queue, logging_queue
+                            # prevent temp file buildup (exclude sockets used by multiprocessing).
+                            self.purge_temp_directory(exclude_prefixes=["pymp", "systemd", ".gitsync"])
+                            monitor_task.child_process = self._create_and_start_child_process(
+                                start_child_process_func, job_limit, monitor_task.queue, logging_queue
                             )
 
         finally:
@@ -536,6 +577,10 @@ class Monitor:
             for c_task in concurrent_task_list:
                 c_task.queue.close()
             logging_queue.close()
+
+            # Stop the thread monitoring the repo
+            if self._gitsync:
+                self._gitsync.stop_notify_thread()
 
     def _refine_current_memory_value(self, current_mem_bytes) -> int:
         """Further refine a memory value by subtracting the inactive file from the total amount of memory in use.

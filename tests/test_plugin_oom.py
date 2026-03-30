@@ -79,7 +79,7 @@ class TestPluginOom(unittest.TestCase):
         cls.mock_server.kill()
 
     def setUp(self):
-        self.cur_mem_summary_file_path = tempfile.NamedTemporaryFile("w+", prefix="dontdelete")
+        self.cur_mem_summary_file_path = tempfile.NamedTemporaryFile("w+", prefix="systemd")
         # memory summary file
         self.cur_mem_summary_file_path.write(
             "\n".join(
@@ -134,12 +134,12 @@ class TestPluginOom(unittest.TestCase):
         # self.cur_mem_summary_file_path.seek(0)
 
         # Add a prefix to avoid deletion of temporary files
-        self.max_mem_file = tempfile.NamedTemporaryFile("w+", prefix="dontdelete")
+        self.max_mem_file = tempfile.NamedTemporaryFile("w+", prefix="systemd")
         self.max_mem_file.write("100")
         self.max_mem_file.flush()
         self.max_mem_file.seek(0)
         # Add a prefix to avoid deletion of temporary files
-        self.cur_mem_file = tempfile.NamedTemporaryFile("w+", prefix="dontdelete")
+        self.cur_mem_file = tempfile.NamedTemporaryFile("w+", prefix="systemd")
         self.cur_mem_file.write("0")
         self.cur_mem_file.flush()
         self.cur_mem_file.seek(0)

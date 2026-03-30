@@ -125,6 +125,30 @@ class Settings(BaseSettings):
     # wait x seconds after first change event before restarting plugin
     watch_wait: int = 10
 
+    # Repo watching info (used if watch_type=="git")
+    # remote url to clone from on initialization
+    git_sync_repo: str = ""
+    # ref to pull from on remote
+    git_sync_ref: str = ""
+    # username to be stored in the local credential store for HTTPS authentication
+    git_sync_username: str = ""
+    # password to be stored in the local credential store for HTTPS authentication
+    git_sync_password: str = ""
+    # interval at which remote is polled to check for changes
+    git_sync_period: int = 600
+    # whether or not to authenticate to repo with SSH
+    git_sync_ssh: bool = False
+    # location of private RSA key if SSH is enabled
+    git_sync_ssh_key_path: str = "/etc/git-secret/ssh/id_rsa"
+    # maximum permitted failures before the plugin restarts
+    git_sync_max_sync_failures: int = 0
+    # depth of git history to pull on initialization, 0 for full clone
+    git_sync_clone_depth: int = 0
+    # how to treat submodules of the watched repo, "off", "recursive", or "shallow"
+    git_sync_submodules: str = "off"
+    # optional git config override in "key:value" format (e.g. "http.sslVerify:false")
+    git_sync_git_config: str = ""
+
     # Memory limits
     # Enable the memory limiting functionality (disable by default because only works in Kubernetes).
     enable_mem_limits: bool = False
