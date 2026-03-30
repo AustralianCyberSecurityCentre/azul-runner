@@ -35,6 +35,7 @@ from . import network, settings
 from . import plugin as mplugin
 from .storage import StorageProxyFile
 
+KEEPALIVE_FILENAME = ".runner-keepalive"
 LOCAL_RESULT_SUFFIX = "-result"
 logger = logging.getLogger(__name__)
 
@@ -491,6 +492,9 @@ class Monitor:
                         # Notify child that it is time to exit
                         self._send_signal_to_child_processes(concurrent_task_list, RESTART_SIGNAL)
 
+                    # Touch the keepalive file so Kubernetes knows the plugin is still alive via livenessCheck
+                    pathlib.Path(tempfile.gettempdir(), KEEPALIVE_FILENAME).touch()
+
                     # Confirm at least one task wants to be recreated and none have any active jobs.
                     if recreate_plugin_requested and not is_any_job_active:
                         self.delete_tempfiles()
@@ -557,7 +561,9 @@ class Monitor:
                             if not self._are_memory_limits_good(monitor_task):
                                 self._kill_child_processes(concurrent_task_list)
                                 # prevent temp file buildup (exclude sockets used by multiprocessing).
-                                self.purge_temp_directory(exclude_prefixes=["pymp", "systemd", ".gitsync"])
+                                self.purge_temp_directory(
+                                    exclude_prefixes=["pymp", "systemd", ".gitsync", KEEPALIVE_FILENAME]
+                                )
                                 monitor_task.child_process = self._create_and_start_child_process(
                                     start_child_process_func, job_limit, monitor_task.queue, logging_queue
                                 )
@@ -566,7 +572,9 @@ class Monitor:
                         if not self._is_healthy_heartbeat_and_memory_checks(monitor_task):
                             self._kill_child_processes(concurrent_task_list)
                             # prevent temp file buildup (exclude sockets used by multiprocessing).
-                            self.purge_temp_directory(exclude_prefixes=["pymp", "systemd", ".gitsync"])
+                            self.purge_temp_directory(
+                                exclude_prefixes=["pymp", "systemd", ".gitsync", KEEPALIVE_FILENAME]
+                            )
                             monitor_task.child_process = self._create_and_start_child_process(
                                 start_child_process_func, job_limit, monitor_task.queue, logging_queue
                             )
@@ -581,6 +589,10 @@ class Monitor:
             # Stop the thread monitoring the repo
             if self._gitsync:
                 self._gitsync.stop_notify_thread()
+
+            keepalive_path = pathlib.Path(tempfile.gettempdir(), KEEPALIVE_FILENAME)
+            if keepalive_path.exists():
+                os.remove(keepalive_path)
 
     def _refine_current_memory_value(self, current_mem_bytes) -> int:
         """Further refine a memory value by subtracting the inactive file from the total amount of memory in use.
