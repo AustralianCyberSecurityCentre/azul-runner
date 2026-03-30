@@ -493,7 +493,8 @@ class Monitor:
                         self._send_signal_to_child_processes(concurrent_task_list, RESTART_SIGNAL)
 
                     # Touch the keepalive file so Kubernetes knows the plugin is still alive via livenessCheck
-                    pathlib.Path(tempfile.gettempdir(), KEEPALIVE_FILENAME).touch()
+                    if self._cfg.liveness_probe:
+                        pathlib.Path(tempfile.gettempdir(), KEEPALIVE_FILENAME).touch()
 
                     # Confirm at least one task wants to be recreated and none have any active jobs.
                     if recreate_plugin_requested and not is_any_job_active:
@@ -590,9 +591,10 @@ class Monitor:
             if self._gitsync:
                 self._gitsync.stop_notify_thread()
 
-            keepalive_path = pathlib.Path(tempfile.gettempdir(), KEEPALIVE_FILENAME)
-            if keepalive_path.exists():
-                os.remove(keepalive_path)
+            if self._cfg.liveness_probe:
+                keepalive_path = pathlib.Path(tempfile.gettempdir(), KEEPALIVE_FILENAME)
+                if keepalive_path.exists():
+                    os.remove(keepalive_path)
 
     def _refine_current_memory_value(self, current_mem_bytes) -> int:
         """Further refine a memory value by subtracting the inactive file from the total amount of memory in use.
