@@ -7,7 +7,6 @@ import pathlib
 import subprocess
 import tempfile
 import time
-import threading
 import unittest
 from typing import ClassVar
 
@@ -53,7 +52,6 @@ class TestLivenessProbe(unittest.TestCase):
 
     def test_liveness_probe_disabled_never_creates_file(self) -> None:
         """Test that when enable_liveness_probe is False, the file is never created."""
-        # Arrange
         config = {
             "events_url": self.server + "/depth_1",
             "data_url": self.server + "/data",
@@ -64,24 +62,31 @@ class TestLivenessProbe(unittest.TestCase):
         net = network.Network(mon._plugin)
         net.post_registrations()
 
-        # Act - Run in a sub-thread
-        def run_plugin():
-            try:
-                mon.run_loop(job_limit=1)
-            except Exception:
-                pass
-
-        thread = threading.Thread(target=run_plugin, daemon=True)
-        thread.start()
-
-        time.sleep(1)
+        mon.run_loop(job_limit=1)
 
         self.assertFalse(
             KEEPALIVE_PATH.exists(),
             f"Keepalive file should NOT be created when liveness_probe is False, but {KEEPALIVE_PATH} exists",
         )
 
-        thread.join(timeout=10)
+    def test_liveness_probe_enabled_creates_file(self) -> None:
+        """Test that when enable_liveness_probe is True, the keepalive file is created."""
+        config = {
+            "events_url": self.server + "/depth_1",
+            "data_url": self.server + "/data",
+            "enable_liveness_probe": True,
+        }
+        mon = monitor.Monitor(sup.DummyPlugin, config)
+
+        net = network.Network(mon._plugin)
+        net.post_registrations()
+
+        mon.run_loop(job_limit=1)
+
+        self.assertTrue(
+            KEEPALIVE_PATH.exists(),
+            f"Keepalive file should be created when enable_liveness_probe is True, but {KEEPALIVE_PATH} does not exist",
+        )
 
     def test_liveness_probe_check_fresh_file(self) -> None:
         """Test that the liveness probe check used in Kubernetes passes when keepalive file is fresh."""
