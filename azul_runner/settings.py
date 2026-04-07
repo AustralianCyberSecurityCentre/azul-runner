@@ -116,6 +116,8 @@ class Settings(BaseSettings):
     # a unique key for all instances of this plugin, typically matching the
     # the name of the parent deployment.
     deployment_key: str = ""
+    # whether plugin should regularly touch /tmp/.runner-keepalive to tell Kubernetes it's still alive (used for livenessProbe)
+    enable_liveness_probe: bool = False
 
     # File watch, for running plugin with up-to-date files
     # if files in this path are modified, the plugin will reload

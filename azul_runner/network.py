@@ -1,6 +1,8 @@
 """Higher level interactions with Azul Dispatcher vs dispatcher.py."""
 
 import logging
+import pathlib
+import tempfile
 import time
 import traceback
 import typing
@@ -15,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 # by default will retry getting events if it received corrupted events
 CONTINUE_ON_RECV_CORRUPT_EVENT = True
+# name of the keepalive file used for liveness probe functionality, should match the file used in azul-app/azul/templates/helpers/plugin-liveness-probe.yaml
+KEEPALIVE_FILENAME = ".runner-keepalive"
 
 
 class Network:
@@ -87,6 +91,10 @@ class Network:
                 if CONTINUE_ON_RECV_CORRUPT_EVENT:
                     continue
                 raise e
+
+            if self.plugin.cfg.enable_liveness_probe:
+                # Touch the keepalive file so Kubernetes knows the plugin is still alive via livenessProbe
+                pathlib.Path(tempfile.gettempdir(), KEEPALIVE_FILENAME).touch()
 
             if info.filtered:
                 logger.info(f"{info.filtered} uninteresting events filtered by dispatcher")

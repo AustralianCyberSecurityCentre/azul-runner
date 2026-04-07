@@ -557,7 +557,9 @@ class Monitor:
                             if not self._are_memory_limits_good(monitor_task):
                                 self._kill_child_processes(concurrent_task_list)
                                 # prevent temp file buildup (exclude sockets used by multiprocessing).
-                                self.purge_temp_directory(exclude_prefixes=["pymp", "systemd", ".gitsync"])
+                                self.purge_temp_directory(
+                                    exclude_prefixes=["pymp", "systemd", ".gitsync", network.KEEPALIVE_FILENAME]
+                                )
                                 monitor_task.child_process = self._create_and_start_child_process(
                                     start_child_process_func, job_limit, monitor_task.queue, logging_queue
                                 )
@@ -566,7 +568,9 @@ class Monitor:
                         if not self._is_healthy_heartbeat_and_memory_checks(monitor_task):
                             self._kill_child_processes(concurrent_task_list)
                             # prevent temp file buildup (exclude sockets used by multiprocessing).
-                            self.purge_temp_directory(exclude_prefixes=["pymp", "systemd", ".gitsync"])
+                            self.purge_temp_directory(
+                                exclude_prefixes=["pymp", "systemd", ".gitsync", network.KEEPALIVE_FILENAME]
+                            )
                             monitor_task.child_process = self._create_and_start_child_process(
                                 start_child_process_func, job_limit, monitor_task.queue, logging_queue
                             )
