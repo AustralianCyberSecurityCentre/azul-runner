@@ -228,7 +228,16 @@ class GitSync:
 
                 ls_cmd = ["ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
                 self._refresh_auth()
-                remote = self._run_git(ls_cmd).split()[0].strip()
+
+                remote_out = self._run_git(ls_cmd)
+                if "Warning: " in remote_out:
+                    # Suppress warning about not being able to verify host key when using SSH auth
+                    logger.debug(
+                        f"Received host key warning when checking for updates from remote repo: {remote.strip()}"
+                    )
+                    remote = remote_out.splitlines()[-1].split()[0]
+                else:
+                    remote = remote_out.strip().split()[0]
 
                 # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
                 if local != remote:
