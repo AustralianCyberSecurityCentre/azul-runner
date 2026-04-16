@@ -152,13 +152,19 @@ class GitSync:
             key, _, value = self.git_config.partition(":")
             config_args = ["-c", f"{key}={value}"]
         try:
-            return subprocess.check_output(  # noqa: S603
+            output = subprocess.check_output(  # noqa: S603
                 ["git"] + config_args + cmd,
                 cwd=self.watch_path,
                 text=True,
                 input=input,
                 stderr=subprocess.STDOUT,
             )
+
+            if self.do_ssh_auth and "Warning: " in output:
+                # Suppress warning about not being able to verify host key when using SSH auth
+                logger.debug(f"Received host key warning when running git command '{' '.join(cmd)}': {output.strip()}")
+                output = "\n".join(output.splitlines()[1:])
+            return output
         except subprocess.CalledProcessError as e:
             msg = f"Git command '{' '.join(cmd)}' failed with code {e.returncode}: {e.output}"
             logger.error(msg)
@@ -229,15 +235,7 @@ class GitSync:
                 ls_cmd = ["ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
                 self._refresh_auth()
 
-                remote_out = self._run_git(ls_cmd)
-                if "Warning: " in remote_out:
-                    # Suppress warning about not being able to verify host key when using SSH auth
-                    logger.debug(
-                        f"Received host key warning when checking for updates from remote repo: {remote.strip()}"
-                    )
-                    remote = remote_out.splitlines()[-1].split()[0]
-                else:
-                    remote = remote_out.strip().split()[0]
+                remote = self._run_git(ls_cmd).strip().split()[0]
 
                 # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
                 if local != remote:
