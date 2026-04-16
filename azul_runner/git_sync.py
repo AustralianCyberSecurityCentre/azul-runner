@@ -136,7 +136,14 @@ class GitSync:
             )
         elif self.do_ssh_auth:
             logger.debug(f"Refreshing SSH authentication for git repository at {self.repo}")
-            self._run_git(["config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"])
+            self._run_git(
+                [
+                    "config",
+                    "--global",
+                    "core.sshCommand",
+                    f"ssh -i {self.ssh_key_path} -o StrictHostKeyChecking=No -o UserKnownHostsFile=/dev/null",
+                ]
+            )
 
     def _run_git(self, cmd: list[str], input: str = None) -> str:
         """Run a git command in the watch path and return the output."""
