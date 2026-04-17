@@ -136,7 +136,14 @@ class GitSync:
             )
         elif self.do_ssh_auth:
             logger.debug(f"Refreshing SSH authentication for git repository at {self.repo}")
-            self._run_git(["config", "--global", "core.sshCommand", f"ssh -i {self.ssh_key_path}"])
+            self._run_git(
+                [
+                    "config",
+                    "--global",
+                    "core.sshCommand",
+                    f"ssh -i {self.ssh_key_path} -o StrictHostKeyChecking=No -o UserKnownHostsFile=/dev/null",
+                ]
+            )
 
     def _run_git(self, cmd: list[str], input: str = None) -> str:
         """Run a git command in the watch path and return the output."""
@@ -145,13 +152,19 @@ class GitSync:
             key, _, value = self.git_config.partition(":")
             config_args = ["-c", f"{key}={value}"]
         try:
-            return subprocess.check_output(  # noqa: S603
+            output = subprocess.check_output(  # noqa: S603
                 ["git"] + config_args + cmd,
                 cwd=self.watch_path,
                 text=True,
                 input=input,
                 stderr=subprocess.STDOUT,
             )
+
+            if self.do_ssh_auth and "Warning: " in output:
+                # Suppress warning about not being able to verify host key when using SSH auth
+                logger.debug(f"Received host key warning when running git command '{' '.join(cmd)}': {output.strip()}")
+                output = "\n".join(output.splitlines()[1:])
+            return output
         except subprocess.CalledProcessError as e:
             msg = f"Git command '{' '.join(cmd)}' failed with code {e.returncode}: {e.output}"
             logger.error(msg)
