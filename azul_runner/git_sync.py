@@ -234,8 +234,7 @@ class GitSync:
 
                 ls_cmd = ["ls-remote", "origin"] + ([self.branch] if self.branch else ["HEAD"])
                 self._refresh_auth()
-
-                remote = self._run_git(ls_cmd).strip().split()[0]
+                remote = self._run_git(ls_cmd).split()[0].strip()
 
                 # post to self.update_event if they are not equal (parent proc now knows to pull then restart the plugin)
                 if local != remote:
