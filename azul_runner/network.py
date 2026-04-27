@@ -158,7 +158,9 @@ class Network:
             status_event = self._gen_status(
                 src,
                 JobResult(
-                    state=State(State.Label.ERROR_OUTPUT, message=e.args[0]),
+                    state=State(
+                        State.Label.ERROR_OUTPUT, message=f"{e.internal} - {e.external}\n{traceback.format_exc()}"
+                    ),
                     date_start=result.date_start,
                     date_end=result.date_end,
                     runtime=result.runtime,
