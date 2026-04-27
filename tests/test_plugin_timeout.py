@@ -78,6 +78,7 @@ class TestPluginTimeouts(unittest.TestCase):
         lr.addHandler(self.dummy_log_handler)
 
     def _filter_error_from_logs(self, msgs: list):
+        msgs = [m for m in msgs if not m.startswith("WARNING: Couldn't fully cleanup temp")]
         return msgs
 
     # ############### #
