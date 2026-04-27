@@ -151,14 +151,14 @@ class Network:
         # Post result
         try:
             self.api.submit_events([status_event], model=azm.ModelType.Status)
-        except exceptions_bedrock.NetworkDataException as e:
+        except exceptions_bedrock.NetworkDataException:
             # try to capture bad output from plugin
             # rerunning the plugin should produce the same result
             # so no need to capture detailed info
             status_event = self._gen_status(
                 src,
                 JobResult(
-                    state=State(State.Label.ERROR_OUTPUT, message=e.args[0]),
+                    state=State(State.Label.ERROR_OUTPUT, message=traceback.format_exc()),
                     date_start=result.date_start,
                     date_end=result.date_end,
                     runtime=result.runtime,

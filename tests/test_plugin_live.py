@@ -11,10 +11,12 @@ import time
 import unittest
 from multiprocessing import Process
 from typing import Any, ClassVar
+from unittest import mock
 
+from azul_bedrock.exception_enums import ExceptionCodeEnum
 import httpx
 import yara_x
-from azul_bedrock import models_network as azm
+from azul_bedrock import exceptions_bedrock, models_network as azm
 
 from azul_runner import (
     DATA_HASH,
@@ -1335,6 +1337,42 @@ class TestBasePluginLive(unittest.TestCase):
         out_event: dict = r.json()[0]
         # Ensure that this hash matches what is tested against in the dispatcher
         self.assertEqual("generated-dummy-dequeued-id", out_event["entity"]["input"]["dequeued"])
+
+    def test_ack_job_exception(self):
+        """Verify the appropriate exception is raised when trying to recover from an exception in an ack_job.
+
+        Regression test to prevent different exceptions being raised within the exception handler.
+        """
+        loop = monitor.Monitor(
+            self.DPAckJobStatusId, {"events_url": self.server + "/test_path", "data_url": self.server}
+        )
+        entity = azm.BinaryEvent.Entity(sha256="id", datastreams=[], features=[], info={})
+        _ = loop.run_once(local.gen_event(entity))[None]
+        dt = datetime.datetime.now(datetime.timezone.utc)
+        event = loop._network.fetch_job()
+        with mock.patch("azul_bedrock.dispatcher.DispatcherAPI.submit_events") as submit_events:
+
+            def raise_network_error(*args, **kwargs):
+                raise exceptions_bedrock.NetworkDataException(
+                    internal=ExceptionCodeEnum.DPSubmitEventMessageTooLarge,
+                    ref="an exception occurred during upload to dispatcher!",
+                )
+
+            submit_events.side_effect = raise_network_error
+            with self.assertRaises(exceptions_bedrock.NetworkDataException):
+                loop._network.ack_job(
+                    src=event,
+                    result=JobResult(
+                        **{
+                            "state": State(State.Label.COMPLETED),
+                            "data": {},
+                            "events": [],
+                            "runtime": 3,
+                            "date_start": dt,
+                            "date_end": dt + datetime.timedelta(seconds=3),
+                        }
+                    ),
+                )
 
     class DPRunloopPosting(sup.DummyPlugin):
         def execute(self, job):
