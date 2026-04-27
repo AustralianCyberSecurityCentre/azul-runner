@@ -1982,6 +1982,7 @@ class TestBasePluginLive(unittest.TestCase):
         # Check that the ack contains the correct features
         r = httpx.get("%s/mock/get_var/last_request_body" % self.server)
         r.raise_for_status()
+        print(r.json()[0])
         out_evt: azm.StatusEvent = azm.StatusEvent(**r.json()[0])
         self.assertIsInstance(out_evt.entity, azm.StatusEvent.Entity)
         self.assertEqual(
