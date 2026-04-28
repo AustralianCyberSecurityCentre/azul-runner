@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import datetime
 import json
@@ -116,7 +117,7 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertIn("password", out_event["entity"]["config"])
         self.assertNotIn("secret_password", out_event["entity"]["config"])
 
-    class DPRegistartionConfigOverride(sup.DummyPlugin):
+    class DPRegistrationConfigOverride(sup.DummyPlugin):
         """Hello world."""
 
         FEATURES = [
@@ -126,7 +127,7 @@ class TestBasePluginLive(unittest.TestCase):
 
     def test_registration_config_overrides(self):
 
-        p = self.DPRegistartionConfigOverride(
+        p = self.DPRegistrationConfigOverride(
             config={
                 "server": self.server + "/depth_1",
                 "name_suffix": "ASuffix",
@@ -150,13 +151,13 @@ class TestBasePluginLive(unittest.TestCase):
                 "kafka_key": "runner-placeholder",
                 "author": {
                     "category": "plugin",
-                    "name": "DPRegistartionConfigOverride-ASuffix",
+                    "name": "DPRegistrationConfigOverride-ASuffix",
                     "version": "1.0-Beta5",
                     "security": "Alpha Beta",
                 },
                 "entity": {
                     "category": "plugin",
-                    "name": "DPRegistartionConfigOverride-ASuffix",
+                    "name": "DPRegistrationConfigOverride-ASuffix",
                     "version": "1.0-Beta5",
                     "security": "Alpha Beta",
                     "description": "Hello world.",
@@ -1980,10 +1981,16 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertGreaterEqual(requests_in_interval, 5)
 
         # Check that the ack contains the correct features
-        r = httpx.get("%s/mock/get_var/last_request_body" % self.server)
+        r = httpx.get("%s/mock/get_var/all_requests" % self.server)
         r.raise_for_status()
-        print(r.json()[0])
-        out_evt: azm.StatusEvent = azm.StatusEvent(**r.json()[0])
+        print(json.dumps(r.json()))
+
+        out_evt: azm.StatusEvent | None = None
+        # Get the first genuine status event and continue. (in reverse to avoid other test runs status events)
+        for result_or_plugin_registration in r.json()[::-1]:
+            with contextlib.suppress(Exception):
+                out_evt: azm.StatusEvent = azm.StatusEvent(**result_or_plugin_registration[0])
+                break
         self.assertIsInstance(out_evt.entity, azm.StatusEvent.Entity)
         self.assertEqual(
             out_evt.entity.status,
