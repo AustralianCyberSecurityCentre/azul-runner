@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import datetime
 import json
@@ -1950,6 +1951,7 @@ class TestBasePluginLive(unittest.TestCase):
                     raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
                 lengths.append(len(ds.read()))
             self.add_feature_values("example_int", lengths)
+            print("FINISHED!")
 
     def test_run_multiple_plugin_instances_concurrently(self):
         """Run 5 instances of a plugin concurrently and ensure they get at most 2 jobs.
@@ -1980,10 +1982,16 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertGreaterEqual(requests_in_interval, 5)
 
         # Check that the ack contains the correct features
-        r = httpx.get("%s/mock/get_var/last_request_body" % self.server)
+        r = httpx.get("%s/mock/get_var/all_requests" % self.server)
         r.raise_for_status()
-        print(r.json()[0])
-        out_evt: azm.StatusEvent = azm.StatusEvent(**r.json()[0])
+        print(json.dumps(r.json()))
+
+        out_evt: azm.StatusEvent | None = None
+        # Get the first genuine status event and continue.
+        for result_or_plugin_registration in r.json():
+            with contextlib.suppress(Exception):
+                out_evt: azm.StatusEvent = azm.StatusEvent(**result_or_plugin_registration[0])
+                break
         self.assertIsInstance(out_evt.entity, azm.StatusEvent.Entity)
         self.assertEqual(
             out_evt.entity.status,
