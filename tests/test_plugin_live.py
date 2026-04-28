@@ -117,7 +117,7 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertIn("password", out_event["entity"]["config"])
         self.assertNotIn("secret_password", out_event["entity"]["config"])
 
-    class DPRegistartionConfigOverride(sup.DummyPlugin):
+    class DPRegistrationConfigOverride(sup.DummyPlugin):
         """Hello world."""
 
         FEATURES = [
@@ -127,7 +127,7 @@ class TestBasePluginLive(unittest.TestCase):
 
     def test_registration_config_overrides(self):
 
-        p = self.DPRegistartionConfigOverride(
+        p = self.DPRegistrationConfigOverride(
             config={
                 "server": self.server + "/depth_1",
                 "name_suffix": "ASuffix",
@@ -151,13 +151,13 @@ class TestBasePluginLive(unittest.TestCase):
                 "kafka_key": "runner-placeholder",
                 "author": {
                     "category": "plugin",
-                    "name": "DPRegistartionConfigOverride-ASuffix",
+                    "name": "DPRegistrationConfigOverride-ASuffix",
                     "version": "1.0-Beta5",
                     "security": "Alpha Beta",
                 },
                 "entity": {
                     "category": "plugin",
-                    "name": "DPRegistartionConfigOverride-ASuffix",
+                    "name": "DPRegistrationConfigOverride-ASuffix",
                     "version": "1.0-Beta5",
                     "security": "Alpha Beta",
                     "description": "Hello world.",
@@ -1951,7 +1951,6 @@ class TestBasePluginLive(unittest.TestCase):
                     raise coordinator.CriticalError("Provided data is not a StorageProxyFile!")
                 lengths.append(len(ds.read()))
             self.add_feature_values("example_int", lengths)
-            print("FINISHED!")
 
     def test_run_multiple_plugin_instances_concurrently(self):
         """Run 5 instances of a plugin concurrently and ensure they get at most 2 jobs.
@@ -1987,8 +1986,8 @@ class TestBasePluginLive(unittest.TestCase):
         print(json.dumps(r.json()))
 
         out_evt: azm.StatusEvent | None = None
-        # Get the first genuine status event and continue.
-        for result_or_plugin_registration in r.json():
+        # Get the first genuine status event and continue. (in reverse to avoid other test runs status events)
+        for result_or_plugin_registration in r.json()[::-1]:
             with contextlib.suppress(Exception):
                 out_evt: azm.StatusEvent = azm.StatusEvent(**result_or_plugin_registration[0])
                 break
