@@ -54,7 +54,7 @@ def run_plugin_with_job(plugin: mplugin.Plugin, job: models.Job, multiplugin: st
         result = JobResult(state=state)
         # Catch anything that goes wrong while processing output, and report it as a failed run
         if result.state.label in azm.StatusEnumSuccess:
-            input_sids = {s.file_info.sha256 for s in job.get_all_data() or []}
+            input_sids = {s.get_hash() for s in job.get_all_data() or []}
             new_hashes = {y.hash for x in plugin.events for y in x.data}
             all_hashes = input_sids.union(new_hashes).union({None})
             feat_types = set()

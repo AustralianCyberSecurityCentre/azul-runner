@@ -23,7 +23,7 @@ from pydantic import (
     field_validator,
 )
 
-from . import storage
+from . import storage, FeatureType
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class Feature(BaseModelStrict):
 
     name: str
     desc: str
-    type: str
+    type: FeatureType
     # accepted class for values of the feature
     _typeref: type = PrivateAttr()
 
@@ -509,10 +509,12 @@ class Job(BaseModelStrict):
         return self.event.entity.sha256
 
     # Input content streams as file-like objects
-    _streams: list[storage.StorageProxyFile] = PrivateAttr(None)
+    _streams: list[storage.StorageProxyFile] | None = PrivateAttr(None)
 
     # helpers
-    def load_streams(self, *, dp: dispatcher.DispatcherAPI = None, local: list[storage.StorageProxyFile] = None):
+    def load_streams(
+        self, *, dp: dispatcher.DispatcherAPI | None = None, local: list[storage.StorageProxyFile] | None = None
+    ):
         """Load streams from network or local files."""
         self._streams = []
         if local:
@@ -522,6 +524,8 @@ class Job(BaseModelStrict):
             if not self.event.entity.datastreams:
                 return
             for stream in self.event.entity.datastreams:
+                if not stream.sha256:
+                    raise ValueError(f"stream {stream} is missing sha256 hash")
                 self._streams.append(
                     storage.StorageProxyFile(
                         source=self.event.source.name,
@@ -533,22 +537,24 @@ class Job(BaseModelStrict):
                     )
                 )
 
-    def get_data(self, label: azm.DataLabel = azm.DataLabel.CONTENT) -> storage.StorageProxyFile:
+    def get_data(self, label: azm.DataLabel = azm.DataLabel.CONTENT) -> storage.StorageProxyFile | None:
         """Return and ensure only one stream with label."""
         streams = self.get_all_data(label)
         if len(streams) > 1:
             raise ValueError(f'more than one "{label}" stream for entity {self.id}')
         return streams[0] if streams else None
 
-    def get_all_data(self, label: azm.DataLabel = None, file_format: str = None) -> list[storage.StorageProxyFile]:
+    def get_all_data(
+        self, label: azm.DataLabel | None = None, file_format: str | None = None
+    ) -> list[storage.StorageProxyFile]:
         """Return data streams, optionally filtered by label and/or file_format."""
         if not self._streams:
             return []
         streams = self._streams
         if label:
-            streams = [ds for ds in streams if ds.file_info.label == label]
+            streams = [ds for ds in streams if ds.file_info is not None and ds.file_info.label == label]
         if file_format:
-            streams = [ds for ds in streams if ds.file_info.file_format == file_format]
+            streams = [ds for ds in streams if ds.file_info is not None and ds.file_info.file_format == file_format]
         return streams
 
 

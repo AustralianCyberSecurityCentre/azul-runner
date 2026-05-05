@@ -115,7 +115,7 @@ def gen_processing_events(
     )
 
 
-def _to_api_features(plugin: Plugin, feats_in: dict[str, set[FeatureValue]]) -> list[azm.FeatureValue]:
+def _to_api_features(plugin: Plugin, feats_in: dict[str, list[FeatureValue]]) -> list[azm.FeatureValue]:
     """Convert a structured dict of features-by-name to a list of (name, value, <meta>) for the API.
 
     Any features that are not registered with the plugin are silently dropped,
@@ -168,6 +168,9 @@ def _gen_event_output(
         # Remove content entries other than the primary content stream and newly generated streams
         out_data += [ds for ds in (src.entity.datastreams or []) if ds.label == "content"]
         out_data += extra_data
+
+    if src.entity.sha256 is None:
+        raise ValueError("Source event entity must have a sha256 value")
 
     out_event = azm.BinaryEvent(
         model_version=azm.CURRENT_MODEL_VERSION,
