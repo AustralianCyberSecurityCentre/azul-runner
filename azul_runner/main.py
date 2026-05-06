@@ -46,7 +46,7 @@ class Args(BaseModel):
     verbose: int = 0
 
 
-def cmdline_run(plugin: type[Plugin] = None):
+def cmdline_run(plugin: type[Plugin] | None = None):
     """Run from command-line."""
     if not plugin:
         print("Error: not run with a plugin", file=sys.stderr)
@@ -329,8 +329,9 @@ def process_file(plugin_class: Type[Plugin], m_loop: Monitor, filepath, args: Ar
     for jresult in res.values():
         for data_stream in jresult.data.values():
             with contextlib.suppress(Exception):
-                data_stream.close()
-                os.remove(data_stream.name)
+                if isinstance(data_stream, BinaryIO):
+                    data_stream.close()
+                    os.remove(data_stream.name)
 
 
 def generate_json(result: JobResult, indent=None):
@@ -393,6 +394,8 @@ def print_result(plugin_class: Type[Plugin], subplugin: str, result: JobResult):
                 print(f"  output data streams ({len(event.data)}):")
                 for data in event.data:
                     bin = result.data[data.hash]
+                    if isinstance(bin, bytes):
+                        raise TypeError("Expected data stream to be a BinaryIO, got bytes")
                     # get size of result file
                     bin.seek(0, 2)
                     size = bin.tell()
@@ -438,7 +441,7 @@ def unpack_cart_and_read(input_stream: BinaryIO) -> bytes:
     input_stream.seek(0)
     if cart.is_cart(header):
         unpacked = BytesIO()
-        cart.unpack_stream(input_stream, unpacked)
+        cart.unpack_stream(input_stream, unpacked)  # ty: ignore[invalid-argument-type] # let input_stream possibly be BinaryIO rather than BytesIO, cart.unpack_stream seems to work with both types
         unpacked.seek(0)
         return unpacked.getvalue()
     else:

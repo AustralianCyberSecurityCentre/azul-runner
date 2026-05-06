@@ -23,7 +23,7 @@ from pydantic import (
     field_validator,
 )
 
-from . import storage, FeatureType
+from . import FeatureType, storage
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 class BaseModelStrict(azm.BaseModelStrict):
     """Alters bedrock base model to have no default import namespace."""
 
-    _DEFAULT_IMPORT = None
+    _DEFAULT_IMPORT: str | None = None
 
 
 class ModelError(TypeError):
@@ -57,8 +57,8 @@ class Uri(str):
 # WARNING - This directly alters the modules azm.StatusEventEnum so side effects will occur if you
 # use that directly.
 _status_event_enum_override = azm.StatusEnum
-_status_event_enum_override.__repr__ = lambda self: f"State.Label.{self.name}"
-_status_event_enum_override.__str__ = lambda self: f"State.Label.{self.name}"
+_status_event_enum_override.__repr__ = lambda self: f"State.Label.{self.name}"  # ty: ignore[invalid-assignment]
+_status_event_enum_override.__str__ = lambda self: f"State.Label.{self.name}"  # ty: ignore[invalid-assignment]
 
 
 class State(BaseModelStrict):
@@ -69,7 +69,7 @@ class State(BaseModelStrict):
     failure_name: str | None = None  # Brief title of problem, eg 'OSError' or 'opt-out'
     message: str | None = None  # Any other output messages (eg traceback for exception)
 
-    def __init__(self, label: Label = Label.COMPLETED, failure_name: str = None, message: str = None):
+    def __init__(self, label: Label = Label.COMPLETED, failure_name: str | None = None, message: str | None = None):
         if label == State.Label.OPT_OUT:
             if not message:
                 message = "No opt-out reason was provided."
@@ -137,13 +137,17 @@ class Feature(BaseModelStrict):
         """Hash function."""
         return hash(self.name)
 
-    def __eq__(self, other: Feature) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Equal function."""
-        return NotImplemented if not isinstance(other, Feature) else (self.name == other.name)
+        if not isinstance(other, Feature):
+            return NotImplemented
+        return self.name == other.name
 
-    def __lt__(self, other: Feature) -> bool:
+    def __lt__(self, other: object) -> bool:
         """Less than function."""
-        return NotImplemented if not isinstance(other, Feature) else (self.name < other.name)
+        if not isinstance(other, Feature):
+            return NotImplemented
+        return self.name < other.name
 
     @property
     def typeref(self):
@@ -185,21 +189,17 @@ class FeatureValue(BaseModelStrict):
             -inf if self.size is None else self.size,
         )
 
-    def __eq__(self, other: FeatureValue) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Explicitly implement equality only for FeatureValue to FeatureValue instances."""
-        return (
-            NotImplemented
-            if not isinstance(other, FeatureValue)
-            else (self._comparison_tuple == other._comparison_tuple)
-        )
+        if not isinstance(other, FeatureValue):
+            return NotImplemented
+        return self._comparison_tuple == other._comparison_tuple
 
-    def __lt__(self, other: FeatureValue) -> bool:
+    def __lt__(self, other: object) -> bool:
         """Explicitly implement less than for FeatureValue to FeatureValue instances."""
-        return (
-            NotImplemented
-            if not isinstance(other, FeatureValue)
-            else (self._comparison_tuple < other._comparison_tuple)
-        )
+        if not isinstance(other, FeatureValue):
+            return NotImplemented
+        return self._comparison_tuple < other._comparison_tuple
 
     def value_encoded(self) -> str:
         """Return encoded value."""
@@ -223,13 +223,17 @@ class EventData(BaseModelStrict):
     label: azm.DataLabel
     language: str | None = None
 
-    def __eq__(self, other: EventData) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Explicitly implement equality only for EventData to EventData instances."""
-        return NotImplemented if not isinstance(other, EventData) else (self.hash == other.hash)
+        if not isinstance(other, EventData):
+            return NotImplemented
+        return self.hash == other.hash
 
-    def __lt__(self, other: EventData) -> bool:
+    def __lt__(self, other: object) -> bool:
         """Explicitly implement less than for EventData to EventData instances."""
-        return NotImplemented if not isinstance(other, EventData) else (self.hash < other.hash)
+        if not isinstance(other, EventData):
+            return NotImplemented
+        return self.hash < other.hash
 
 
 class EventBase(azm.FileInfo):
@@ -289,7 +293,7 @@ class Event(EventBase):
     # track events in shared list
     _events: list[Event] = PrivateAttr()
     # track children of the current event so duplicate children are not added
-    _children: dict[tuple[str, str, str], Event] = PrivateAttr({})
+    _children: dict[tuple[str | None, str], Event] = PrivateAttr({})
 
     @field_validator("features")
     @classmethod
@@ -321,6 +325,8 @@ class Event(EventBase):
         filenames = self.features.get("filename", [])
         # must sort before getting value, for consistency
         filename = sorted(filenames)[0].value if filenames else None
+        if filename is not None or not isinstance(filename, str):
+            raise ValueError(f"filename feature value must be a string if set, got {filename}")
         lang = [x.language for x in self.data if x.label == "content" and x.language]
         # must sort before getting value, for consistency
         lang = sorted(lang)[0] if lang else None
@@ -338,9 +344,9 @@ class Event(EventBase):
         """True if event is worth emitting from plugin."""
         # keep all child events
         # keep top level events if features, data or info are set
-        return self.parent or (self.features or self.data or self.info)
+        return bool(self.parent or self.features or self.data or self.info)
 
-    def add_data(self, label: azm.DataLabel, tags: dict[str, str], data: bytes) -> str:
+    def add_data(self, label: azm.DataLabel, tags: dict[str, str], data: bytes) -> str | None:
         """Add data to the event and return data hash.
 
         Results in memory issues if data is large.
@@ -349,7 +355,7 @@ class Event(EventBase):
             logger.warning(f"adding large file as bytestring, which is bad for memory usage {label=}")
         return self.add_data_file(label, tags, io.BytesIO(data))
 
-    def add_data_file(self, label: azm.DataLabel, tags: dict[str, str], data_file: typing.BinaryIO) -> str:
+    def add_data_file(self, label: azm.DataLabel, tags: dict[str, str], data_file: typing.BinaryIO) -> str | None:
         """Add data file to the event and return data hash.
 
         File handle may be closed afterward.
@@ -382,7 +388,7 @@ class Event(EventBase):
         self._shared_data[data_hash] = tmpfile
         return data_hash
 
-    def add_text(self, text: str, language: str = None) -> str:
+    def add_text(self, text: str, language: str | None = None) -> str | None:
         """Add a text stream to the current binary.
 
         Used for a report or other textual artifact related to the current plugin run. The text will be viewable
@@ -424,7 +430,7 @@ class Event(EventBase):
         """Add info to event, overwriting previous info."""
         self.info = info
 
-    def _add_child(self, sha256: str, relationship: dict, *, parent_sha256: str = None) -> Event:
+    def _add_child(self, sha256: str, relationship: dict, *, parent_sha256: str | None = None) -> Event:
         """Add child event to current event."""
         uniq = (parent_sha256, sha256)
         if uniq not in self._children:
@@ -464,8 +470,8 @@ def custom_binary_serialize(data: dict[str, typing.BinaryIO | bytes], orig_seria
     for row in data:
         if issubclass(type(data[row]), io.IOBase):
             # FUTURE will overflow memory if large
-            result[row] = data[row].read()
-            data[row].seek(0)
+            result[row] = data[row].read()  # ty: ignore[unresolved-attribute] # possibility of stream being bytes is handled above
+            data[row].seek(0)  # ty: ignore[unresolved-attribute] # possibility of stream being bytes is handled above
         else:
             result[row] = data[row]
     return orig_serializer(result)
@@ -484,15 +490,15 @@ class JobResult(BaseModelStrict):
     date_end: datetime.datetime | None = None
 
     @property
-    def main(self) -> Event:
+    def main(self) -> Event | None:
         """Return main event."""
         return self.events[0] if len(self.events) else None
 
     def close(self):
         """Close any JobResult data handles."""
-        for d in self.data:
-            if issubclass(type(d), io.IOBase) and not self.data[d].closed:
-                self.data[d].close()
+        for _, stream in self.data.items():
+            if issubclass(type(stream), io.IOBase) and not stream.closed:  # ty: ignore[unresolved-attribute] # possibility of stream being bytes is in previous condition
+                stream.close()  # ty: ignore[unresolved-attribute] # possibility of stream being bytes is handled above
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -506,6 +512,8 @@ class Job(BaseModelStrict):
     @property
     def id(self) -> str:
         """Entity id."""
+        if self.event.entity.sha256 is None:
+            raise ValueError("event entity is missing sha256 hash")
         return self.event.entity.sha256
 
     # Input content streams as file-like objects

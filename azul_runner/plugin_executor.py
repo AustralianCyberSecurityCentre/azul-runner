@@ -25,7 +25,7 @@ class ResultError(AssertionError):
     pass
 
 
-def run_plugin_with_job(plugin: mplugin.Plugin, job: models.Job, multiplugin: str) -> JobResult:
+def run_plugin_with_job(plugin: mplugin.Plugin, job: models.Job, multiplugin: str | None) -> JobResult:
     """Execute plugin and handle bad output."""
     run_start = datetime.datetime.now(datetime.timezone.utc)
     # cleanup from last run

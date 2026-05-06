@@ -530,7 +530,7 @@ class StorageProxyFile(io.RawIOBase):
                 # Request the last full chunk of the file. It's the only way to be 100% sure of finding the total size.
                 self._request_chunks(start_chunk=None, end_chunk=-1)
                 if not isinstance(self._size, int):
-                    raise ValueError(f"No file size set with which to seek")
+                    raise ValueError("No file size set with which to seek")
             self._offset = self._size + offset
         else:
             raise ValueError("whence value %s unsupported" % whence)
