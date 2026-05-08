@@ -189,7 +189,6 @@ class TestBasePluginLive(unittest.TestCase):
                     "config": {
                         "assume_streams_available": "false",
                         "concurrent_plugin_instances": "1",
-                        "content_meta_cache_limit": "0",
                         "cur_mem_file_path": '"/sys/fs/cgroup/memory.current"',
                         "cur_mem_summary_file_path": '"/sys/fs/cgroup/memory.stat"',
                         "deployment_key": '""',
@@ -291,7 +290,6 @@ class TestBasePluginLive(unittest.TestCase):
                     "config": {
                         "assume_streams_available": "false",
                         "concurrent_plugin_instances": "1",
-                        "content_meta_cache_limit": "0",
                         "cur_mem_file_path": '"/sys/fs/cgroup/memory.current"',
                         "cur_mem_summary_file_path": '"/sys/fs/cgroup/memory.stat"',
                         "deployment_key": '""',
@@ -399,7 +397,6 @@ class TestBasePluginLive(unittest.TestCase):
                     "config": {
                         "assume_streams_available": "false",
                         "concurrent_plugin_instances": "1",
-                        "content_meta_cache_limit": "0",
                         "cur_mem_file_path": '"/sys/fs/cgroup/memory.current"',
                         "cur_mem_summary_file_path": '"/sys/fs/cgroup/memory.stat"',
                         "deployment_key": '""',
@@ -511,7 +508,6 @@ class TestBasePluginLive(unittest.TestCase):
                     "config": {
                         "assume_streams_available": "false",
                         "concurrent_plugin_instances": "1",
-                        "content_meta_cache_limit": "0",
                         "cur_mem_file_path": '"/sys/fs/cgroup/memory.current"',
                         "cur_mem_summary_file_path": '"/sys/fs/cgroup/memory.stat"',
                         "deployment_key": '"apple"',
