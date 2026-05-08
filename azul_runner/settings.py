@@ -51,7 +51,7 @@ class PluginBaseSettings(BaseSettings):
 class Settings(BaseSettings):
     """Plugin specific environment variables parsed into settings object."""
 
-    model_config = SettingsConfigDict(env_prefix=_prefix, extra="allow")
+    model_config = SettingsConfigDict(env_prefix=_prefix, extra="allow", use_enum_values=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
