@@ -185,6 +185,7 @@ class TestBasePluginStatic(unittest.TestCase):
                 "filter_data_types": {},
                 "concurrent_plugin_instances": 1,
                 "is_processing_download_events": False,
+                "max_security": "",
             },
         )
 
@@ -254,6 +255,7 @@ class TestBasePluginStatic(unittest.TestCase):
                 "filter_data_types": {},
                 "concurrent_plugin_instances": 1,
                 "is_processing_download_events": False,
+                "max_security": "",
                 "custom1": 999,
                 "myvalue2": "100",
                 "myvalue3": 100,
