@@ -208,6 +208,9 @@ class Settings(BaseSettings):
     # Is using download events (this excludes using the normal plugin execution model and is used by the webui)
     is_processing_download_events: bool = False
 
+    # Maximum security the plugin is allowed to request.
+    max_security: str = ""
+
 
 def add_settings(**field_definitions: Any) -> type[PluginBaseSettings]:
     """Create a pydantic settings class useable for plugins SETTINGS field.

@@ -82,6 +82,7 @@ class Network:
                     require_actions=self.plugin.cfg.filter_allow_event_types,
                     deny_self=self.plugin.cfg.filter_self,
                     require_streams=fmt_dict_filters(self.plugin.cfg.filter_data_types),
+                    max_security=self.plugin.cfg.max_security,
                 )
             except dispatcher.BadResponseException as e:
                 logger.warning(f"Failed to decode event from server ({e.__class__.__name__}):\n{str(e)}")
