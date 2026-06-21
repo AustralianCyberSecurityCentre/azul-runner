@@ -171,7 +171,7 @@ class GitSync:
             raise GitError(msg) from e
 
     def _sync_submodules(self):
-        submodule_cmd = ["submodule", "update", "--init", "--no-progress"]
+        submodule_cmd = ["submodule", "update", "--init", "--quiet"]
         if self.submodules == "recursive":
             submodule_cmd.append("--recursive")
         if self.clone_depth > 0:
