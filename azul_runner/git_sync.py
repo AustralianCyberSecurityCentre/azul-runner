@@ -194,7 +194,7 @@ class GitSync:
         """Fetch updates from the remote, if available."""
         logger.info(f"Pulling updates from {self.repo} to {self.watch_path}")
         self._refresh_auth()
-        pull_output = self._run_git(["pull", "origin", "--verbose", "--no-progress", "--prune"])
+        pull_output = self._run_git(["pull", "origin", "--verbose", "--quiet", "--prune"])
         logger.info(f"{self.repo} pull complete: {pull_output}")
         with self._sync_failures_lock:
             self._sync_failures = 0
