@@ -51,7 +51,7 @@ class PluginBaseSettings(BaseSettings):
 class Settings(BaseSettings):
     """Plugin specific environment variables parsed into settings object."""
 
-    model_config = SettingsConfigDict(env_prefix=_prefix, extra="allow")
+    model_config = SettingsConfigDict(env_prefix=_prefix, extra="allow", use_enum_values=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -90,9 +90,6 @@ class Settings(BaseSettings):
     request_timeout: int = 15
     # Times to retry API requests before worker dies.
     request_retry_count: int = 3
-    # Content metadata entries to carry forward between jobs.
-    # 0 = clear cache after every run.
-    content_meta_cache_limit: int = 0
     # Hard limit of values for a single feature.
     max_values_per_feature: int = 1000
     # Hard limit of feature value length (opensearch limit is 32766)
@@ -207,6 +204,12 @@ class Settings(BaseSettings):
     # Number of concurrent instances, useful for plugins that wait a long time for an external (e.g Cape)
     # Launches this many subprocesses, each running their own instance of the plugin.
     concurrent_plugin_instances: int = 1
+
+    # Is using download events (this excludes using the normal plugin execution model and is used by the webui)
+    is_processing_download_events: bool = False
+
+    # Maximum security the plugin is allowed to request.
+    max_security: str = ""
 
 
 def add_settings(**field_definitions: Any) -> type[PluginBaseSettings]:
