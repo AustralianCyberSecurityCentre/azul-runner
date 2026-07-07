@@ -321,6 +321,8 @@ def process_file(plugin_class: Type[Plugin], m_loop: Monitor, filepath, args: Ar
                     streams.append((edata.label, edata.hash, jresult.data[edata.hash]))
         for stream in streams:
             with open(os.path.join(args.output_folder, f"{stream[1]}_{stream[0]}.data"), "wb") as f:
+                if isinstance(stream[2], bytes):  # JobResult.data is only `bytes` in testing
+                    raise TypeError("Expected data stream to be a BinaryIO, got bytes")
                 f.write(stream[2].read())
                 stream[2].seek(0)
 
@@ -329,7 +331,7 @@ def process_file(plugin_class: Type[Plugin], m_loop: Monitor, filepath, args: Ar
     for jresult in res.values():
         for data_stream in jresult.data.values():
             with contextlib.suppress(Exception):
-                if isinstance(data_stream, BinaryIO):
+                if isinstance(data_stream, BinaryIO):  # JobResult.data is only `bytes` in testing
                     data_stream.close()
                     os.remove(data_stream.name)
 
@@ -394,7 +396,7 @@ def print_result(plugin_class: Type[Plugin], subplugin: str, result: JobResult):
                 print(f"  output data streams ({len(event.data)}):")
                 for data in event.data:
                     bin = result.data[data.hash]
-                    if isinstance(bin, bytes):
+                    if isinstance(bin, bytes):  # JobResult.data is only `bytes` in testing
                         raise TypeError("Expected data stream to be a BinaryIO, got bytes")
                     # get size of result file
                     bin.seek(0, 2)

@@ -238,7 +238,7 @@ def add_settings(**field_definitions: Any) -> type[PluginBaseSettings]:
         else:
             filled_fields[k] = v
 
-    return pydantic.create_model("PluginSettings", __base__=PluginBaseSettings, **filled_fields)
+    return pydantic.create_model("PluginSettings", __base__=PluginBaseSettings, **filled_fields)  # ty: ignore[no-matching-overload]
 
 
 def parse_config(cls, in_cfg: dict) -> Settings:

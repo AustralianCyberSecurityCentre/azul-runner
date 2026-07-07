@@ -114,7 +114,7 @@ class Feature(BaseModelStrict):
             logger.warning(f"feature {name} should use a FeatureType.<option> enum entry for type, not {orig_kind}")
             # convert legacy types to enum
             try:
-                kind = {
+                kind = {  # ty: ignore[invalid-argument-type] # Converting from an invalid type is the purpose of this dictionary
                     int: azm.FeatureType.Integer,
                     float: azm.FeatureType.Float,
                     str: azm.FeatureType.String,

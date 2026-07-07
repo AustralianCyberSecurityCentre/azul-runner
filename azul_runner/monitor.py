@@ -135,7 +135,7 @@ class RunOnceHandler:
             os.remove(self._get_result_file_path())
         return results
 
-    def _save_job_results_to_temp(self, result_dict: dict[str, JobResult]):
+    def _save_job_results_to_temp(self, result_dict: dict[str | None, JobResult]):
         """Save the job result to the provided temp directory."""
         for result in result_dict.values():
             for label, file_handle in result.data.items():
@@ -147,7 +147,7 @@ class RunOnceHandler:
                 # Close the file because this is the final read.
                 file_handle.close()
                 result.data[label] = b""
-        json_results = result_type_adapter.dump_json(result_dict, round_trip=True)  # ty: ignore[invalid-argument-type] # OK to narrow from dict[str | None, JobResult] to dict[str, JobResult].
+        json_results = result_type_adapter.dump_json(result_dict, round_trip=True)
         with open(self._get_result_file_path(), "wb") as out_file:
             out_file.write(json_results)
 

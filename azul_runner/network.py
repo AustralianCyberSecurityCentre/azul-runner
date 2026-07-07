@@ -173,7 +173,7 @@ class Network:
         self._clear_file_metadata()
 
     def _post_data(
-        self, source: str, data: dict[str, tuple[list[azm.DataLabel], typing.BinaryIO]]
+        self, source: str, data: dict[str, tuple[list[azm.DataLabel], typing.BinaryIO | bytes]]
     ) -> dict[str, azm.Datastream]:
         """Posts data and receives any calculated metadata.
 

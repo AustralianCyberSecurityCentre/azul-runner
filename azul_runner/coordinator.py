@@ -201,7 +201,7 @@ class Coordinator:
         self,
         event: azm.BinaryEvent,
         local_streams: list[StorageProxyFile] | None = None,
-    ) -> dict[str, JobResult]:
+    ) -> dict[str | None, JobResult]:
         """Perform a local run of plugin, with timeout and error capture."""
         if self._watched and self._watched.check_updated():
             self._recreate_plugin()
