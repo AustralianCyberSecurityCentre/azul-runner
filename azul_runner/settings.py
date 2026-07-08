@@ -177,7 +177,7 @@ class Settings(BaseSettings):
     # only keep events that have 'content' stream below this size (must be greater than filter_min_content_size)
     # '0' indicates no restriction.
     # default to 200MiB (assume plugins will load and process whole file in memory)
-    filter_max_content_size: pydantic.ByteSize = pydantic.ByteSize("200MiB")
+    filter_max_content_size: pydantic.ByteSize = "200MiB"  # ty: ignore[invalid-assignment] ty does not understand ByteSize; ByteSize does not understand strings
     # only keep events that have 'content' stream above this size (must be less than max)
     # '0' indicates no restriction.
     filter_min_content_size: pydantic.ByteSize = pydantic.ByteSize(0)

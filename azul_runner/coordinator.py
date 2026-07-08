@@ -281,7 +281,7 @@ class Coordinator:
         self,
         event: azm.BinaryEvent,
         local: list[StorageProxyFile] | None = None,
-        queue: multiprocessing.Queue | None = None,
+        queue: Optional[multiprocessing.Queue] = None,
     ) -> Generator[tuple[JobResult, str | None], None, None]:
         """Run plugin with supplied event and yield response.
 
@@ -371,7 +371,7 @@ class Coordinator:
             yield result, None
 
     def _run_job_with_multiplugin(
-        self, job: models.Job, multiplugin: Optional[str], queue: multiprocessing.Queue | None = None
+        self, job: models.Job, multiplugin: Optional[str], queue: Optional[multiprocessing.Queue] = None
     ) -> JobResult:
         """Run a multiplugin with the given event and streams."""
         try:

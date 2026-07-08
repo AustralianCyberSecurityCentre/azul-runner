@@ -325,7 +325,7 @@ class Event(EventBase):
         filenames = self.features.get("filename", [])
         # must sort before getting value, for consistency
         filename = sorted(filenames)[0].value if filenames else None
-        if filename is not None or not isinstance(filename, str):
+        if filename is not None and not isinstance(filename, str):
             raise ValueError(f"filename feature value must be a string if set, got {filename}")
         lang = [x.language for x in self.data if x.label == "content" and x.language]
         # must sort before getting value, for consistency

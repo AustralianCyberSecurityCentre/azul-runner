@@ -426,11 +426,12 @@ class StorageProxyFile(io.RawIOBase):
             # Add data to cache
             self._content.seek(int(resp_start))
             self._content.write(resp.content)
-            if end_chunk is None:
-                raise StorageError("End chunk is not set")
-            if self._size is None and end_chunk > len(self._chunks):
-                # Don't yet know the true size, but need to extend our chunks to mark the data acquired so far.
-                self._recalc_chunks(int(resp_end) + 1)
+            if self._size is None:
+                if end_chunk is None:
+                    raise StorageError("End chunk is not set")
+                elif end_chunk > len(self._chunks):
+                    # Don't yet know the true size, but need to extend our chunks to mark the data acquired so far.
+                    self._recalc_chunks(int(resp_end) + 1)
             self._chunks[start_chunk:end_chunk] = True
         else:
             # If this point is reached, it's not an error but also not '200 OK' or '206 Partial Content'
