@@ -443,7 +443,7 @@ def unpack_cart_and_read(input_stream: BinaryIO) -> bytes:
     input_stream.seek(0)
     if cart.is_cart(header):
         unpacked = BytesIO()
-        cart.unpack_stream(input_stream, unpacked)  # ty: ignore[invalid-argument-type] # let input_stream possibly be BinaryIO rather than BytesIO, cart.unpack_stream seems to work with both types
+        cart.unpack_stream(input_stream, unpacked)  # ty: ignore[invalid-argument-type] permit input_stream to be BinaryIO (cart.unpack_stream specifies BytesIO but works with either)
         unpacked.seek(0)
         return unpacked.getvalue()
     else:

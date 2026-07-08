@@ -716,7 +716,7 @@ class Monitor:
             )
             if self.no_network:
                 # Ignore heartbeats if there is no network connection.
-                logger.info("Not sending heartbeat as networking is d`isabled.")
+                logger.info("Not sending heartbeat as networking is disabled.")
                 return True
             self._post_status(monitor_task, result)
 

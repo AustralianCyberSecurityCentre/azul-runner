@@ -46,11 +46,6 @@ test_utils = [
     "urllib3",
 ]
 
-[tool.ty.rules]
-# Most unresolved attribute errors would be best handled by raising an exception that crashes the runner.
-# Instead, just let the attribute errors get raised.
-# unresolved-attribute = "ignore"
-
 [project.urls]
 Documentation = "https://australiancybersecuritycentre.github.io/azul/"
 Repository = "https://github.com/AustralianCyberSecurityCentre/azul-runner"

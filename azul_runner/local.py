@@ -12,7 +12,7 @@ from . import storage
 from .settings import Settings
 from .storage import StorageProxyFile
 
-unittest.util._MAX_LENGTH = 2000  # ty: ignore[possibly-missing-submodule] # False positive on unittest.util
+unittest.util._MAX_LENGTH = 2000  # ty: ignore[possibly-missing-submodule] False positive on unittest.util
 
 
 def validate_streams(datastreams: list[StorageProxyFile], plugin_settings: Settings):

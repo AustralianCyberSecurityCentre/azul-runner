@@ -57,8 +57,8 @@ class Uri(str):
 # WARNING - This directly alters the modules azm.StatusEventEnum so side effects will occur if you
 # use that directly.
 _status_event_enum_override = azm.StatusEnum
-_status_event_enum_override.__repr__ = lambda self: f"State.Label.{self.name}"  # ty: ignore[invalid-assignment]
-_status_event_enum_override.__str__ = lambda self: f"State.Label.{self.name}"  # ty: ignore[invalid-assignment]
+_status_event_enum_override.__repr__ = lambda self: f"State.Label.{self.name}"  # ty: ignore[invalid-assignment] ty does not like the shadowing of __repr__
+_status_event_enum_override.__str__ = lambda self: f"State.Label.{self.name}"  # ty: ignore[invalid-assignment] ty does not like the shadowing of __str__
 
 
 class State(BaseModelStrict):
@@ -114,7 +114,7 @@ class Feature(BaseModelStrict):
             logger.warning(f"feature {name} should use a FeatureType.<option> enum entry for type, not {orig_kind}")
             # convert legacy types to enum
             try:
-                kind = {  # ty: ignore[invalid-argument-type] # Converting from an invalid type is the purpose of this dictionary
+                kind = {  # ty: ignore[invalid-argument-type] onverting from a possibly invalid type is the purpose of this dictionary
                     int: azm.FeatureType.Integer,
                     float: azm.FeatureType.Float,
                     str: azm.FeatureType.String,
@@ -470,8 +470,8 @@ def custom_binary_serialize(data: dict[str, typing.BinaryIO | bytes], orig_seria
     for row in data:
         if issubclass(type(data[row]), io.IOBase):
             # FUTURE will overflow memory if large
-            result[row] = data[row].read()  # ty: ignore[unresolved-attribute] # possibility of stream being bytes is handled above
-            data[row].seek(0)  # ty: ignore[unresolved-attribute] # possibility of stream being bytes is handled above
+            result[row] = data[row].read()  # ty: ignore[unresolved-attribute] the possibility of stream not having read()/seek() is handled by `issubclass()`
+            data[row].seek(0)  # ty: ignore[unresolved-attribute]
         else:
             result[row] = data[row]
     return orig_serializer(result)
@@ -497,8 +497,8 @@ class JobResult(BaseModelStrict):
     def close(self):
         """Close any JobResult data handles."""
         for _, stream in self.data.items():
-            if issubclass(type(stream), io.IOBase) and not stream.closed:  # ty: ignore[unresolved-attribute] # possibility of stream being bytes is in previous condition
-                stream.close()  # ty: ignore[unresolved-attribute] # possibility of stream being bytes is handled above
+            if issubclass(type(stream), io.IOBase) and not stream.closed:  # ty: ignore[unresolved-attribute] the possibility of stream not having closed/close() is handled by `issubclass()`
+                stream.close()  # ty: ignore[unresolved-attribute]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

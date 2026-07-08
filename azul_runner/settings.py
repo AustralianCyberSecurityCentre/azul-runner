@@ -235,10 +235,12 @@ def add_settings(**field_definitions: Any) -> type[PluginBaseSettings]:
                 filled_fields[k] = (Settings.model_fields[k].annotation, v)
             else:
                 raise Exception(f"A custom setting did not provide type information: '{k}'")
-        else:
+        elif len(v) == 2:
             filled_fields[k] = v
+        else:
+            raise TypeError(f"Invalid tuple supplied: {v}")
 
-    return pydantic.create_model("PluginSettings", __base__=PluginBaseSettings, **filled_fields)  # ty: ignore[no-matching-overload]
+    return pydantic.create_model("PluginSettings", __base__=PluginBaseSettings, **filled_fields)  # ty: ignore[no-matching-overload] appears to be false positive on **filled_fields
 
 
 def parse_config(cls, in_cfg: dict) -> Settings:

@@ -40,7 +40,7 @@ class Plugin:
     # Child classes will inherit unless they override in their own SETTINGS.
     SETTINGS: ClassVar[Type[settings.PluginBaseSettings]] = settings.PluginBaseSettings
 
-    NAME: ClassVar[str]  # Plugin name, set automatically from class name.
+    NAME: ClassVar[str] = ""  # Plugin name, set automatically from class name.
     DESCRIPTION: ClassVar[str]  # Plugin description, set automatically from class comment.
     VERSION: ClassVar[str] = ""  # Plugin version
     CONTACT: ClassVar[Optional[str]] = None  # Contact point for issues with this plugin
@@ -84,7 +84,7 @@ class Plugin:
         self.shutting_down = False
 
         # add suffix to name and version
-        self.NAME = f"{type(self).__name__}"  # ty: ignore[invalid-attribute-access]
+        self.NAME = f"{type(self).__name__}"  # ty: ignore[invalid-attribute-access] ty does not like ClassVars being modified in __init__()
         self.NAME = self.NAME.replace(self.cfg.name_remove_prefix, "", 1)  # ty: ignore[invalid-attribute-access]
         if ns := self.cfg.name_suffix:
             self.NAME += f"-{ns}"
