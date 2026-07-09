@@ -18,11 +18,11 @@ class SpooledNamedTemporaryFile(tempfile.SpooledTemporaryFile):
         pos = file.tell()
         if hasattr(newfile, "buffer"):
             if not isinstance(file, TextIOWrapper):
-                raise TypeError("Expected a text file, got {}".format(type(file)))
+                raise TypeError(f"Expected a text file, got {type(file)}")
             newfile.buffer.write(file.detach().getvalue())  # ty: ignore[unresolved-attribute] # False positive
         else:
             if not isinstance(file, BytesIO):
-                raise TypeError("Expected a binary file, got {}".format(type(file)))
+                raise TypeError(f"Expected a binary file, got {type(file)}")
             newfile.write(file.getvalue())
         newfile.seek(pos, 0)
 

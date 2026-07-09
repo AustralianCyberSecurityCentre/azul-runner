@@ -114,7 +114,7 @@ class Feature(BaseModelStrict):
             logger.warning(f"feature {name} should use a FeatureType.<option> enum entry for type, not {orig_kind}")
             # convert legacy types to enum
             try:
-                kind = {  # ty: ignore[invalid-argument-type] onverting from a possibly invalid type is the purpose of this dictionary
+                kind = {  # ty: ignore[invalid-argument-type] converting from a possibly invalid type is the purpose of this dictionary
                     int: azm.FeatureType.Integer,
                     float: azm.FeatureType.Float,
                     str: azm.FeatureType.String,
@@ -513,7 +513,7 @@ class Job(BaseModelStrict):
     def id(self) -> str:
         """Entity id."""
         if self.event.entity.sha256 is None:
-            raise ValueError("event entity is missing sha256 hash")
+            raise ValueError("No id set, event entity is missing sha256 hash")
         return self.event.entity.sha256
 
     # Input content streams as file-like objects

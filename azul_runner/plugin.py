@@ -40,7 +40,7 @@ class Plugin:
     # Child classes will inherit unless they override in their own SETTINGS.
     SETTINGS: ClassVar[Type[settings.PluginBaseSettings]] = settings.PluginBaseSettings
 
-    NAME: ClassVar[str] = ""  # Plugin name, set automatically from class name.
+    NAME: ClassVar[str]  # Plugin name, set automatically from class name.
     DESCRIPTION: ClassVar[str]  # Plugin description, set automatically from class comment.
     VERSION: ClassVar[str] = ""  # Plugin version
     CONTACT: ClassVar[Optional[str]] = None  # Contact point for issues with this plugin
