@@ -217,10 +217,10 @@ class StorageProxyFile(io.RawIOBase):
         self._content.rollover()
         return self._content.name
 
-    def get_hash(self) -> str:
+    def get_hash(self) -> str | None:
         """Return hash for identifying this data."""
-        if self.file_info is None or self.file_info.sha256 is None:
-            raise ValueError("No file_info provided / sha256 missing; cannot get hash for %s" % self._hash)
+        if self.file_info is None:
+            raise ValueError("self.file_info not set, cannot retrieve hash")
         return self.file_info.sha256
 
     def _recalc_chunks(self, size: int):

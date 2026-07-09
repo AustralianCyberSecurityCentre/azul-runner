@@ -13,7 +13,7 @@ import tempfile
 import time
 import traceback
 import uuid
-from typing import BinaryIO, Callable
+from typing import Callable
 
 import psutil
 import pydantic
@@ -139,8 +139,12 @@ class RunOnceHandler:
         """Save the job result to the provided temp directory."""
         for result in result_dict.values():
             for label, file_handle in result.data.items():
-                if not isinstance(file_handle, BinaryIO):
-                    raise ValueError(f"Expected file handle for label '{label}' but got {type(file_handle)}")
+                if (
+                    isinstance(file_handle, bytes)
+                    or not hasattr(file_handle, "seek")
+                    or not hasattr(file_handle, "close")
+                ):
+                    raise ValueError(f"Expected file handle for label '{label}' must have seek/close methods")
                 file_handle.seek(0)
                 with open(self._generate_stream_path(label), "wb") as stream_file:
                     stream_file.write(file_handle.read())
