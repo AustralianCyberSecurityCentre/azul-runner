@@ -89,7 +89,7 @@ class StorageProxyFile(io.RawIOBase):
         label: azm.DataLabel,
         hash: str,
         *,
-        dp: dispatcher.DispatcherAPI = None,
+        dp: dispatcher.DispatcherAPI | None = None,
         request_timeout: int = 10,
         # retrieve in 1mb chunks
         chunk_size: int = 1_048_576,
@@ -112,23 +112,27 @@ class StorageProxyFile(io.RawIOBase):
         :param expected_size: Initialises our data structures for the expected size of the file. This saves us from
                               having to fetch the first chunk of file to determine the size on first access.
         """
-        self._source = source
-        self._label = label
-        self._hash = hash
+        self._source: str = source
+        self._label: azm.DataLabel = label
+        self._hash: str = hash
 
-        self._timeout = request_timeout
-        self._content = storage_spooled.SpooledNamedTemporaryFile(max_size=mem_cache_limit)
-        self._offset = 0
-        self._dispatcher = dp
-        self._allow_unbounded_read = allow_unbounded_read
-        self.file_info = file_info
+        self._timeout: int = request_timeout
+        self._content: storage_spooled.SpooledNamedTemporaryFile = storage_spooled.SpooledNamedTemporaryFile(
+            max_size=mem_cache_limit
+        )
+        self._offset: int = 0
+        self._dispatcher: dispatcher.DispatcherAPI | None = dp
+        self._allow_unbounded_read: bool = allow_unbounded_read
+        self.file_info: azm.Datastream | None = file_info
+        self._size: int | None = None
         if isinstance(init_data, bytes):
             logger.debug("Init StorageProxyFile with init_data (%d bytes), hash=%s" % (len(init_data), self._hash))
             # noinspection PyTypeChecker
-            self._session = None  # Unset because full data is already provided.
+            self._session: httpx.Client | None = None  # Unset because full data is already provided.
             self._content.write(init_data)
-            self._chunk_size = self._size = len(init_data)
-            self._chunks = bitarray([True])
+            self._chunk_size: int = len(init_data)
+            self._size = len(init_data)
+            self._chunks: bitarray = bitarray([True])
             if expected_size is not None and expected_size != len(init_data):
                 raise ValueError("expected_size does not match provided init_data")
         else:
@@ -136,34 +140,39 @@ class StorageProxyFile(io.RawIOBase):
                 "Init StorageProxyFile with hash=%s%s"
                 % (self._hash, (", expected size %d" % expected_size) if expected_size else ", size unknown")
             )
-            self._session = httpx.Client(timeout=5.0)
-            self._chunk_size = chunk_size
+            self._session: httpx.Client | None = httpx.Client(timeout=5.0)
+            self._chunk_size: int = chunk_size
             self._size = expected_size
-            self._chunks = bitarray()
+            self._chunks: bitarray = bitarray()
             if self._size is not None:
                 self._recalc_chunks(self._size)
 
     def __setstate__(self, state: dict):
         """Used to set the state of the object after pickling."""
-        self._source = state.get("_source", None)
-        self._label = state.get("_label", None)
-        self._hash = state.get("_hash", None)
-        self._timeout = state.get("_timeout", None)
-        self._content = storage_spooled.SpooledNamedTemporaryFile(max_size=state.get("mem_cache_limit", 20_971_520))
+        self._source: str = state["_source"]
+        self._label: azm.DataLabel = state["_label"]
+        self._hash: str = state["_hash"]
+        self._timeout: int = state["_timeout"]
+        self._content: storage_spooled.SpooledNamedTemporaryFile = storage_spooled.SpooledNamedTemporaryFile(
+            max_size=state.get("mem_cache_limit", 20_971_520)
+        )
         self._content.write(state.get("_content", b""))
-        self._offset = state.get("_offset", None)
-        self._dispatcher = state.get("_dispatcher", None)
-        self._allow_unbounded_read = state.get("_allow_unbounded_read", None)
-        self.file_info = state.get("file_info", None)
-        self._session = state.get("_session", None)
-        self._chunk_size = state.get("_chunk_size", None)
-        self._chunks = state.get("_chunks", None)
-        self._size = state.get("_size", None)
+        self._offset: int = state["_offset"]
+        self._dispatcher: dispatcher.DispatcherAPI | None = state.get("_dispatcher", None)
+        self._allow_unbounded_read: bool = state["_allow_unbounded_read"]
+        self.file_info: azm.Datastream | None = state.get("file_info", None)
+        self._session: httpx.Client | None = state.get("_session", None)
+        self._chunk_size: int = state["_chunk_size"]
+        self._chunks: bitarray = state["_chunks"]
+        self._size: int | None = state.get("_size", None)
 
     def __getstate__(self):
         """Used to save the state of an object prior to pickling."""
         # Ensure full content is retrieved.
         self._retrieve(-1)
+        # This must be checked or `ty` throws an error
+        if not hasattr(self._content, "_max_size"):
+            raise ValueError("Cannot get state of StorageProxyFile with non-SpooledTemporaryFile content")
         return {
             "_source": self._source,
             "_label": self._label,
@@ -208,8 +217,10 @@ class StorageProxyFile(io.RawIOBase):
         self._content.rollover()
         return self._content.name
 
-    def get_hash(self) -> str:
+    def get_hash(self) -> str | None:
         """Return hash for identifying this data."""
+        if self.file_info is None:
+            raise ValueError("self.file_info not set, cannot retrieve hash")
         return self.file_info.sha256
 
     def _recalc_chunks(self, size: int):
@@ -246,6 +257,8 @@ class StorageProxyFile(io.RawIOBase):
 
     def _make_request(self, start_pos: Optional[int], end_pos: Optional[int]) -> httpx.Response:
         """make_request. Wraps the GET request and handles errors, raising the appropriate exceptions."""
+        if self._dispatcher is None:
+            raise StorageError("Cannot make request for %s because no dispatcher is set" % self._hash)
 
         def s_fmt(v):
             return v if v is not None else ""
@@ -260,6 +273,8 @@ class StorageProxyFile(io.RawIOBase):
                 raise ProxyFileNotFoundError(2, "Got 404 requesting %s" % self._hash) from e
             elif e.status_code == 416:  # Range not satisfiable; return this to the caller for processing
                 resp = e.response
+                if resp is None:
+                    raise StorageError("Got 416 requesting %s, but no response provided" % self._hash) from e
             else:
                 raise StorageError("Got %s requesting %s" % (e.status_code, self._hash)) from e
         if resp.headers["Content-Type"] != "application/octet-stream":
@@ -411,9 +426,12 @@ class StorageProxyFile(io.RawIOBase):
             # Add data to cache
             self._content.seek(int(resp_start))
             self._content.write(resp.content)
-            if self._size is None and end_chunk > len(self._chunks):
-                # Don't yet know the true size, but need to extend our chunks to mark the data acquired so far.
-                self._recalc_chunks(int(resp_end) + 1)
+            if self._size is None:
+                if end_chunk is None:
+                    raise StorageError("End chunk is not set")
+                elif end_chunk > len(self._chunks):
+                    # Don't yet know the true size, but need to extend our chunks to mark the data acquired so far.
+                    self._recalc_chunks(int(resp_end) + 1)
             self._chunks[start_chunk:end_chunk] = True
         else:
             # If this point is reached, it's not an error but also not '200 OK' or '206 Partial Content'
@@ -512,6 +530,8 @@ class StorageProxyFile(io.RawIOBase):
             if self._size is None:
                 # Request the last full chunk of the file. It's the only way to be 100% sure of finding the total size.
                 self._request_chunks(start_chunk=None, end_chunk=-1)
+                if not isinstance(self._size, int):
+                    raise ValueError("No file size set with which to seek")
             self._offset = self._size + offset
         else:
             raise ValueError("whence value %s unsupported" % whence)

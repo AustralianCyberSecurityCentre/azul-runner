@@ -83,12 +83,12 @@ class RunOnceHandler:
     def __init__(
         self,
         event: azm.BinaryEvent,
-        local_streams: list[StorageProxyFile] = None,
+        local_streams: list[StorageProxyFile] | None = None,
         cache_dir_path: str = tempfile.gettempdir(),
     ):
         """Handle the communication between a child process and the parent process."""
         self.event = event
-        self.local_streams = local_streams
+        self.local_streams: list[StorageProxyFile] | None = local_streams
         self.cache_dir_path = cache_dir_path
         self.run_guid = str(uuid.uuid4())
 
@@ -135,15 +135,19 @@ class RunOnceHandler:
             os.remove(self._get_result_file_path())
         return results
 
-    def _save_job_results_to_temp(self, result_dict: dict[str, JobResult]):
+    def _save_job_results_to_temp(self, result_dict: dict[str | None, JobResult]):
         """Save the job result to the provided temp directory."""
         for result in result_dict.values():
             for label, file_handle in result.data.items():
-                file_handle.seek(0)
-                with open(self._generate_stream_path(label), "wb") as stream_file:
-                    stream_file.write(file_handle.read())
-                # Close the file because this is the final read.
-                file_handle.close()
+                if isinstance(file_handle, bytes):
+                    with open(self._generate_stream_path(label), "wb") as stream_file:
+                        stream_file.write(file_handle)
+                else:
+                    file_handle.seek(0)
+                    with open(self._generate_stream_path(label), "wb") as stream_file:
+                        stream_file.write(file_handle.read())
+                    # Close the file because this is the final read.
+                    file_handle.close()
                 result.data[label] = b""
         json_results = result_type_adapter.dump_json(result_dict, round_trip=True)
         with open(self._get_result_file_path(), "wb") as out_file:
@@ -151,7 +155,6 @@ class RunOnceHandler:
 
     def start_run_once_coordinator(
         self,
-        *,
         plugin: type[mplugin.Plugin],
         config: settings.Settings,
         job_limit: int,  # Ignored but kept for compatibility.
@@ -173,14 +176,13 @@ class RunOnceHandler:
 
 
 def _start_loop_coordinator(
-    *,
     plugin: type[mplugin.Plugin],
     config: settings.Settings,
     job_limit: int,
     log_level: LogLevel,
     queue: multiprocessing.Queue,
     logging_queue: multiprocessing.Queue,
-):
+) -> None:
     """Start the coordinator and plugin and return exit code if it exits."""
     setup_logger(log_level, logging_queue)
     loop = Coordinator(plugin, config)
@@ -216,7 +218,7 @@ class MonitorTask:
     The other class attributes are used to track heart beating and queuing information.
     """
 
-    def __init__(self, child_process: multiprocessing.Process, queue: multiprocessing.Queue):
+    def __init__(self, child_process: multiprocessing.context.ForkServerProcess, queue: multiprocessing.Queue):
         self.child_process = child_process
         self.current_job: TaskModel | None = None
         self.job_sent_heartbeats = 0
@@ -369,10 +371,10 @@ class Monitor:
             ],
             None,
         ],
-        job_limit: int,
+        job_limit: int | None,
         queue: multiprocessing.Queue,
         logging_queue: multiprocessing.Queue,
-    ) -> multiprocessing.Process:
+    ) -> multiprocessing.context.ForkServerProcess:
         """Create the child co-ordinator process."""
         # Ensure that if the process was re-created the parent process waits until fetching is done.
         queue.empty()
@@ -397,6 +399,8 @@ class Monitor:
         """Kill the children and children's children."""
         for cur_task in concurrent_task_list:
             if cur_task.child_process.is_alive():
+                if cur_task.child_process.pid is None:
+                    raise AttributeError("Child process has no pid, cannot send signal.")
                 kill_child_proc_tree(cur_task.child_process.pid)
                 cur_task.child_process.kill()
                 cur_task.child_process.join(timeout=10)
@@ -407,19 +411,23 @@ class Monitor:
         """Send a specified signal to all child processes referred to by `tasks`."""
         for t in tasks:
             if t.child_process.is_alive():
+                if t.child_process.pid is None:
+                    raise AttributeError("Child process has no pid, cannot send signal.")
                 os.kill(t.child_process.pid, send_sig)
 
     def run_once(
         self,
         event: azm.BinaryEvent,
-        local_streams: list[StorageProxyFile] = None,
-        cache_dir_path: str = tempfile.tempdir,
+        local_streams: list[StorageProxyFile] | None = None,
+        cache_dir_path: str | None = tempfile.tempdir,
         no_network=True,
     ) -> dict[str, JobResult]:
         """Run the plugin once in a subprocess and get the result.
 
         no_network prevents heartbeats from being sent and errors if there is memory or timeout issues.
         """
+        if cache_dir_path is None:
+            raise ValueError("cache_dir_path can't be None, must be a string path to a directory.")
         roh = RunOnceHandler(event, local_streams, cache_dir_path)
         # Shouldn't wait anytime between checks in testing.
         self.time_to_wait_between_checks = 0
@@ -454,7 +462,7 @@ class Monitor:
             ],
             None,
         ],
-        job_limit=None,
+        job_limit: int | None = None,
     ):
         """Run a child plugin in a subprocess infinite loop or until the job limit is reached."""
         job_count = 0
@@ -612,6 +620,8 @@ class Monitor:
 
         Return True if the child process is healthy and False if it should be terminated.
         """
+        if not monitor_task.current_job:
+            raise ValueError("Current job is None, cannot perform memory checks without a job.")
         # Assuming that if max memory exists and was an int cur_mem will be to (save processing time).
         with open(self._cfg.cur_mem_file_path, "r") as cur_mem_file:
             # Account for case when memory file is empty or unreadable.
@@ -667,6 +677,8 @@ class Monitor:
 
         Return True if the child process is healthy and False if it should be terminated.
         """
+        if not monitor_task.current_job:
+            raise ValueError("Current job is None, cannot perform heartbeat or timeout checks without a job.")
         # Thread is still running - Raise heartbeat and check if plugin should be forced to time out.
         runtime = time.time() - monitor_task.current_job.start_time_epoch
 
@@ -718,4 +730,6 @@ class Monitor:
             raise NoNetworkResultError(
                 f"Attempting to post a {result.state} event and networking isn't enabled.", result
             )
+        if monitor_task.current_job is None:
+            raise ValueError("Current job is None, cannot post status update without a job.")
         self._network.ack_job(monitor_task.current_job.in_event, result, monitor_task.current_job.multi_plugin_name)

@@ -200,8 +200,8 @@ class Coordinator:
     def run_once(
         self,
         event: azm.BinaryEvent,
-        local_streams: list[StorageProxyFile] = None,
-    ) -> dict[str, JobResult]:
+        local_streams: list[StorageProxyFile] | None = None,
+    ) -> dict[str | None, JobResult]:
         """Perform a local run of plugin, with timeout and error capture."""
         if self._watched and self._watched.check_updated():
             self._recreate_plugin()
@@ -216,7 +216,7 @@ class Coordinator:
         self,
         *,
         queue: multiprocessing.Queue,
-        job_limit: int = None,
+        job_limit: int | None = None,
     ):
         """Run continually and fetch jobs from the queue for processing while posting results to dispatcher.
 
@@ -281,8 +281,8 @@ class Coordinator:
         self,
         event: azm.BinaryEvent,
         local: list[StorageProxyFile] | None = None,
-        queue: multiprocessing.Queue = None,
-    ) -> Generator[tuple[JobResult, str], None, None]:
+        queue: Optional[multiprocessing.Queue] = None,
+    ) -> Generator[tuple[JobResult, str | None], None, None]:
         """Run plugin with supplied event and yield response.
 
         This is a generator so that yielded results may be published while plugin continues to run.
@@ -371,7 +371,7 @@ class Coordinator:
             yield result, None
 
     def _run_job_with_multiplugin(
-        self, job: models.Job, multiplugin: Optional[str], queue: multiprocessing.Queue = None
+        self, job: models.Job, multiplugin: Optional[str], queue: Optional[multiprocessing.Queue] = None
     ) -> JobResult:
         """Run a multiplugin with the given event and streams."""
         try:

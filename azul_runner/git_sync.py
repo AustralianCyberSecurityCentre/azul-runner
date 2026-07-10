@@ -145,7 +145,7 @@ class GitSync:
                 ]
             )
 
-    def _run_git(self, cmd: list[str], input: str = None) -> str:
+    def _run_git(self, cmd: list[str], input: str | None = None) -> str:
         """Run a git command in the watch path and return the output."""
         config_args = []
         if self.git_config:

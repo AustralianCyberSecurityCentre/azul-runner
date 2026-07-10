@@ -177,10 +177,10 @@ class Settings(BaseSettings):
     # only keep events that have 'content' stream below this size (must be greater than filter_min_content_size)
     # '0' indicates no restriction.
     # default to 200MiB (assume plugins will load and process whole file in memory)
-    filter_max_content_size: pydantic.ByteSize = "200MiB"
+    filter_max_content_size: pydantic.ByteSize = "200MiB"  # ty: ignore[invalid-assignment] ty does not understand ByteSize; ByteSize does not understand strings
     # only keep events that have 'content' stream above this size (must be less than max)
     # '0' indicates no restriction.
-    filter_min_content_size: pydantic.ByteSize = 0
+    filter_min_content_size: pydantic.ByteSize = pydantic.ByteSize(0)
     # allow only specified event types
     filter_allow_event_types: list[str] = []
     # filter out events published by this plugin
@@ -235,10 +235,12 @@ def add_settings(**field_definitions: Any) -> type[PluginBaseSettings]:
                 filled_fields[k] = (Settings.model_fields[k].annotation, v)
             else:
                 raise Exception(f"A custom setting did not provide type information: '{k}'")
-        else:
+        elif len(v) == 2:
             filled_fields[k] = v
+        else:
+            raise TypeError(f"Invalid setting tuple definition provided: {k}:{v}")
 
-    return pydantic.create_model("PluginSettings", __base__=PluginBaseSettings, **filled_fields)
+    return pydantic.create_model("PluginSettings", __base__=PluginBaseSettings, **filled_fields)  # ty: ignore[no-matching-overload] appears to be false positive on **filled_fields
 
 
 def parse_config(cls, in_cfg: dict) -> Settings:

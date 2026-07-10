@@ -46,7 +46,7 @@ class Args(BaseModel):
     verbose: int = 0
 
 
-def cmdline_run(plugin: type[Plugin] = None):
+def cmdline_run(plugin: type[Plugin] | None = None):
     """Run from command-line."""
     if not plugin:
         print("Error: not run with a plugin", file=sys.stderr)
@@ -321,16 +321,20 @@ def process_file(plugin_class: Type[Plugin], m_loop: Monitor, filepath, args: Ar
                     streams.append((edata.label, edata.hash, jresult.data[edata.hash]))
         for stream in streams:
             with open(os.path.join(args.output_folder, f"{stream[1]}_{stream[0]}.data"), "wb") as f:
-                f.write(stream[2].read())
-                stream[2].seek(0)
+                if isinstance(stream[2], bytes):  # JobResult.data is only `bytes` in testing
+                    f.write(stream[2])
+                else:
+                    f.write(stream[2].read())
+                    stream[2].seek(0)
 
     # Attempt to close and delete the file of origin for any open streams, this cleans up temp.
     streams = []
     for jresult in res.values():
         for data_stream in jresult.data.values():
             with contextlib.suppress(Exception):
-                data_stream.close()
-                os.remove(data_stream.name)
+                if isinstance(data_stream, BinaryIO):
+                    data_stream.close()
+                    os.remove(data_stream.name)
 
 
 def generate_json(result: JobResult, indent=None):
@@ -393,12 +397,15 @@ def print_result(plugin_class: Type[Plugin], subplugin: str, result: JobResult):
                 print(f"  output data streams ({len(event.data)}):")
                 for data in event.data:
                     bin = result.data[data.hash]
-                    # get size of result file
-                    bin.seek(0, 2)
-                    size = bin.tell()
-                    bin.seek(0)
-                    print(f"    {size} bytes - {data}")
-                    bin.seek(0)
+                    if isinstance(bin, bytes):
+                        print(f"    {len(bin)} bytes - {bin}")
+                    else:
+                        # get size of result file
+                        bin.seek(0, 2)
+                        size = bin.tell()
+                        bin.seek(0)
+                        print(f"    {size} bytes - {data}")
+                        bin.seek(0)
             if event.features:
                 print("  output features:")
                 fmt = "    %" + str(max([len(f) for f in event.features])) + "s: %s"
@@ -438,7 +445,7 @@ def unpack_cart_and_read(input_stream: BinaryIO) -> bytes:
     input_stream.seek(0)
     if cart.is_cart(header):
         unpacked = BytesIO()
-        cart.unpack_stream(input_stream, unpacked)
+        cart.unpack_stream(input_stream, unpacked)  # ty: ignore[invalid-argument-type] permit input_stream to be BinaryIO (cart.unpack_stream specifies BytesIO but works with either)
         unpacked.seek(0)
         return unpacked.getvalue()
     else:

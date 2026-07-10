@@ -12,7 +12,7 @@ from . import storage
 from .settings import Settings
 from .storage import StorageProxyFile
 
-unittest.util._MAX_LENGTH = 2000
+unittest.util._MAX_LENGTH = 2000  # ty: ignore[possibly-missing-submodule] False positive on unittest.util
 
 
 def validate_streams(datastreams: list[StorageProxyFile], plugin_settings: Settings):
@@ -23,11 +23,14 @@ def validate_streams(datastreams: list[StorageProxyFile], plugin_settings: Setti
     mimes = set()
 
     for ds in datastreams:
-        types = ds.file_info.file_format.split(";")[0]
-        available.setdefault(ds.file_info.label, set()).add(types)
-        available.setdefault("*", set()).add(types)
-        magics.add(ds.file_info.magic)
-        mimes.add(ds.file_info.mime)
+        if ds.file_info is not None:
+            if ds.file_info.file_format is None:
+                raise ValueError(f"File format is required for datastream {ds}")
+            types = ds.file_info.file_format.split(";")[0]
+            available.setdefault(ds.file_info.label, set()).add(types)
+            available.setdefault("*", set()).add(types)
+            magics.add(ds.file_info.magic)
+            mimes.add(ds.file_info.mime)
 
     # check INPUT_DATA against job provided
     is_matching_type = False
@@ -78,6 +81,8 @@ def gen_api_content(binaryio: typing.BinaryIO, label: azm.DataLabel = azm.DataLa
 
 def gen_event(entity: azm.BinaryEvent.Entity):
     """Generate a simple network event."""
+    if entity.sha256 is None:
+        raise ValueError("Entity must have sha256 hash")
     return azm.BinaryEvent(
         model_version=azm.CURRENT_MODEL_VERSION,
         kafka_key="test",
