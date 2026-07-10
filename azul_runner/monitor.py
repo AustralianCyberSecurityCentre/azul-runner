@@ -139,17 +139,15 @@ class RunOnceHandler:
         """Save the job result to the provided temp directory."""
         for result in result_dict.values():
             for label, file_handle in result.data.items():
-                if (
-                    isinstance(file_handle, bytes)
-                    or not hasattr(file_handle, "seek")
-                    or not hasattr(file_handle, "close")
-                ):
-                    raise ValueError(f"Expected file handle for label '{label}' must have seek/close methods")
-                file_handle.seek(0)
-                with open(self._generate_stream_path(label), "wb") as stream_file:
-                    stream_file.write(file_handle.read())
-                # Close the file because this is the final read.
-                file_handle.close()
+                if isinstance(file_handle, bytes):
+                    with open(self._generate_stream_path(label), "wb") as stream_file:
+                        stream_file.write(file_handle)
+                else:
+                    file_handle.seek(0)
+                    with open(self._generate_stream_path(label), "wb") as stream_file:
+                        stream_file.write(file_handle.read())
+                    # Close the file because this is the final read.
+                    file_handle.close()
                 result.data[label] = b""
         json_results = result_type_adapter.dump_json(result_dict, round_trip=True)
         with open(self._get_result_file_path(), "wb") as out_file:

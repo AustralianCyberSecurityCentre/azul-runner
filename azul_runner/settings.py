@@ -238,7 +238,7 @@ def add_settings(**field_definitions: Any) -> type[PluginBaseSettings]:
         elif len(v) == 2:
             filled_fields[k] = v
         else:
-            raise TypeError(f"Invalid tuple supplied: {v}")
+            raise TypeError(f"Invalid setting tuple definition provided: {k}:{v}")
 
     return pydantic.create_model("PluginSettings", __base__=PluginBaseSettings, **filled_fields)  # ty: ignore[no-matching-overload] appears to be false positive on **filled_fields
 
