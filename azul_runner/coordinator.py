@@ -58,19 +58,19 @@ class RecreateException(Exception):
 
 def get_git_version_suffix(config: settings.Settings) -> str | None:
     """Get the git version suffix for the watched repo if there is one."""
-    if config.watch_path and config.watch_type == settings.WatchTypeEnum.GIT:
+    if config.git_sync_path and config.watch_type == settings.WatchTypeEnum.GIT:
         # wait for valid git repo on disk
         for _ in range(3):
             retcode = subprocess.call(
                 ["git", "status"],  # noqa: S607
-                cwd=config.watch_path,
+                cwd=config.git_sync_path,
                 shell=False,
                 stderr=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
             )
             if retcode == 0:
                 break
-            logger.warning(f"'git status' failed with {retcode} on {config.watch_path}, sleeping")
+            logger.warning(f"'git status' failed with {retcode} on {config.git_sync_path}, sleeping")
             time.sleep(config.watch_wait)
 
         # recalculate commit hash as version_suffix
@@ -78,12 +78,12 @@ def get_git_version_suffix(config: settings.Settings) -> str | None:
         try:
             output = subprocess.check_output(
                 ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
-                cwd=config.watch_path,
+                cwd=config.git_sync_path,
                 shell=False,
                 stderr=subprocess.STDOUT,
             )
         except subprocess.CalledProcessError as e:
-            raise CriticalError(f"is git not installed or {config.watch_path} not a valid git checkout?") from e
+            raise CriticalError(f"is git not installed or {config.git_sync_path} not a valid git checkout?") from e
         return output.decode().strip()
     return None
 
