@@ -356,7 +356,7 @@ def generate_json(result: JobResult, indent=None):
     return json.dumps(result, default=object_to_json, indent=indent)
 
 
-def print_result(plugin_class: Type[Plugin], subplugin: str, result: JobResult):
+def print_result(plugin_class: Type[Plugin], subplugin: str | None, result: JobResult):
     """Print result of plugin to stdout."""
     # only mention multiplugin if one is present
     if subplugin and subplugin is not None:

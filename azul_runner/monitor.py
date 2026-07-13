@@ -108,19 +108,21 @@ class RunOnceHandler:
         """Generate a path for a stream."""
         return os.path.join(self.cache_dir_path, file_label + "-" + self.run_guid)
 
-    def load_job_results_from_temp(self) -> dict[str, JobResult]:
+    def load_job_results_from_temp(self) -> dict[str | None, JobResult]:
         """Loads results or raises an exception if there are no results.
 
         NOTE - leaves open file handles for all streams to allow for tests to inspect streams.
         """
         try:
             with open(self._get_result_file_path(), "rb") as read_result:
-                results: dict[str, JobResult] = dict()
+                results: dict[str | None, JobResult] = dict()
                 for multiplugin_name, result_value in json.loads(read_result.read()).items():
                     # Account for serialization/deserialization of none
                     if multiplugin_name.lower() == "none":
                         multiplugin_name = None
-                    results[str(multiplugin_name)] = JobResult.model_validate(result_value)
+                    else:
+                        multiplugin_name = str(multiplugin_name)
+                    results[multiplugin_name] = JobResult.model_validate(result_value)
         except Exception as e:
             with open(self._get_result_file_path(), "rb") as read_result:
                 file_data = read_result.read()
@@ -421,7 +423,7 @@ class Monitor:
         local_streams: list[StorageProxyFile] | None = None,
         cache_dir_path: str | None = tempfile.tempdir,
         no_network=True,
-    ) -> dict[str, JobResult]:
+    ) -> dict[str | None, JobResult]:
         """Run the plugin once in a subprocess and get the result.
 
         no_network prevents heartbeats from being sent and errors if there is memory or timeout issues.
