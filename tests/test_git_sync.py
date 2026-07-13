@@ -87,9 +87,9 @@ def wait_for_update_pending(watch: GitSync, timeout: float = 5) -> bool:
 
 
 @contextmanager
-def git_sync_running(repo: str, watch_path: str, **kwargs):
+def git_sync_running(repo: str, repo_path: str, **kwargs):
     """Context manager for GitSync lifecycle (start/stop)."""
-    watch = GitSync(repo=repo, watch_path=watch_path, period=1, **kwargs)
+    watch = GitSync(repo=repo, repo_path=repo_path, period=1, **kwargs)
     watch.start_notify_thread()
     try:
         yield watch
@@ -125,17 +125,17 @@ def tmp_git_repos(tmp_path):
     """Fixture providing remote and watch paths."""
     remote_path = tmp_path / "remote"
     remote_path.mkdir()
-    watch_path = tmp_path / "watch"
-    watch_path.mkdir()
-    return str(remote_path), str(watch_path)
+    repo_path = tmp_path / "watch"
+    repo_path.mkdir()
+    return str(remote_path), str(repo_path)
 
 
 @pytest.fixture
 def git_sync_with_initial_content(tmp_git_repos):
     """Fixture providing a started GitSync with initial repo content."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
-    with git_sync_running(remote_path, watch_path) as watch:
+    with git_sync_running(remote_path, repo_path) as watch:
         yield watch
 
 
@@ -147,11 +147,11 @@ def git_sync_with_initial_content(tmp_git_repos):
 @pytest.mark.timeout(15)
 def test_git_sync_clone_and_initial_fetch(tmp_git_repos):
     """Test GitSync clones repo and performs initial fetch on start."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "initial content")
 
-    with git_sync_running(remote_path, watch_path) as watch:
-        test_file = Path(watch_path) / "test.txt"
+    with git_sync_running(remote_path, repo_path) as watch:
+        test_file = Path(repo_path) / "test.txt"
         assert test_file.exists()
         assert test_file.read_text() == "initial content"
 
@@ -159,24 +159,24 @@ def test_git_sync_clone_and_initial_fetch(tmp_git_repos):
 @pytest.mark.timeout(15)
 def test_git_sync_skips_clone_if_exists(tmp_git_repos):
     """Test GitSync does not reclone if local repo already exists."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    run_git(["clone", remote_path, "."], watch_path)
-    test_file = Path(watch_path) / "test.txt"
+    run_git(["clone", remote_path, "."], repo_path)
+    test_file = Path(repo_path) / "test.txt"
     test_file.write_text("local modification")
 
-    with git_sync_running(remote_path, watch_path):
+    with git_sync_running(remote_path, repo_path):
         assert test_file.read_text() == "local modification"
 
 
 @pytest.mark.timeout(15)
 def test_git_sync_detects_remote_updates(tmp_git_repos):
     """Test GitSync detects when remote has new commits."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    with git_sync_running(remote_path, watch_path) as watch:
+    with git_sync_running(remote_path, repo_path) as watch:
         assert not watch.update_pending()
 
         push_update_to_remote(remote_path, "v2")
@@ -187,36 +187,36 @@ def test_git_sync_detects_remote_updates(tmp_git_repos):
 @pytest.mark.timeout(15)
 def test_git_sync_fetch_clears_update_event(tmp_git_repos):
     """Test GitSync.pull() clears the update_pending flag and fetches content."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    with git_sync_running(remote_path, watch_path) as watch:
+    with git_sync_running(remote_path, repo_path) as watch:
         push_update_to_remote(remote_path, "v2")
         wait_for_update_pending(watch)
         assert watch.update_pending()
 
         watch.pull()
         assert not watch.update_pending()
-        assert (Path(watch_path) / "test.txt").read_text() == "v2"
+        assert (Path(repo_path) / "test.txt").read_text() == "v2"
 
 
 @pytest.mark.timeout(15)
 def test_git_sync_bad_url_raises_error(tmp_path):
     """Test GitSync raises GitError for invalid repo URL."""
-    watch_path = tmp_path / "watch"
-    watch_path.mkdir()
+    repo_path = tmp_path / "watch"
+    repo_path.mkdir()
 
     with pytest.raises(GitError):
-        GitSync(repo="/nonexistent/repo/path", watch_path=str(watch_path), period=1)
+        GitSync(repo="/nonexistent/repo/path", repo_path=str(repo_path), period=1)
 
 
 @pytest.mark.timeout(15)
 def test_git_sync_double_start_raises_error(tmp_git_repos):
     """Test GitSync raises GitError if started twice."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    watch = GitSync(repo=remote_path, watch_path=watch_path, period=1)
+    watch = GitSync(repo=remote_path, repo_path=repo_path, period=1)
     watch.start_notify_thread()
 
     try:
@@ -229,10 +229,10 @@ def test_git_sync_double_start_raises_error(tmp_git_repos):
 @pytest.mark.timeout(15)
 def test_git_sync_thread_lifecycle(tmp_git_repos):
     """Test GitSync manages thread lifecycle correctly."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    watch = GitSync(repo=remote_path, watch_path=watch_path, period=1)
+    watch = GitSync(repo=remote_path, repo_path=repo_path, period=1)
 
     watch.start_notify_thread()
     assert watch._notify_thread.is_alive()
@@ -245,12 +245,12 @@ def test_git_sync_thread_lifecycle(tmp_git_repos):
 @pytest.mark.timeout(15)
 def test_git_sync_fetch_with_no_changes(tmp_git_repos):
     """Test GitSync.pull() works when there are no remote changes."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    with git_sync_running(remote_path, watch_path) as watch:
+    with git_sync_running(remote_path, repo_path) as watch:
         watch.pull()
-        assert (Path(watch_path) / "test.txt").read_text() == "v1"
+        assert (Path(repo_path) / "test.txt").read_text() == "v1"
 
 
 @pytest.mark.timeout(15)
@@ -265,8 +265,8 @@ def test_git_sync_checkout_branch(tmp_path, branch, expected_content):
     """Test GitSync can checkout specific branches."""
     remote_path = tmp_path / "remote"
     remote_path.mkdir()
-    watch_path = tmp_path / "watch"
-    watch_path.mkdir()
+    repo_path = tmp_path / "watch"
+    repo_path.mkdir()
 
     branches = {
         "master": "main content",
@@ -274,15 +274,15 @@ def test_git_sync_checkout_branch(tmp_path, branch, expected_content):
     }
     setup_multiword_branch_repo(str(remote_path), branches)
 
-    with git_sync_running(str(remote_path), str(watch_path), branch=branch) as watch:
-        test_file = watch_path / "test.txt"
+    with git_sync_running(str(remote_path), str(repo_path), branch=branch) as watch:
+        test_file = repo_path / "test.txt"
         assert test_file.read_text() == expected_content
 
 
 @pytest.mark.timeout(15)
 def test_git_sync_shallow_clone_with_depth(tmp_git_repos):
     """Test GitSync can perform shallow clone with specified depth."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
 
     run_git(["init", "--bare"], remote_path)
 
@@ -296,8 +296,8 @@ def test_git_sync_shallow_clone_with_depth(tmp_git_repos):
             run_git(["commit", "-m", f"commit {i}"], temp_clone)
         run_git(["push"], temp_clone)
 
-    with git_sync_running(remote_path, watch_path, clone_depth=2) as watch:
-        test_file = Path(watch_path) / "test.txt"
+    with git_sync_running(remote_path, repo_path, clone_depth=2) as watch:
+        test_file = Path(repo_path) / "test.txt"
         assert test_file.exists()
         assert test_file.read_text() == "commit 4"
 
@@ -305,10 +305,10 @@ def test_git_sync_shallow_clone_with_depth(tmp_git_repos):
 @pytest.mark.timeout(15)
 def test_git_sync_max_sync_failures_raises_error(tmp_git_repos):
     """Test GitSync raises GitError when sync failures exceed max_sync_failures."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    watch = GitSync(repo=remote_path, watch_path=watch_path, period=1, max_sync_failures=2)
+    watch = GitSync(repo=remote_path, repo_path=repo_path, period=1, max_sync_failures=2)
     watch.start_notify_thread()
 
     try:
@@ -326,10 +326,10 @@ def test_git_sync_max_sync_failures_raises_error(tmp_git_repos):
 @pytest.mark.timeout(15)
 def test_git_sync_stop_clears_resources(tmp_git_repos):
     """Test GitSync.stop() properly clears resources and allows restart."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    watch = GitSync(repo=remote_path, watch_path=watch_path, period=1)
+    watch = GitSync(repo=remote_path, repo_path=repo_path, period=1)
     watch.start_notify_thread()
 
     assert watch._notify_thread.is_alive()
@@ -343,20 +343,20 @@ def test_git_sync_stop_clears_resources(tmp_git_repos):
 @pytest.mark.timeout(15)
 def test_git_sync_no_repo_url_raises_error(tmp_path):
     """Test GitSync raises error if repo URL is empty."""
-    watch_path = tmp_path / "watch"
-    watch_path.mkdir()
+    repo_path = tmp_path / "watch"
+    repo_path.mkdir()
 
     with pytest.raises(ValueError):
-        GitSync(repo="", watch_path=str(watch_path), period=1)
+        GitSync(repo="", repo_path=str(repo_path), period=1)
 
 
 @pytest.mark.timeout(15)
 def test_git_sync_update_event_detection_and_pull(tmp_git_repos):
     """Test GitSync detects update event and pull clears it."""
-    remote_path, watch_path = tmp_git_repos
+    remote_path, repo_path = tmp_git_repos
     setup_bare_repo_with_content(remote_path, "v1")
 
-    with git_sync_running(remote_path, watch_path) as watch:
+    with git_sync_running(remote_path, repo_path) as watch:
         assert not watch.update_pending()
 
         push_update_to_remote(remote_path, "v2")
@@ -382,10 +382,10 @@ def test_git_sync_multiple_branch_tracking(tmp_path):
     branches = {"master": "main", "dev": "dev"}
     setup_multiword_branch_repo(str(remote_path), branches)
 
-    watch_main_sync = GitSync(repo=str(remote_path), watch_path=str(watch_main), period=1, branch="master")
+    watch_main_sync = GitSync(repo=str(remote_path), repo_path=str(watch_main), period=1, branch="master")
     watch_main_sync.start_notify_thread()
 
-    watch_dev_sync = GitSync(repo=str(remote_path), watch_path=str(watch_dev), period=1, branch="dev")
+    watch_dev_sync = GitSync(repo=str(remote_path), repo_path=str(watch_dev), period=1, branch="dev")
     watch_dev_sync.start_notify_thread()
 
     try:

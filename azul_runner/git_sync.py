@@ -26,7 +26,7 @@ class GitSync:
     def __init__(
         self,
         repo: str,
-        watch_path: str,
+        repo_path: str,
         period: int,
         branch: str = "",
         username: str = "",
@@ -57,7 +57,7 @@ class GitSync:
 
         self.repo: str = repo
         self.branch: str = branch
-        self.watch_path: str = watch_path
+        self.repo_path: str = repo_path
         self.period: int = period
         self.username: str = username
         self.password: str = password
@@ -90,15 +90,15 @@ class GitSync:
 
     def _init_repo(self):
         """Initialize the git repository in the watch path if it doesn't exist."""
-        logger.info(f"GitSync repo {self.repo} at {self.watch_path} with period {self.period} seconds")
+        logger.info(f"GitSync repo {self.repo} at {self.repo_path} with period {self.period} seconds")
 
         # create watch dir if necessary
-        if not os.path.isdir(self.watch_path):
-            os.makedirs(self.watch_path, exist_ok=True)
-            logger.info(f"Created watch directory at {self.watch_path}")
+        if not os.path.isdir(self.repo_path):
+            os.makedirs(self.repo_path, exist_ok=True)
+            logger.info(f"Created watch directory at {self.repo_path}")
 
         # clone if repo does not exist locally yet
-        if not os.path.exists(os.path.join(self.watch_path, ".git")):
+        if not os.path.exists(os.path.join(self.repo_path, ".git")):
             clone_cmd = ["clone", "--verbose", self.repo, "."]
             if self.branch:
                 clone_cmd.insert(2, f"--branch={self.branch}")
@@ -106,7 +106,7 @@ class GitSync:
                 clone_cmd.insert(2, f"--depth={self.clone_depth}")
 
             self._refresh_auth()
-            logger.info(f"Cloning repository from {self.repo} to {self.watch_path}")
+            logger.info(f"Cloning repository from {self.repo} to {self.repo_path}")
             clone_output = self._run_git(clone_cmd)
             logger.info(f"{self.repo} clone complete: {clone_output}")
 
@@ -154,7 +154,7 @@ class GitSync:
         try:
             output = subprocess.check_output(  # noqa: S603
                 ["git"] + config_args + cmd,
-                cwd=self.watch_path,
+                cwd=self.repo_path,
                 text=True,
                 input=input,
                 stderr=subprocess.STDOUT,
@@ -192,7 +192,7 @@ class GitSync:
 
     def pull(self):
         """Fetch updates from the remote, if available."""
-        logger.info(f"Pulling updates from {self.repo} to {self.watch_path}")
+        logger.info(f"Pulling updates from {self.repo} to {self.repo_path}")
         self._refresh_auth()
         pull_output = self._run_git(["pull", "origin", "--verbose", "--quiet", "--prune"])
         logger.info(f"{self.repo} pull complete: {pull_output}")
@@ -214,7 +214,7 @@ class GitSync:
         self._stop_event.clear()
         self._notify_thread = threading.Thread(target=self._run_notify_thread)
         self._notify_thread.start()
-        logger.info(f"Notification thread started for {self.repo} at {self.watch_path} with {self.period}s period")
+        logger.info(f"Notification thread started for {self.repo} at {self.repo_path} with {self.period}s period")
 
     def stop_notify_thread(self):
         """Tell notify thread to exit then wait for it to join."""

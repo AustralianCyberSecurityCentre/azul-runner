@@ -259,7 +259,7 @@ class Monitor:
             self._gitsync = GitSync(
                 repo=self._cfg.git_sync_repo,
                 branch=self._cfg.git_sync_ref,
-                watch_path=self._cfg.watch_path,
+                repo_path=self._cfg.git_sync_path,
                 period=self._cfg.git_sync_period,
                 username=self._cfg.git_sync_username,
                 password=self._cfg.git_sync_password,

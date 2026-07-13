@@ -127,6 +127,8 @@ class Settings(BaseSettings):
     # Repo watching info (used if watch_type=="git")
     # remote url to clone from on initialization
     git_sync_repo: str = ""
+    # path to which git repo will be cloned
+    git_sync_path: str = "/code/dest"
     # ref to pull from on remote
     git_sync_ref: str = ""
     # username to be stored in the local credential store for HTTPS authentication
