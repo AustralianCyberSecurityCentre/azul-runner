@@ -115,12 +115,12 @@ class RunOnceHandler:
         """
         try:
             with open(self._get_result_file_path(), "rb") as read_result:
-                results = dict()
+                results: dict[str, JobResult] = dict()
                 for multiplugin_name, result_value in json.loads(read_result.read()).items():
                     # Account for serialization/deserialization of none
                     if multiplugin_name.lower() == "none":
                         multiplugin_name = None
-                    results[multiplugin_name] = JobResult.model_validate(result_value)
+                    results[str(multiplugin_name)] = JobResult.model_validate(result_value)
         except Exception as e:
             with open(self._get_result_file_path(), "rb") as read_result:
                 file_data = read_result.read()
