@@ -70,7 +70,7 @@ class TestBasePluginStatic(unittest.TestCase):
         # Test with a plugin that expects data
         class Test404(BinaryPlugin):
             def execute(self, job) -> dict:
-                data = job.get_data()
+                data = job.get_data_or_none()
                 print(data)
                 # Mimic the exception raised by StorageProxyFile on a 404
                 raise ProxyFileNotFoundError(2, "Got 404 requesting (nothing)")
@@ -153,7 +153,7 @@ class TestBasePluginStatic(unittest.TestCase):
         # Test with a plugin that expects data
         class TestFNF(BinaryPlugin):
             def execute(self, entity):
-                data = job.get_data()
+                data = job.get_data_or_none()
                 with open(".nonexistent_file_3284767538574862745", "rb"):
                     raise AssertionError("Didn't get a 'file not found' ...")
                 return
