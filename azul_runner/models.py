@@ -554,6 +554,13 @@ class Job(BaseModelStrict):
             raise ValueError(f'no "{label}" streams for entity {self.id}')
         return streams[0]
 
+    def get_data_or_none(self, label: azm.DataLabel = azm.DataLabel.CONTENT) -> storage.StorageProxyFile | None:
+        """Return and ensure only one stream with label."""
+        streams = self.get_all_data(label)
+        if len(streams) > 1:
+            raise ValueError(f'more than one "{label}" stream for entity {self.id}')
+        return streams[0] if streams else None
+
     def get_all_data(
         self, label: azm.DataLabel | None = None, file_format: str | None = None
     ) -> list[storage.StorageProxyFile]:

@@ -253,7 +253,7 @@ class TestPusherLive(unittest.TestCase):
             _IS_USING_PUSHER = True
 
             def execute(self, job: Job):
-                data = job.get_data()
+                data = job.get_data_or_none()
                 self.add_feature_values("example_string", "dummy string")
                 if data:
                     self.add_feature_values("example_raw", data.read())
