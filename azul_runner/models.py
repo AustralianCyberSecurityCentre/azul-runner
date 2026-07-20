@@ -58,7 +58,7 @@ class Uri(str):
 # use that directly.
 _status_event_enum_override = azm.StatusEnum
 _status_event_enum_override.__repr__ = lambda self: f"State.Label.{self.name}"  # ty: ignore[invalid-assignment] ty does not like the shadowing of __repr__
-_status_event_enum_override.__str__ = lambda self: f"State.Label.{self.name}"  # ty: ignore[invalid-assignment] ty does not like the shadowing of __str__
+_status_event_enum_override.__str__ = lambda self: f"State.Label.{self.name}"  # ty: ignore[unresolved-attribute] # ty:ignore[invalid-assignment]
 
 
 class State(BaseModelStrict):
