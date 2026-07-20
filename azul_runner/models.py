@@ -503,7 +503,19 @@ class JobResult(BaseModelStrict):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-class Job(BaseModelStrict):
+class BaseJob(BaseModelStrict):
+    """Base Job for all jobs to be based on."""
+
+    event: azm.BaseEvent
+
+
+class DownloadJob(BaseJob):
+    """Contains the event and potential for additional methods."""
+
+    event: azm.DownloadEvent
+
+
+class Job(BaseJob):
     """Contains event and data streams for plugin to process."""
 
     # event for the job
