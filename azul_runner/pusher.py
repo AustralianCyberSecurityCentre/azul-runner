@@ -213,7 +213,7 @@ class Pusher(Coordinator):
     def push_once_sourced(
         self,
         *,
-        content: typing.BinaryIO,
+        content: bytes,
         source_label: str,
         references: dict[str, str],
         security: str | None = None,

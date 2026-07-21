@@ -1,14 +1,14 @@
 """Higher level interactions with Azul Dispatcher vs dispatcher.py."""
+
 import copy
 import datetime
-from typing import TypeVar, Type
-
 import logging
 import pathlib
 import tempfile
 import time
 import traceback
 import typing
+from typing import Type, TypeVar
 
 from azul_bedrock import dispatcher, exceptions_bedrock
 from azul_bedrock import models_network as azm
@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 # name of the keepalive file used for liveness probe functionality, should match the file used in azul-app/azul/templates/helpers/plugin-liveness-probe.yaml
 KEEPALIVE_FILENAME = ".runner-keepalive"
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class Network:
     """Handle plugin communications with dispatcher."""
@@ -57,10 +58,10 @@ class Network:
     def fetch_job(self) -> azm.BinaryEvent:
         """Fetches next job from the queue."""
         return self._fetch_job(azm.BinaryEvent)
-    
+
     def fetch_download_job(self) -> azm.DownloadEvent:
         """Fetches next download event job from the queue."""
-        return  self._fetch_job(azm.DownloadEvent)
+        return self._fetch_job(azm.DownloadEvent)
 
     def _fetch_job(self, model_type: Type[T]) -> T:
         """Fetches next job of the provided model_type from the queue."""
@@ -77,7 +78,7 @@ class Network:
 
         if not self.plugin.cfg.events_url:
             raise ValueError("Cannot fetch jobs when events_url is None")
-        
+
         while True:
             try:
                 if model_type == azm.BinaryEvent:
@@ -134,12 +135,12 @@ class Network:
                 continue
             if len(events) > 1:
                 raise ValueError(f"{len(events)} events fetched by dispatcher, only 1 allowed")
-            
+
             event = events[0]
             if isinstance(event, model_type):
                 return event
             raise Exception(f"When fetching job model should have been of type '{model_type}' and wasn't")
-        
+
     def _gen_status(self, src: azm.BinaryEvent, result: JobResult, multiplugin: str | None = None) -> azm.StatusEvent:
         # transform hash-data dictionary to contain labels as well
         labelled_data = {}
@@ -199,8 +200,8 @@ class Network:
 
         # clear file metadata after events have been submitted
         self._clear_file_metadata()
-        
-    def _notify_download(self, src: azm.DownloadEvent, action: azm.DownloadAction, multiplugin: str|None = None):
+
+    def _notify_download(self, src: azm.DownloadEvent, action: azm.DownloadAction, multiplugin: str | None = None):
         """Post information about download events to dispatcher."""
         now = datetime.datetime.now(datetime.timezone.utc)
         author = network_transform.gen_author(self.plugin, self.plugin.get_multiplugin(multiplugin))
@@ -214,7 +215,6 @@ class Network:
             action=action,
         )
         self.api.submit_events([updated_download_event], model=azm.ModelType.Download)
-
 
     def _post_data(
         self, source: str, data: dict[str, tuple[list[azm.DataLabel], typing.BinaryIO | bytes]]

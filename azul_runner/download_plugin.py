@@ -25,7 +25,7 @@ class DownloadPlugin(Plugin):
 
     def upload_sourced_file(self, raw_file: typing.BinaryIO, filename: str = ""):
         """Upload a file and the associated events to Azul."""
-        self.pusher.push_once_sourced(
+        self.pusher.source_downloaded_file_once(
             content=raw_file,
             source_label=self._download_job.source.name,
             references=self._download_job.source.references,
