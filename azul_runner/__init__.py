@@ -3,7 +3,7 @@ import contextlib
 
 from azul_bedrock.models_network import DataLabel, FeatureType
 from azul_bedrock.models_network import FeatureValue as APIFeatureValue
-
+from azul_bedrock.models_network import DownloadAction
 from .binary_plugin import BinaryPlugin
 from .main import cmdline_run
 from .models import (
@@ -39,6 +39,7 @@ EXPORTS = append_all + [
     "DATA_HASH_NAME",
     "DATA_HASH",
     "DataLabel",
+    "DownloadAction",
     "Event",
     "EventData",
     "EventParent",
