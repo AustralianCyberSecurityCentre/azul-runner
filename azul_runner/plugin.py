@@ -183,7 +183,7 @@ class Plugin:
     def register_multiplugin(
         self,
         name: str,
-        version: str,
+        version: str | None,
         callback: Callable[[Job], Optional[Union[State, State.Label]]],
         *,
         description: str | None = None,
