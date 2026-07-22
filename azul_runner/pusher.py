@@ -10,6 +10,7 @@
 import hashlib
 import io
 import logging
+import typing
 from typing import Any, Type
 
 import pendulum
@@ -169,13 +170,53 @@ class Pusher(Coordinator):
             ),
         )
 
+    def source_downloaded_file_once(
+        self,
+        *,
+        content: typing.BinaryIO,
+        source_label: str,
+        references: dict[str, str],
+        security: str | None = None,
+        filename: str = "",
+    ) -> str:
+        """Accept the file handle of a downloaded file and publish the corresponding sourced binary event."""
+        sha256 = storage.calc_stream_hash(content, hashlib.sha256)
+        file_info_dict = self._network._post_data(
+            source_label,
+            {sha256: ([azm.DataLabel.CONTENT], content)},
+        )
+        file_info = file_info_dict.get(sha256)
+
+        if file_info is None:
+            raise Exception(f"The file with sha256 {sha256} was uploaded but no metadata was returned.")
+
+        if file_info.sha256 is None:
+            file_info.sha256 = sha256
+
+        input_entity = file_info.to_input_entity()
+
+        if filename:
+            input_entity.features.append(
+                azm.FeatureValue(name="filename", type=azm.FeatureType.Filepath, value=filename)
+            )
+        # Sourced event because content was provied.
+        sourced_event = self._gen_sourced_event(
+            input_entity=input_entity,
+            source_label=source_label,
+            references=references,
+            filename=filename,
+            security=security,
+        )
+        self._network.api.submit_events([sourced_event], model=azm.ModelType.Binary)
+        return sha256
+
     def push_once_sourced(
         self,
         *,
         content: bytes,
         source_label: str,
         references: dict[str, str],
-        security: str,
+        security: str | None = None,
         filename: str = "",
         local: list[storage.StorageProxyFile] | None = None,
     ) -> str:

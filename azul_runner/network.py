@@ -1,11 +1,14 @@
 """Higher level interactions with Azul Dispatcher vs dispatcher.py."""
 
+import copy
+import datetime
 import logging
 import pathlib
 import tempfile
 import time
 import traceback
 import typing
+from typing import Type, TypeVar
 
 from azul_bedrock import dispatcher, exceptions_bedrock
 from azul_bedrock import models_network as azm
@@ -15,10 +18,10 @@ from .models import JobResult, State
 
 logger = logging.getLogger(__name__)
 
-# by default will retry getting events if it received corrupted events
-CONTINUE_ON_RECV_CORRUPT_EVENT = True
 # name of the keepalive file used for liveness probe functionality, should match the file used in azul-app/azul/templates/helpers/plugin-liveness-probe.yaml
 KEEPALIVE_FILENAME = ".runner-keepalive"
+
+T = TypeVar("T")
 
 
 class Network:
@@ -54,6 +57,14 @@ class Network:
 
     def fetch_job(self) -> azm.BinaryEvent:
         """Fetches next job from the queue."""
+        return self._fetch_job(azm.BinaryEvent)
+
+    def fetch_download_job(self) -> azm.DownloadEvent:
+        """Fetches next download event job from the queue."""
+        return self._fetch_job(azm.DownloadEvent)
+
+    def _fetch_job(self, model_type: Type[T]) -> T:
+        """Fetches next job of the provided model_type from the queue."""
 
         def fmt_dict_filters(filt: dict[str, list[str]]) -> list[str]:
             """Merge these filters to network format.
@@ -67,31 +78,47 @@ class Network:
 
         if not self.plugin.cfg.events_url:
             raise ValueError("Cannot fetch jobs when events_url is None")
+
         while True:
             try:
-                info, events = self.api.get_binary_events(
-                    count=1,  # only retrieve 1 event, as if plugin crashes these will not reprocess
-                    is_task=True,
-                    deadline=10,  # dispatcher has up to 10 seconds to retrieve/filter events
-                    # filters
-                    require_expedite=self.plugin.cfg.require_expedite,
-                    require_live=self.plugin.cfg.require_live,
-                    require_historic=self.plugin.cfg.require_historic,
-                    require_under_content_size=self.plugin.cfg.filter_max_content_size,
-                    require_over_content_size=self.plugin.cfg.filter_min_content_size,
-                    require_actions=self.plugin.cfg.filter_allow_event_types,
-                    deny_self=self.plugin.cfg.filter_self,
-                    require_streams=fmt_dict_filters(self.plugin.cfg.filter_data_types),
-                    max_security=self.plugin.cfg.max_security,
-                )
+                if model_type == azm.BinaryEvent:
+                    info, events = self.api.get_binary_events(
+                        count=1,  # only retrieve 1 event, as if plugin crashes these will not reprocess
+                        is_task=True,
+                        deadline=10,  # dispatcher has up to 10 seconds to retrieve/filter events
+                        # filters
+                        require_expedite=self.plugin.cfg.require_expedite,
+                        require_live=self.plugin.cfg.require_live,
+                        require_historic=self.plugin.cfg.require_historic,
+                        require_under_content_size=self.plugin.cfg.filter_max_content_size,
+                        require_over_content_size=self.plugin.cfg.filter_min_content_size,
+                        require_actions=self.plugin.cfg.filter_allow_event_types,
+                        deny_self=self.plugin.cfg.filter_self,
+                        require_streams=fmt_dict_filters(self.plugin.cfg.filter_data_types),
+                        max_security=self.plugin.cfg.max_security,
+                    )
+                elif model_type == azm.DownloadEvent:
+                    info, events = self.api.get_download_events(
+                        count=1,  # only retrieve 1 event, as if plugin crashes these will not reprocess
+                        is_task=True,
+                        deadline=10,  # dispatcher has up to 10 seconds to retrieve/filter events
+                        # filters
+                        require_expedite=self.plugin.cfg.require_expedite,
+                        require_live=self.plugin.cfg.require_live,
+                        require_historic=self.plugin.cfg.require_historic,
+                        require_actions=[azm.DownloadAction.Requested],
+                        deny_self=self.plugin.cfg.filter_self,
+                        require_streams=fmt_dict_filters(self.plugin.cfg.filter_data_types),
+                        max_security=self.plugin.cfg.max_security,
+                    )
+                else:
+                    raise Exception(f"Invalid Event model type {model_type} requested for download.")
             except dispatcher.BadResponseException as e:
                 logger.warning(f"Failed to decode event from server ({e.__class__.__name__}):\n{str(e)}")
                 logger.warning(f"Failed content:\n{e.content}")
                 logger.warning(f"Error:\n{traceback.format_exc()}")
-                # immediately repoll for new events
-                if CONTINUE_ON_RECV_CORRUPT_EVENT:
-                    continue
-                raise e
+                # immediately re-poll for new events
+                continue
 
             if self.plugin.cfg.enable_liveness_probe:
                 # Touch the keepalive file so Kubernetes knows the plugin is still alive via livenessProbe
@@ -110,7 +137,9 @@ class Network:
                 raise ValueError(f"{len(events)} events fetched by dispatcher, only 1 allowed")
 
             event = events[0]
-            return event
+            if isinstance(event, model_type):
+                return event
+            raise Exception(f"When fetching job model should have been of type '{model_type}' and wasn't")
 
     def _gen_status(self, src: azm.BinaryEvent, result: JobResult, multiplugin: str | None = None) -> azm.StatusEvent:
         # transform hash-data dictionary to contain labels as well
@@ -171,6 +200,21 @@ class Network:
 
         # clear file metadata after events have been submitted
         self._clear_file_metadata()
+
+    def _notify_download(self, src: azm.DownloadEvent, action: azm.DownloadAction, multiplugin: str | None = None):
+        """Post information about download events to dispatcher."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+        author = network_transform.gen_author(self.plugin, self.plugin.get_multiplugin(multiplugin))
+        updated_download_event = azm.DownloadEvent(
+            model_version=azm.CURRENT_MODEL_VERSION,
+            kafka_key="runner-placeholder",
+            timestamp=now,
+            author=author,
+            entity=copy.deepcopy(src.entity),
+            source=copy.deepcopy(src.source),
+            action=action,
+        )
+        self.api.submit_events([updated_download_event], model=azm.ModelType.Download)
 
     def _post_data(
         self, source: str, data: dict[str, tuple[list[azm.DataLabel], typing.BinaryIO | bytes]]

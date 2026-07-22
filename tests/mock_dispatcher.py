@@ -126,7 +126,6 @@ async def post_event(path: str, request: Request, response: Response) -> azapi.R
     vars["all_requests"] += [body]
 
     data = json.loads(body)
-
     # mock processing all events successfully
     return azapi.ResponsePostEvent(total_ok=len(data), total_failures=0, failures=[])
 
@@ -162,7 +161,7 @@ async def get_events_switchable(
             )
         ],
     )
-    if ent_type == "binary":
+    if ent_type == azm.ModelType.Binary.value:
         if variant == "test_path":
             # returns a binary event message with path
             path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/binary_event_message.json")
@@ -259,6 +258,8 @@ async def get_events_switchable(
             respEvents = "This is not valid JSON. This should cause an exception."
         elif variant == "too_many":
             respEvents.events.append(copy.deepcopy(respEvents.events[0]))
+        elif variant == "download_event":
+            respEvents.events[0].entity.features = [azm.FeatureValue(name="tester", type="integer", value="100")]
         else:
             response.status_code = 404
         content, response.headers["Content-Type"] = urllib3.encode_multipart_formdata(
@@ -268,5 +269,32 @@ async def get_events_switchable(
             }
         )
         return Response(content=content, media_type=response.headers["Content-Type"])
+    elif ent_type == azm.ModelType.Download.value:
+        respInfo = azapi.GetEventsInfo(filtered=5, fetched=1, ready=True)
+        respEvents = azapi.GetEventsDownload(
+            events=[
+                azm.DownloadEvent(
+                    model_version=azm.CURRENT_MODEL_VERSION,
+                    kafka_key="test-dummy",
+                    action=azm.DownloadAction.Requested,
+                    timestamp=datetime.datetime(year=1900, month=1, day=1, tzinfo=datetime.timezone.utc),
+                    source=azm.Source(
+                        name="source",
+                        path=[],
+                        timestamp=datetime.datetime(year=1900, month=1, day=1, tzinfo=datetime.timezone.utc),
+                    ),
+                    author=azm.Author(name="TestServer", category="blah"),
+                    entity=azm.DownloadEvent.Entity(hash="1234"),
+                )
+            ],
+        )
+        content, response.headers["Content-Type"] = urllib3.encode_multipart_formdata(
+            {
+                "info": (None, respInfo.model_dump_json()),
+                "events": (None, respEvents.model_dump_json()),
+            }
+        )
+        return Response(content=content, media_type=response.headers["Content-Type"])
+
     else:
         response.status_code = 404
