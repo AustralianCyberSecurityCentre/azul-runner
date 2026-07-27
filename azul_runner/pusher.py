@@ -188,6 +188,7 @@ class Pusher(Coordinator):
         file_info = file_info_dict.get(sha256)
 
         if file_info is None:
+            logger.info(file_info_dict)
             raise Exception(f"The file with sha256 {sha256} was uploaded but no metadata was returned.")
 
         if file_info.sha256 is None:
