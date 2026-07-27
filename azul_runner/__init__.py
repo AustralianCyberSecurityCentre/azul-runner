@@ -38,6 +38,7 @@ EXPORTS = append_all + [
     "APIFeatureValue",
     "BinaryPlugin",
     "cmdline_run",
+    "create_download_plugin",
     "DATA_HASH_NAME",
     "DATA_HASH",
     "DataLabel",

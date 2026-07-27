@@ -1,13 +1,25 @@
 """Specialized plugin for downloading files on request from a remote source."""
 
 import typing
+from typing import Type, TypeVar
 
 from azul_bedrock import models_network as azm
 
 from azul_runner import settings
+from azul_runner.main import args_to_config, parse_args
 from azul_runner.models import DownloadJob, Job
 from azul_runner.plugin import Plugin
 from azul_runner.pusher import Pusher
+
+T = TypeVar("T")
+
+
+def create_download_plugin(plugin_class: Type[T]) -> T:
+    """Create the download plugin with it's configuration."""
+    args = parse_args()
+    config = args_to_config(args)
+    config_settings = settings.parse_config(plugin_class, config or {})
+    return plugin_class(config_settings)
 
 
 class DownloadPlugin(Plugin):
@@ -25,6 +37,11 @@ class DownloadPlugin(Plugin):
     )
 
     def __init__(self, config: settings.Settings | dict | None = None) -> None:
+        if config is None:
+            raise Exception(
+                "Plugin not configured, use create_download_plugin to create a download plugin and load it's configuration."
+            )
+
         super().__init__(config)
 
     def _init_pusher(self):
