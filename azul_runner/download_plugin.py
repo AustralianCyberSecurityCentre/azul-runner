@@ -15,6 +15,13 @@ class DownloadPlugin(Plugin):
 
     _IS_USING_PUSHER = True
 
+    SETTINGS = settings.add_settings(
+        # download plugins shouldn't be performing operations on their output.
+        filter_self=True,
+        # event must be a new sighting of a label='content' binary
+        filter_allow_event_types=[azm.DownloadAction.Requested],
+    )
+
     def __init__(self, config: settings.Settings | dict | None = None) -> None:
         super().__init__(config)
 

@@ -3,14 +3,16 @@ import contextlib
 
 from azul_bedrock.models_network import DataLabel, FeatureType
 from azul_bedrock.models_network import FeatureValue as APIFeatureValue
-from azul_bedrock.models_network import DownloadAction
-from .binary_plugin import BinaryPlugin
-from .main import cmdline_run
-from .models import (
-    FV,
+from azul_bedrock.models_network import DownloadAction, DownloadEvent
+from azul_runner.binary_plugin import BinaryPlugin
+from azul_runner.download_plugin import DownloadPlugin
+from azul_runner.main import cmdline_run
+from azul_runner.models import (
+    DownloadJob,
     Event,
     EventData,
     EventParent,
+    FV,
     Feature,
     FeatureValue,
     Filepath,
@@ -19,9 +21,9 @@ from .models import (
     State,
     Uri,
 )
-from .plugin import Plugin
-from .settings import add_settings
-from .storage import DATA_HASH, DATA_HASH_NAME, StorageProxyFile
+from azul_runner.plugin import Plugin
+from azul_runner.settings import add_settings
+from azul_runner.storage import DATA_HASH, DATA_HASH_NAME, StorageProxyFile
 
 append_all: list[str] = []
 with contextlib.suppress(ImportError):
@@ -40,6 +42,9 @@ EXPORTS = append_all + [
     "DATA_HASH",
     "DataLabel",
     "DownloadAction",
+    "DownloadEvent",
+    "DownloadJob",
+    "DownloadPlugin",
     "Event",
     "EventData",
     "EventParent",

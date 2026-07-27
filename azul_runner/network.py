@@ -103,12 +103,12 @@ class Network:
                         is_task=True,
                         deadline=10,  # dispatcher has up to 10 seconds to retrieve/filter events
                         # filters
-                        require_expedite=self.plugin.cfg.require_expedite,
+                        require_expedite=False,
                         require_live=self.plugin.cfg.require_live,
                         require_historic=self.plugin.cfg.require_historic,
-                        require_actions=[azm.DownloadAction.Requested],
+                        require_actions=self.plugin.cfg.filter_allow_event_types,
                         deny_self=self.plugin.cfg.filter_self,
-                        require_streams=fmt_dict_filters(self.plugin.cfg.filter_data_types),
+                        require_streams=False,
                         max_security=self.plugin.cfg.max_security,
                     )
                 else:
