@@ -265,6 +265,7 @@ class Monitor:
                 password=self._cfg.git_sync_password,
                 do_ssh_auth=self._cfg.git_sync_ssh,
                 ssh_key_path=self._cfg.git_sync_ssh_key_path,
+                ssh_known_hosts_file=self._cfg.git_sync_ssh_known_hosts_file,
                 max_sync_failures=self._cfg.git_sync_max_sync_failures,
                 clone_depth=self._cfg.git_sync_clone_depth,
                 submodules=self._cfg.git_sync_submodules,
