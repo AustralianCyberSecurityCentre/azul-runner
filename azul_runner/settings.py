@@ -139,7 +139,7 @@ class Settings(BaseSettings):
     git_sync_ssh: bool = False
     # location of private RSA key if SSH is enabled
     git_sync_ssh_key_path: str = "/etc/git-secret/ssh/id_rsa"
-    # location of ssh known_hosts file if host key checking if desired
+    # location of ssh known_hosts file if host key checking is desired
     git_sync_ssh_known_hosts_file: str = ""
     # maximum permitted failures before the plugin restarts
     git_sync_max_sync_failures: int = 0
