@@ -205,7 +205,7 @@ class TestBaseDownloadPlugin(unittest.TestCase):
                         "request_retry_count": "0",
                         "request_timeout": "15",
                         "require_expedite": "true",
-                        "require_historic": "true",
+                        "require_historic": "false",
                         "require_live": "true",
                         "run_timeout": "600",
                         "security_override": '""',
