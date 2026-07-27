@@ -18,8 +18,10 @@ class DownloadPlugin(Plugin):
     SETTINGS = settings.add_settings(
         # download plugins shouldn't be performing operations on their output.
         filter_self=True,
-        # event must be a new sighting of a label='content' binary
+        # has no actual affect as filter types aren't allowed for download events
         filter_allow_event_types=[azm.DownloadAction.Requested],
+        # by default it's not desirable to get old download events to prevent re-downloading on files.
+        require_historic=False,
     )
 
     def __init__(self, config: settings.Settings | dict | None = None) -> None:

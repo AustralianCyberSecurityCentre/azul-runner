@@ -106,7 +106,6 @@ class Network:
                         require_expedite=False,
                         require_live=self.plugin.cfg.require_live,
                         require_historic=self.plugin.cfg.require_historic,
-                        require_actions=self.plugin.cfg.filter_allow_event_types,
                         deny_self=self.plugin.cfg.filter_self,
                         require_streams=False,
                         max_security=self.plugin.cfg.max_security,
