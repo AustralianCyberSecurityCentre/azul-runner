@@ -1,13 +1,27 @@
 """Specialized plugin for downloading files on request from a remote source."""
 
+import contextlib
 import typing
+from typing import Type, TypeVar
 
 from azul_bedrock import models_network as azm
+from azul_bedrock.exceptions_bedrock import DispatcherApiException
 
 from azul_runner import settings
+from azul_runner.main import args_to_config, parse_args
 from azul_runner.models import DownloadJob, Job
 from azul_runner.plugin import Plugin
 from azul_runner.pusher import Pusher
+
+T = TypeVar("T")
+
+
+def create_download_plugin(plugin_class: Type[T]) -> T:
+    """Create the download plugin with it's configuration."""
+    args = parse_args()
+    config = args_to_config(args)
+    config_settings = settings.parse_config(plugin_class, config or {})
+    return plugin_class(config_settings)
 
 
 class DownloadPlugin(Plugin):
@@ -15,7 +29,23 @@ class DownloadPlugin(Plugin):
 
     _IS_USING_PUSHER = True
 
+    SETTINGS = settings.add_settings(
+        # download plugins shouldn't be performing operations on their output.
+        filter_self=True,
+        # has no actual affect as filter types aren't allowed for download events
+        filter_allow_event_types=[azm.DownloadAction.Requested],
+        # by default it's not desirable to get old download events to prevent re-downloading on files.
+        require_historic=False,
+        # Lets Azul know this plugin will be processing download events, allowing for webui tracking.
+        is_processing_download_events=True,
+    )
+
     def __init__(self, config: settings.Settings | dict | None = None) -> None:
+        if config is None:
+            raise Exception(
+                "Plugin not configured, use create_download_plugin to create a download plugin and load it's configuration."
+            )
+
         super().__init__(config)
 
     def _init_pusher(self):
@@ -43,9 +73,16 @@ class DownloadPlugin(Plugin):
             try:
                 download_job = self.network.fetch_download_job()
                 self._download_job = download_job
-                if self.network.api.has_binary(
-                    source=download_job.source.name, label=azm.DataLabel.CONTENT, sha256=download_job.entity.hash
-                ):
+                has_binary = False
+                with contextlib.suppress(DispatcherApiException):
+                    # Raises an exception and doesn't get to the continue if the binary doesn't exist in Azul.
+                    self.network.api.has_binary(
+                        source=download_job.source.name, label=azm.DataLabel.CONTENT, sha256=download_job.entity.hash
+                    )
+                    has_binary = True
+
+                # Binary not present so skip
+                if not has_binary:
                     self.network._notify_download(download_job, azm.DownloadAction.SkippedAlreadyPresent)
                     continue
             except Exception as e:

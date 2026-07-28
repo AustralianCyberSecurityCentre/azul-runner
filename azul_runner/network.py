@@ -61,7 +61,13 @@ class Network:
 
     def fetch_download_job(self) -> azm.DownloadEvent:
         """Fetches next download event job from the queue."""
-        return self._fetch_job(azm.DownloadEvent)
+        while True:
+            download_event = self._fetch_job(azm.DownloadEvent)
+            # Note that the filter for actions sent to dispatcher doesn't work for download events
+            if download_event.action == azm.DownloadAction.Requested:
+                return download_event
+            else:
+                time.sleep(1)
 
     def _fetch_job(self, model_type: Type[T]) -> T:
         """Fetches next job of the provided model_type from the queue."""
@@ -103,14 +109,17 @@ class Network:
                         is_task=True,
                         deadline=10,  # dispatcher has up to 10 seconds to retrieve/filter events
                         # filters
-                        require_expedite=self.plugin.cfg.require_expedite,
+                        require_expedite=False,
                         require_live=self.plugin.cfg.require_live,
                         require_historic=self.plugin.cfg.require_historic,
-                        require_actions=[azm.DownloadAction.Requested],
                         deny_self=self.plugin.cfg.filter_self,
-                        require_streams=fmt_dict_filters(self.plugin.cfg.filter_data_types),
+                        require_streams=False,
                         max_security=self.plugin.cfg.max_security,
                     )
+                    # Note that the filter for actions sent to dispatcher doesn't work for download events so filtering needs to occur here as well.
+                    if len(events) == 1:
+                        if events[0].action != azm.DownloadAction.Requested:
+                            continue
                 else:
                     raise Exception(f"Invalid Event model type {model_type} requested for download.")
             except dispatcher.BadResponseException as e:
@@ -232,6 +241,7 @@ class Network:
             for label in labels:
                 # attempt to load from cache
                 if (source, label, data_hash) in self._cached_file_data:
+                    ret[data_hash] = self._cached_file_data[(source, label, data_hash)]
                     continue
 
                 logger.info("Posting data to server for %s %s %s" % (source, label, data_hash))
