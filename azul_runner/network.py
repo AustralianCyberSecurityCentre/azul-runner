@@ -61,7 +61,13 @@ class Network:
 
     def fetch_download_job(self) -> azm.DownloadEvent:
         """Fetches next download event job from the queue."""
-        return self._fetch_job(azm.DownloadEvent)
+        while True:
+            download_event = self._fetch_job(azm.DownloadEvent)
+            # Note that the filter for actions sent to dispatcher doesn't work for download events
+            if download_event.action == azm.DownloadAction.Requested:
+                return download_event
+            else:
+                time.sleep(1)
 
     def _fetch_job(self, model_type: Type[T]) -> T:
         """Fetches next job of the provided model_type from the queue."""
@@ -110,6 +116,10 @@ class Network:
                         require_streams=False,
                         max_security=self.plugin.cfg.max_security,
                     )
+                    # Note that the filter for actions sent to dispatcher doesn't work for download events so filtering needs to occur here as well.
+                    if len(events) == 1:
+                        if events[0].action != azm.DownloadAction.Requested:
+                            continue
                 else:
                     raise Exception(f"Invalid Event model type {model_type} requested for download.")
             except dispatcher.BadResponseException as e:

@@ -33,6 +33,7 @@ class GitSync:
         password: str = "",
         do_ssh_auth: bool = False,
         ssh_key_path: str = "",
+        ssh_known_hosts_file: str = "",
         max_sync_failures: int = 0,
         clone_depth: int = 0,
         submodules: str = "off",
@@ -63,6 +64,7 @@ class GitSync:
         self.password: str = password
         self.do_ssh_auth: bool = do_ssh_auth
         self.ssh_key_path: str = ssh_key_path
+        self.ssh_known_hosts_file: str = ssh_known_hosts_file
         self.max_sync_failures: int = max_sync_failures
         self.clone_depth: int = clone_depth
         self.submodules: str = submodules
@@ -141,7 +143,10 @@ class GitSync:
                     "config",
                     "--global",
                     "core.sshCommand",
-                    f"ssh -i {self.ssh_key_path} -o StrictHostKeyChecking=No -o UserKnownHostsFile=/dev/null",
+                    f"ssh -i {self.ssh_key_path} \
+                        -o StrictHostKeyChecking={'yes' if self.ssh_known_hosts_file else 'no'} \
+                        -o UserKnownHostsFile={self.ssh_known_hosts_file if self.ssh_known_hosts_file else '/dev/null'} \
+                        -o BatchMode=yes",  # BatchMode=yes disables password prompts
                 ]
             )
 
