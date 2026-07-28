@@ -233,7 +233,7 @@ class Pusher(Coordinator):
             source_label,
             {sha256: ([azm.DataLabel.CONTENT], io.BytesIO(content))},
         )
-        file_info = file_info_dict[sha256]
+        file_info = file_info_dict.get(sha256)
 
         if file_info is None:
             raise Exception(f"The file with sha256 {sha256} was uploaded but no metadata was returned.")

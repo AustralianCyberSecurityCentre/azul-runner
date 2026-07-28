@@ -225,12 +225,14 @@ class Network:
         """
         ret: dict[str, azm.Datastream] = {}
         if not self.plugin.cfg.data_url or not data:
+            logger.warning("No data_url set cannot upload file to dispatcher.")
             return ret
         # post all data
         for data_hash, (labels, binary) in data.items():
             for label in labels:
                 # attempt to load from cache
                 if (source, label, data_hash) in self._cached_file_data:
+                    ret[data_hash] = self._cached_file_data[(source, label, data_hash)]
                     continue
 
                 logger.info("Posting data to server for %s %s %s" % (source, label, data_hash))

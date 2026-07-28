@@ -191,7 +191,7 @@ class TestBaseDownloadPlugin(unittest.TestCase):
                         "git_sync_submodules": '"off"',
                         "git_sync_username": '""',
                         "heartbeat_interval": "30",
-                        "is_processing_download_events": "false",
+                        "is_processing_download_events": "true",
                         "max_mem_file_path": '"/sys/fs/cgroup/memory.max"',
                         "max_security": '""',
                         "max_timeouts_before_exit": "100",
