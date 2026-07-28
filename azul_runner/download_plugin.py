@@ -36,6 +36,8 @@ class DownloadPlugin(Plugin):
         filter_allow_event_types=[azm.DownloadAction.Requested],
         # by default it's not desirable to get old download events to prevent re-downloading on files.
         require_historic=False,
+        # Lets Azul know this plugin will be processing download events, allowing for webui tracking.
+        is_processing_download_events=True,
     )
 
     def __init__(self, config: settings.Settings | dict | None = None) -> None:
