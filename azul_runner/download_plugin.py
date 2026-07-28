@@ -1,11 +1,11 @@
 """Specialized plugin for downloading files on request from a remote source."""
-import contextlib
-from azul_bedrock.exceptions_bedrock import DispatcherApiException
 
+import contextlib
 import typing
 from typing import Type, TypeVar
 
 from azul_bedrock import models_network as azm
+from azul_bedrock.exceptions_bedrock import DispatcherApiException
 
 from azul_runner import settings
 from azul_runner.main import args_to_config, parse_args
@@ -74,9 +74,11 @@ class DownloadPlugin(Plugin):
                 has_binary = False
                 with contextlib.suppress(DispatcherApiException):
                     # Raises an exception and doesn't get to the continue if the binary doesn't exist in Azul.
-                    self.network.api.has_binary(source=download_job.source.name, label=azm.DataLabel.CONTENT, sha256=download_job.entity.hash)
+                    self.network.api.has_binary(
+                        source=download_job.source.name, label=azm.DataLabel.CONTENT, sha256=download_job.entity.hash
+                    )
                     has_binary = True
-                
+
                 # Binary not present so skip
                 if not has_binary:
                     self.network._notify_download(download_job, azm.DownloadAction.SkippedAlreadyPresent)
