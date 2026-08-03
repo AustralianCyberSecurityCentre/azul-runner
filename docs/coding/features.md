@@ -44,16 +44,18 @@ def execute(job: Job):
     # add many values to one feature
     self.add_feature_values("tag", ["might be EXE", "has_flag"])
     # add many values to many features
-    self.add_all_feature_values({
-        # A feature with a single value
-        'badness_level': 9001,
-        # A feature with multiple values. Note that it can be any iterable, not just a list.
-        'detection_AVs': {'Sophos', 'Kaspersky'},
-        # A list (or other iterable) with a single value is also allowed
-        'malware_categories': ['ransomware'],
-        # Empty lists are acceptable; it will be ignored in final output
-        'detected_known_malware': [],
-    })
+    self.add_all_feature_values(
+        {
+            # A feature with a single value
+            "badness_level": 9001,
+            # A feature with multiple values. Note that it can be any iterable, not just a list.
+            "detection_AVs": {"Sophos", "Kaspersky"},
+            # A list (or other iterable) with a single value is also allowed
+            "malware_categories": ["ransomware"],
+            # Empty lists are acceptable; it will be ignored in final output
+            "detected_known_malware": [],
+        }
+    )
 ```
 
 ## Advanced output features
@@ -75,15 +77,12 @@ Example:
 
 ```python
 class DeobSomething(BinaryPlugin):
-    FEATURES = [
-        Feature('decoded', desc='A decoded string.', type=FeatureType.String)
-    ]
+    FEATURES = [Feature("decoded", desc="A decoded string.", type=FeatureType.String)]
 
     def execute(self, job: Job):
         deob_list = foo_lib.get_deob_strings(data)
         if deob_list:
-            self.add_feature_value('decoded', [
-                FeatureValue(txt, offset=offs, label='Deob key %s' % key)
-                for offs, txt, key in deob_list
-            ])
+            self.add_feature_value(
+                "decoded", [FeatureValue(txt, offset=offs, label="Deob key %s" % key) for offs, txt, key in deob_list]
+            )
 ```

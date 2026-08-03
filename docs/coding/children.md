@@ -21,24 +21,24 @@ def execute(job: Job):
         c = self.add_child_with_data_file(
             relationship={
                 # 'action' key is preferred, and you can add any other keys you like
-                'action': 'deobfuscated',
-                'obfus_type': "tangerine",
+                "action": "deobfuscated",
+                "obfus_type": "tangerine",
             },
             data_file=tf,
         )
     # add a feature to the child binary
-    c.add_feature_values('filename', "my_child_file.ex5")
+    c.add_feature_values("filename", "my_child_file.ex5")
     # add a grandchild using a binary string rather than a binary file
     gc = c.add_child_with_data(
         relationship={
             # 'action' key is preferred, and you can add any other keys you like
-            'action': 'deobfuscated',
-            'obfus_type': "tangerine",
+            "action": "deobfuscated",
+            "obfus_type": "tangerine",
         },
         data=b"986754893",
     )
     # add a feature to the grandchild binary
-    gc.add_feature_values('filename', "my_grandchild_file.ex5")
+    gc.add_feature_values("filename", "my_grandchild_file.ex5")
     gc.add_info({"refund": "this tangerine is supposed to be seedless but it actually has seeds for some reason"})
     # you can add great-grandchildren, etc. At some point it gets a bit silly though.
     # remember to carefully track the returned values from x.add_child_with_data

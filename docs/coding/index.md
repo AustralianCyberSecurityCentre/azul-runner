@@ -50,7 +50,6 @@ class LookForThings(BinaryPlugin):
         filter_data_types={"content": ["plain/text"]},
     )
 
-
     def execute(self, job: Job):
         """Find peaches."""
         data = job.get_data()
@@ -69,7 +68,8 @@ class LookForThings(BinaryPlugin):
         else:
             return State.Label.OPT_OUT
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     cmdline_run(plugin=LookForThings)
 ```
 
@@ -82,7 +82,7 @@ You will need to read BinaryPlugin and Plugin to figure out what you want.
 
 ```python
 class MyPlugin(Plugin):
-    VERSION = '1.0'
+    VERSION = "1.0"
 
     def execute(self, job: Job):
         return
@@ -115,7 +115,8 @@ class LookForMZ1(BinaryPlugin):
         else:
             return State.Label.OPT_OUT
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     cmdline_run(plugin=LookForMZ1)
 ```
 
@@ -178,7 +179,6 @@ class LookForMZ3(BinaryPlugin):
         c.add_feature_values("tag", "the extracted child")
         # add feature to the original incoming binary
         self.add_feature_values("tag", ["Might be an exe", "Extracted header"])
-
 ```
 
 This demonstrates adding a child, as well as returning multiple values for a features. Features can also be set on the extracted children; the should be provided in the same way as returned features for the parent binary.
