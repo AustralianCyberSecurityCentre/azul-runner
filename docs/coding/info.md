@@ -6,20 +6,24 @@ The data must be a JSON-compatible dict, or your plugin will fail with 'ERROR_OU
 
 ```python
 def execute():
-    self.add_info({
-        'malware_type': 'trojan',
-        'malware_family': 'ransomware',
-        'malware_details': {
-            'obfuscation_code': 0x1234,
-            'grouping': 'crimeware',
-        },
-    })
+    self.add_info(
+        {
+            "malware_type": "trojan",
+            "malware_family": "ransomware",
+            "malware_details": {
+                "obfuscation_code": 0x1234,
+                "grouping": "crimeware",
+            },
+        }
+    )
 ```
 
 ```python
 def execute():
     # this will fail as 'bytes' is not json compatible
-    self.add_info({
-        'data': b'trojan',
-    })
+    self.add_info(
+        {
+            "data": b"trojan",
+        }
+    )
 ```

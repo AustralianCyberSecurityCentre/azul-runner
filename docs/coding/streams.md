@@ -32,7 +32,7 @@ The 'file_format_virustotal' is intended to match with the types from virustotal
 ```python
 class MyPlugin(BinaryPlugin):
     SETTINGS = add_settings(
-        filter_data_types={"content": ["executable/windows/dos"],'blob': ['archive/gzip', 'archive/bzip2']},
+        filter_data_types={"content": ["executable/windows/dos"], "blob": ["archive/gzip", "archive/bzip2"]},
     )
 
     def execute(self, job: Job):
@@ -52,7 +52,9 @@ class MyPlugin(BinaryPlugin):
 ```python
 class FilteredLookForMZ(BinaryPlugin):
     SETTINGS = add_settings(
-        filter_data_types={azm.DataLabel.CONTENT: ['executable/windows/pe32', 'executable/windows/dos', 'executable/windows/dll32']},
+        filter_data_types={
+            azm.DataLabel.CONTENT: ["executable/windows/pe32", "executable/windows/dos", "executable/windows/dll32"]
+        },
     )
 
     def execute(self, job: Job):
@@ -71,9 +73,9 @@ def execute(job: Job):
         data,
     )
     try:
-        tool_result = raw_tool_result.decode('cp1252')
+        tool_result = raw_tool_result.decode("cp1252")
     except UnicodeDecodeError:
-        tool_result = 'decoding error: ...'
+        tool_result = "decoding error: ..."
         # Do some error handling
     self.add_text(tool_result)
 ```

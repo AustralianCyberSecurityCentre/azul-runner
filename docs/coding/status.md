@@ -29,12 +29,12 @@ def execute(job: Job):
             State.Label.ERROR_INPUT,
             "Bad",
             "Bad but handled",
-    )
+        )
     elif t == 4:
         return State(
             State.Label.COMPLETED_WITH_ERRORS,
             "Completed with some errors.",
-            "An error occurred that could be recovered from while processing the plugin results data."
+            "An error occurred that could be recovered from while processing the plugin results data.",
         )
     elif t == 5:
         # finished but no features or augmented streams were added to the result. (unnecessary) is inferred.

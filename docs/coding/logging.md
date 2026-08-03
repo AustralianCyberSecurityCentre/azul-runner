@@ -4,9 +4,8 @@ It is important to avoid message spam during execution.
 
 ```python
 class MyPlugin(BinaryPlugin):
-
     def execute(job: Job):
-        iterations=45
+        iterations = 45
         self.logger.debug(f"{iterations=}")
         if True:
             self.logger.warning("something unknown happened")

@@ -63,10 +63,10 @@ class LookForThings(BinaryPlugin):
 
     VERSION = "1.0"
     SETTINGS = add_settings(
-      # You can filter assemblyline file types as below.
-      # These are the files that your plugin will process.
-      # Note: you can filter by prefix (document/).
-      # Check azul-bedrock/identify.yaml for valid file types.
+        # You can filter assemblyline file types as below.
+        # These are the files that your plugin will process.
+        # Note: you can filter by prefix (document/).
+        # Check azul-bedrock/identify.yaml for valid file types.
         filter_data_types={
             "content": [
                 "text/plain",
@@ -96,7 +96,8 @@ class LookForThings(BinaryPlugin):
         else:
             return State.Label.OPT_OUT
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     cmdline_run(plugin=LookForThings)
 ```
 

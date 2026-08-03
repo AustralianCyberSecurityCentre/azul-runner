@@ -6,9 +6,7 @@ Custom options will not be picked up by your IDE but will still work.
 
 ```python
 class MyPlugin(BinaryPlugin):
-    SETTINGS = add_settings(
-        subprocess_timeout_seconds=(int, 0)
-    )
+    SETTINGS = add_settings(subprocess_timeout_seconds=(int, 0))
 
     def execute(job: Job):
         print(self.cfg.subprocess_timeout_seconds)
@@ -29,7 +27,7 @@ This is implemented as a config option to make it more easily adjustable at runt
 ```python
 class MyPlugin(BinaryPlugin):
     SETTINGS = add_settings(
-        filter_max_file_size=5 * 2 ** 20 # 5 MB limit
+        filter_max_file_size=5 * 2**20  # 5 MB limit
     )
 ```
 
@@ -49,7 +47,6 @@ class MyPlugin(BinaryPlugin):
             ]
         }
     )
-
 ```
 
 ## Protecting Secret Config values
