@@ -3,7 +3,6 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-import multiprocessing
 import time
 import unittest
 from typing import ClassVar
@@ -53,9 +52,7 @@ class DummySleepPlugin(sup.DummyPlugin):
 
 
 class TestPluginTimeouts(unittest.TestCase):
-    """
-    Tests the run_timeout functionality of Plugin.run_loop(), using the mock server.
-    """
+    """Tests the run_timeout functionality of Plugin.run_loop(), using the mock server."""
 
     mock_server: ClassVar[md.MockDispatcher]
     server: ClassVar[str]  # Endpoint to the mock server, suitable for passing to a plugin's config['server']

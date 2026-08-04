@@ -34,7 +34,6 @@ class TestBinaryTemplateDataless(TestPlugin):
 
     def test_simple_run(self):
         """Check that the dataless test plugin runs and returns a basic feature."""
-
         result = self.do_execution(entity_attrs={"sha512": "a" * 64})
         self.assertEqual(result.state, State())
         self.assertEqual(result.main.features, {"sample_feature": [FeatureValue("a" * 64)]})

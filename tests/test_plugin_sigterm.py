@@ -3,27 +3,20 @@ from __future__ import annotations
 import contextlib
 import datetime
 import json
-import logging
 import multiprocessing
-import os
-import signal
-import tempfile
 import time
 import unittest
 from typing import ClassVar
-from unittest.mock import patch
 
-import httpx
 import psutil
 import pytest
 from azul_bedrock import models_network as azm
 
-from azul_runner import State, coordinator, monitor, settings
-from azul_runner.settings import add_settings
+from azul_runner import coordinator, monitor, settings
 from tests import plugin_support as sup
 
 from . import mock_dispatcher as md
-from .test_plugin_timeout import DummySleepPlugin, TestPluginTimeouts
+from .test_plugin_timeout import DummySleepPlugin
 
 
 def _proxy_run_loop_monitor(server: str, *args):
@@ -55,9 +48,7 @@ def dump(x):
 
 
 class TestPluginTerminated(unittest.TestCase):
-    """
-    Tests a plugin stops when it recieves an appropriate signal.
-    """
+    """Tests a plugin stops when it recieves an appropriate signal."""
 
     mock_server: ClassVar[md.MockDispatcher]
     server: ClassVar[str]  # Endpoint to the mock server, suitable for passing to a plugin's config['server']

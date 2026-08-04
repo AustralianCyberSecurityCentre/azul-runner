@@ -1,10 +1,12 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
+from multiprocessing import shared_memory
 from typing import Any
 
 from azul_bedrock import models_network as azm
 from pydantic import TypeAdapter
-from multiprocessing import shared_memory
+
 from azul_runner import (
     FV,
     Event,
@@ -15,11 +17,9 @@ from azul_runner import (
     FeatureValue,
     JobResult,
     State,
-    TestPlugin,
 )
 from azul_runner.models import Job
 from tests import plugin_support as sup
-
 
 SHARED_MEM_NAME = "test_plugin_execution_shared_mem"
 TEST_SETTING_KEY = "test_setting"
@@ -41,9 +41,7 @@ class PluginExecutionPluginSharedMem(sup.DummyPluginDefaultSharedMem):
 
 
 class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
-    """
-    Tests the handling of plugin execution by Plugin._exec_wrapper, using the sup.DummyPlugin class and TestPlugin template.
-    """
+    """Tests the handling of plugin execution by Plugin._exec_wrapper, using the sup.DummyPlugin class and TestPlugin template."""
 
     PLUGIN_TO_TEST = sup.DummyPlugin
 
@@ -105,8 +103,7 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
             return "Not a State"
 
     def test_return_bad_status(self):
-        """
-        Verifies error result when the plugin returns result['status'] != State(...).
+        """Verifies error result when the plugin returns result['status'] != State(...).
         Don't check further State verification, as this is tested in azul_runner.structures' unit tests.
         """
         result = self.do_execution(plugin_class=self.DPReturnBadStatus)
@@ -123,9 +120,7 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
             return State(State.Label.ERROR_INPUT, "Plugin had an error")
 
     def test_return_bare_result(self):
-        """
-        Verifies that runner wraps a bare State / State.Label return value into a dict.
-        """
+        """Verifies that runner wraps a bare State / State.Label return value into a dict."""
         result = self.do_execution(plugin_class=self.DPReturnBareResult1)
         self.assertEqual(result.state, State(State.Label.OPT_OUT))
 
@@ -164,10 +159,7 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
         self.assertEqual(result.state, State(State.Label.ERROR_OUTPUT, "Invalid Plugin Output", m))
 
     def test_return_feature_wrapping(self):
-        """
-        Tests that returned values get wrapped in a FeatureValue instance, while leaving returned FeatureValues alone.
-        """
-
+        """Tests that returned values get wrapped in a FeatureValue instance, while leaving returned FeatureValues alone."""
         # Check feature is wrapped and accepted if correct type
         self._set_shared_memory(
             self.shared_mem,
@@ -205,7 +197,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_return_str_for_specials(self):
         """Tests that returning a simple str value for Filepath or Uri features is correctly handled."""
-
         # Check str is accepted for Filepath and Uri
 
         self._set_shared_memory(
@@ -236,7 +227,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_return_feature_wrong_type(self):
         """Tests a plugin returning a feature whose data type doesn't match the type specified in FEATURES."""
-
         # 'Primary' feature test
         self._set_shared_memory(
             self.shared_mem,
@@ -253,7 +243,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_return_feature_none(self):
         """Tests a plugin fails instantly when adding None feature value."""
-
         self._set_shared_memory(
             self.shared_mem,
             PluginExecutionSharableInput(feature_values=[("example_string", None)]),
@@ -283,7 +272,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_return_feature_bare_value(self):
         """Tests that _exec_wrapper accepts single bare values of the correct type and converts them to lists"""
-
         # Simple case
         self._set_shared_memory(
             self.shared_mem,
@@ -408,7 +396,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_return_duplicate_values(self):
         """Tests that a plugin returning multiple copies of the same value no longer causes an error"""
-
         # Simple list
         self._set_shared_memory(
             self.shared_mem,
@@ -524,7 +511,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_feature_value_limit(self):
         """Tests that value counts are properly limited"""
-
         self._set_shared_memory(
             self.shared_mem,
             PluginExecutionSharableInput(feature_values=[("example_int", [9, 8, 7, 6, 5, 4, 3, 2, 1])]),
@@ -537,7 +523,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_feature_value_length_limit(self):
         """Tests that value counts are properly limited"""
-
         self._set_shared_memory(
             self.shared_mem,
             PluginExecutionSharableInput(feature_values=[("example_string", "wow such a long string")]),
@@ -555,7 +540,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_feature_value_limit_total(self):
         """Tests that value counts are properly limited"""
-
         result = self.do_execution(
             plugin_class=self.DPFeatureValueLimitTotal, config={"max_values_per_feature": 100000}
         )
@@ -589,7 +573,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_return_info(self):
         """Tests that plugin can successfully return 'extra' values (unspecified structured data)"""
-
         result = self.do_execution(plugin_class=self.DPReturnInfo)
         self.assertEqual(result.state, State())
         self.assertJobResult(
@@ -606,7 +589,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_invalid_info(self):
         """Test that an error is returned when the 'extra' value isn't JSON-serialisable."""
-
         result = self.do_execution(plugin_class=self.DPInvalidInfo)
         print(result.state)
         self.assertEqual(result.state.label, State.Label.ERROR_OUTPUT)
@@ -628,7 +610,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_event_properties_set(self):
         """Test that an error is returned when the 'extra' value isn't JSON-serialisable."""
-
         result = self.do_execution(plugin_class=self.DPEventPropertiesSet, data_in=[("content", b"this is some text")])
         self.assertJobResult(result, JobResult(state=State(State.Label.COMPLETED_EMPTY)))
 
@@ -642,7 +623,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
         Important for plugins which use filepath for things, yara, dynamic, etc.
         """
-
         result = self.do_execution(
             plugin_class=self.DPFeatIn,
             feats_in=[azm.FeatureValue(name="filename", value="walrus.exe", type=azm.FeatureType.String)],
@@ -713,7 +693,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_inspect_data(self):
         """Test that data can be stripped."""
-
         result = self.do_execution(plugin_class=self.DPInspectData)
         self.assertJobResult(
             result,
@@ -750,7 +729,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_strip_data(self):
         """Test that data can be stripped."""
-
         result = self.do_execution(plugin_class=self.DPStripData)
         self.assertJobResult(
             result,
@@ -814,7 +792,6 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
 
     def test_strip_hash(self):
         """Test that hash can be stripped."""
-
         result = self.do_execution(plugin_class=self.DPStripHash)
         self.assertJobResult(
             result,
@@ -888,10 +865,7 @@ class TestPluginExecutionWrapper(sup.TestPluginSharedMem):
             self.add_feature_values("example_string", test_val)
 
     def test_add_settings(self):
-        """
-        Test adding settings to test case run.
-        """
-
+        """Test adding settings to test case run."""
         # Check feature is wrapped and accepted if correct type
 
         result = self.do_execution(

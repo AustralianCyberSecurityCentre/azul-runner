@@ -1,9 +1,11 @@
 from __future__ import annotations
-from pydantic import BaseModel
+
+from multiprocessing import shared_memory
 from typing import Any
 
 from azul_bedrock import models_network as azm
-from multiprocessing import shared_memory
+from pydantic import BaseModel
+
 from azul_runner import (
     DATA_HASH,
     FV,
@@ -15,10 +17,8 @@ from azul_runner import (
     FeatureValue,
     JobResult,
     State,
-    TestPlugin,
 )
 from tests import plugin_support as sup
-
 
 SHARED_MEM_NAME = "test_plugin_grandchildren"
 _add_grandchild_result_parent_sha256 = DATA_HASH(b"input stream content").hexdigest()
@@ -47,9 +47,7 @@ class DPGrandChildrenSharedMem(sup.DummyPluginDefaultSharedMem):
 
 
 class TestPluginGrandchildHandling(sup.TestPluginSharedMem):
-    """
-    Tests for the handling of add_grandchild and related errors
-    """
+    """Tests for the handling of add_grandchild and related errors"""
 
     PLUGIN_TO_TEST = sup.DummyPlugin
 
@@ -132,7 +130,6 @@ class TestPluginGrandchildHandling(sup.TestPluginSharedMem):
 
     def test_add_grandchild_feature_errors(self):
         """Tests that raises the expected errors when child features are malformed"""
-
         # Test plugin adding a grandchild feature not defined in FEATURES
         self._set_shared_memory(
             self.shared_mem,

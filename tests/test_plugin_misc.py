@@ -122,7 +122,6 @@ class TestEventLimits(TestPlugin):
 
     def test_too_large(self):
         """Limit total size of status message."""
-
         # Generate a dynamic class with input content requirements
         with self.assertRaises(azbe.NetworkDataException) as e:
             self.do_execution(plugin_class=self.DPTooLarge)
@@ -146,7 +145,6 @@ class TestAlterConfig(TestPlugin):
 
     def test_too_large(self):
         """Limit total size of status message."""
-
         # Generate a dynamic class with input content requirements
         p = self.DPTooLarge()
         self.assertEqual(p.cfg.filter_data_types, {"*": ["text/plain"]})
@@ -170,9 +168,7 @@ class TestRequireConfig(TestPlugin):
 
 
 class TestMultiStreamResults(TestPlugin):
-    """
-    Tests correct handling of per-stream results by the runner
-    """
+    """Tests correct handling of per-stream results by the runner"""
 
     class DP(sup.DummyPlugin):
         def execute(self, job) -> dict:
@@ -222,9 +218,7 @@ class TestPluginMappedOutput(TestPlugin):
 
 
 class TestPluginOutputStream(TestPlugin):
-    """
-    Tests for the handling of add_entity_content
-    """
+    """Tests for the handling of add_entity_content"""
 
     PLUGIN_TO_TEST = sup.DummyPlugin
 
@@ -287,7 +281,6 @@ class TestPluginOutputStream(TestPlugin):
 
         Important to limit data produced by plugins.
         """
-
         # Verify assertion error is raised with inconsistent outputs
         with self.assertRaises(AssertionError):
             self.do_execution(

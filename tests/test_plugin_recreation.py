@@ -11,7 +11,7 @@ from typing import ClassVar
 import pytest
 from azul_bedrock import models_network as azm
 
-from azul_runner import coordinator, settings, models
+from azul_runner import coordinator, models, settings
 from tests import plugin_support as sup
 
 from . import mock_dispatcher as md
@@ -36,9 +36,7 @@ def dump(x):
 
 
 class TestPluginRecreated(unittest.TestCase):
-    """
-    Tests that a plugin exits with the correct code to be restarted when it receives the appropriate signal.
-    """
+    """Tests that a plugin exits with the correct code to be restarted when it receives the appropriate signal."""
 
     mock_server: ClassVar[md.MockDispatcher]
     server: ClassVar[str]  # Endpoint to the mock server, suitable for passing to a plugin's config['server']

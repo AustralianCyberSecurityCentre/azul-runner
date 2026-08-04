@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import tempfile
+from dataclasses import dataclass
+from multiprocessing import shared_memory
 from typing import Any
 
 from azul_bedrock import models_network as azm
@@ -16,7 +17,7 @@ from azul_runner import (
     JobResult,
     State,
 )
-from multiprocessing import shared_memory
+
 from . import plugin_support as sup
 
 SHARED_MEM_NAME = "test_plugin_children_shared_mem"
@@ -41,9 +42,7 @@ class DpGenericAddChildAndFeature(sup.DummyPluginDefaultSharedMem):
 
 
 class TestPluginChildHandling(sup.TestPluginSharedMem):
-    """
-    Tests for the handling of add_child, add_child_data, and adding children in run_once
-    """
+    """Tests for the handling of add_child, add_child_data, and adding children in run_once"""
 
     PLUGIN_TO_TEST = sup.DummyPlugin
 
@@ -332,7 +331,6 @@ class TestPluginChildHandling(sup.TestPluginSharedMem):
 
     def test_add_empty(self):
         """Tests that raises the expected errors when empty children are added."""
-
         # Test plugin adding a child feature not defined in FEATURES
         result = self.do_execution(plugin_class=self.DPAddEmpty)
         m: str = result.state.message
@@ -351,7 +349,6 @@ class TestPluginChildHandling(sup.TestPluginSharedMem):
 
     def test_add_child_results_file(self):
         """Tests that added children return the expected result"""
-
         # Check the expected child and features are returned
         result = self.do_execution(plugin_class=self.DPAddChildResultsFile)
         self.assertJobResult(

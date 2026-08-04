@@ -18,7 +18,6 @@ from azul_runner import (
     State,
     TestPlugin,
     Uri,
-    add_settings,
 )
 
 
@@ -41,7 +40,6 @@ class TestBinaryTemplateDynamic(TestPlugin):
 
     def test_simple_run(self):
         """Check that the test plugin runs and returns a basic feature."""
-
         result = self.do_execution(
             data_in=[("content", b"dummy data")], plugin_class=TestBinaryTemplateDynamic.DPSimpleRun
         )
@@ -118,7 +116,6 @@ class TestBinaryTemplateDynamic(TestPlugin):
 
     def test_add_child_invalid_data(self):
         """Check that add_binary_grandchild correctly tests for the child/parent to be present."""
-
         result = self.do_execution(
             data_in=[("content", b"dummy data")], plugin_class=TestBinaryTemplateDynamic.DPAddChildInvalidData
         )
@@ -127,7 +124,6 @@ class TestBinaryTemplateDynamic(TestPlugin):
 
     def test_add_grandchild_invalid_data(self):
         """Check that add_binary_grandchild correctly tests for the child/parent to be present."""
-
         result = self.do_execution(
             data_in=[("content", b"dummy data")], plugin_class=TestBinaryTemplateDynamic.DPAddGrandchildInvalidData
         )

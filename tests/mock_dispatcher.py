@@ -1,23 +1,22 @@
 """Dispatcher API Mocking with enough state-tracking to be useful for testing runner."""
 
-import contextlib
 import copy
 import datetime
 import hashlib
 import json
 import logging
-import multiprocessing
 import os
 import re
-import socket
 from typing import Any
 
 import urllib3
+import uvicorn
 from azul_bedrock import models_api as azapi
 from azul_bedrock import models_network as azm
+
+# NOTE - must import editor here even though it is un-used for tests to work.
 from azul_bedrock.mock import Editor, MockDispatcher, dp
 from fastapi import APIRouter, Request, Response
-import uvicorn
 
 router = APIRouter()
 
@@ -83,8 +82,7 @@ clear()
 
 @router.get("/mock/get_var/{var}")
 def mock_get_var(var: str, request: Request, response: Response) -> Any:
-    """
-    Retrieve a var from the mock server; used to check correct parameters were passed.
+    """Retrieve a var from the mock server; used to check correct parameters were passed.
     :param var: Name of var
     :return: Value of the var
     """

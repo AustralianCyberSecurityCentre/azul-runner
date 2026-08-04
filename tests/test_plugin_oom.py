@@ -17,7 +17,7 @@ from azul_runner.settings import add_settings
 from tests import plugin_support as sup
 
 from . import mock_dispatcher as md
-from .test_plugin_timeout import DummySleepPlugin, TestPluginTimeouts
+from .test_plugin_timeout import DummySleepPlugin
 
 
 class CustomTestException(Exception):
@@ -34,7 +34,7 @@ class SleepMultiPlugin(sup.DummyPlugin):
     SETTINGS = add_settings(memory_file_path=(str, ""))
 
     def mp_callback(self, job):
-        "Write 100% to memory usage and then sleep."
+        """Write 100% to memory usage and then sleep."""
         time.sleep(1)
         # Write to the file if it exists (if it doesn't the process has been terminated)
         if os.path.exists(self.cfg.memory_file_path):
@@ -60,9 +60,7 @@ class SleepMultiPlugin(sup.DummyPlugin):
 
 
 class TestPluginOom(unittest.TestCase):
-    """
-    Tests the Out of Memory functionality of Plugin.run_loop(), using the mock server.
-    """
+    """Tests the Out of Memory functionality of Plugin.run_loop(), using the mock server."""
 
     mock_server: ClassVar[md.MockDispatcher]
     server: ClassVar[str]  # Endpoint to the mock server, suitable for passing to a plugin's config['server']

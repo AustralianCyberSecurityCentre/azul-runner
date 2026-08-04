@@ -1,45 +1,25 @@
 from __future__ import annotations
-from lib2to3.fixes.fix_input import context
-from azul_runner.download_plugin import DownloadPlugin
 
 import contextlib
-import ctypes
-import datetime
 import json
-import logging
-import multiprocessing
-import os
 import tempfile
 import time
 import unittest
 from multiprocessing import Process
-import pendulum
-from typing import Any, ClassVar
+from typing import ClassVar
 from unittest import mock
 
-from azul_bedrock.exception_enums import ExceptionCodeEnum
 import httpx
-import yara_x
-from azul_bedrock import exceptions_bedrock, models_network as azm
+import pendulum
+from azul_bedrock import models_network as azm
 
 from azul_runner import (
-    DATA_HASH,
     FV,
-    Event,
     Feature,
-    FeatureValue,
     Job,
-    JobResult,
-    State,
-    StorageProxyFile,
     add_settings,
-    coordinator,
-    local,
-    monitor,
-    network,
-    settings,
 )
-from azul_runner.models import TaskExitCodeEnum
+from azul_runner.download_plugin import DownloadPlugin
 
 from . import mock_dispatcher as md
 from . import plugin_support as sup
@@ -80,9 +60,7 @@ class DummyDownloadPlugin(DownloadPlugin):
 
 
 class TestBaseDownloadPlugin(unittest.TestCase):
-    """
-    Test cases for base plugin class - cases that talk to the mock server
-    """
+    """Test cases for base plugin class - cases that talk to the mock server"""
 
     mock_server: ClassVar[md.MockDispatcher]
     server: ClassVar[str]  # Endpoint to the mock server, suitable for passing to a plugin's config['server']
