@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import datetime
 import hashlib
-import time
 import unittest
 from typing import ClassVar
 from unittest import mock
@@ -11,8 +9,7 @@ import httpx
 import pendulum
 from azul_bedrock import models_network as azm
 
-from azul_runner import FeatureType, Job, network_transform, storage
-from azul_runner.plugin import Multiplugin
+from azul_runner import Job, storage
 from azul_runner.pusher import Pusher
 from tests import plugin_support as sup
 
@@ -21,9 +18,7 @@ from . import plugin_support as sup
 
 
 class TestPusherLive(unittest.TestCase):
-    """
-    Test cases for base plugin class - cases that talk to the mock server
-    """
+    """Test cases for base plugin class - cases that talk to the mock server"""
 
     mock_server: ClassVar[md.MockDispatcher]
     server: ClassVar[str]  # Endpoint to the mock server, suitable for passing to a plugin's config['server']

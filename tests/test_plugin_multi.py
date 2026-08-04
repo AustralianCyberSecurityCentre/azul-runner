@@ -1,9 +1,8 @@
 import datetime
 import hashlib
 import io
-import json
 import unittest
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 from azul_bedrock import models_network as azm
@@ -464,9 +463,7 @@ class TestPluginExecute(TestPlugin):
 
 
 class TestPluginExecuteOptout(TestPlugin):
-    """
-    Tests for the handling of add_entity_content
-    """
+    """Tests for the handling of add_entity_content"""
 
     class DummyPlugin(DP):
         def execute(self, job):

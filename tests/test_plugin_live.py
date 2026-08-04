@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextlib
-import ctypes
 import datetime
 import json
 import logging
@@ -14,10 +13,11 @@ from multiprocessing import Process
 from typing import Any, ClassVar
 from unittest import mock
 
-from azul_bedrock.exception_enums import ExceptionCodeEnum
 import httpx
 import yara_x
-from azul_bedrock import exceptions_bedrock, models_network as azm
+from azul_bedrock import exceptions_bedrock
+from azul_bedrock import models_network as azm
+from azul_bedrock.exception_enums import ExceptionCodeEnum
 
 from azul_runner import (
     DATA_HASH,
@@ -36,7 +36,6 @@ from azul_runner import (
     network,
     settings,
 )
-from azul_runner.models import TaskExitCodeEnum
 
 from . import mock_dispatcher as md
 from . import plugin_support as sup
@@ -47,9 +46,7 @@ def dump(x):
 
 
 class TestBasePluginLive(unittest.TestCase):
-    """
-    Test cases for base plugin class - cases that talk to the mock server
-    """
+    """Test cases for base plugin class - cases that talk to the mock server"""
 
     mock_server: ClassVar[md.MockDispatcher]
     server: ClassVar[str]  # Endpoint to the mock server, suitable for passing to a plugin's config['server']
@@ -463,7 +460,6 @@ class TestBasePluginLive(unittest.TestCase):
 
     def test_registration_security_dict(self):
         """Test registration using a security dict instead of list."""
-
         p = self.DummyPluginSecurityDict(
             config={"events_url": self.server + "/depth_1", "deployment_key": "apple", "data_url": self.server}
         )
@@ -1035,7 +1031,6 @@ class TestBasePluginLive(unittest.TestCase):
 
     def test_ack_job_children_and_security_dict(self):
         """Test the API post output of an event with children and grandchildren, using a dict value for SECURITY"""
-
         loop = monitor.Monitor(
             self.DPAckJobChildrenAndSecurityDict, {"events_url": self.server + "/test_data", "data_url": self.server}
         )
@@ -1276,7 +1271,6 @@ class TestBasePluginLive(unittest.TestCase):
 
     def test_ack_job_new_stream_only(self):
         """Ensure if plugin only produces a new stream, it is still treated as an output result."""
-
         loop = monitor.Monitor(
             self.DPAckJobNewStreamOnly, {"events_url": self.server + "/test_data", "data_url": self.server}
         )

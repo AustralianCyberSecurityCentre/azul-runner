@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextlib
-import ctypes
 import multiprocessing
 import os
 import tempfile
@@ -34,9 +33,7 @@ def modify_file_in_background_causing_crash(filepath: str, queue: multiprocessin
 
 
 class TestPluginExecutionWrapper(unittest.TestCase):
-    """
-    Tests the handling of plugin execution by Plugin._exec_wrapper, using the sup.DummyPlugin class and TestPlugin template.
-    """
+    """Tests the handling of plugin execution by Plugin._exec_wrapper, using the sup.DummyPlugin class and TestPlugin template."""
 
     PLUGIN_TO_TEST = sup.DummyPlugin
 
@@ -123,7 +120,6 @@ class TestPluginExecutionWrapper(unittest.TestCase):
     @pytest.mark.timeout(10)
     def test_no_watch(self):
         """Test that no exception is raised when files are modified that would cause watch to trigger if configured."""
-
         with tempfile.TemporaryDirectory() as filepath:
             with open(os.path.join(filepath, "tmp.txt"), "w") as f:
                 f.write("1")
@@ -152,8 +148,7 @@ def modify_watched_file_in_background(filepath: str):
 
 
 class TestMonitorWatch(unittest.TestCase):
-    """
-    Tests Monitor's watch functionality and coordinator recreation behavior.
+    """Tests Monitor's watch functionality and coordinator recreation behavior.
     Verifies that Monitor properly detects file changes, handles coordinator exit codes,
     and recreates the coordinator instance.
     """

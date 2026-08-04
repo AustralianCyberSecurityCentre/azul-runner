@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import io
-import time
 import unittest
-from typing import Any, ClassVar
+from typing import ClassVar
 
-import httpx
 from azul_bedrock import dispatcher
 from azul_bedrock import models_network as azm
 from bitarray import bitarray

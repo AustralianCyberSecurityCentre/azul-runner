@@ -15,7 +15,6 @@ from azul_runner import monitor, network
 from . import mock_dispatcher as md
 from . import plugin_support as sup
 
-
 KEEPALIVE_PATH = pathlib.Path(tempfile.gettempdir()) / network.KEEPALIVE_FILENAME
 
 
@@ -90,7 +89,6 @@ class TestLivenessProbe(unittest.TestCase):
 
     def test_liveness_probe_check_fresh_file(self) -> None:
         """Test that the liveness probe check used in Kubernetes passes when keepalive file is fresh."""
-
         KEEPALIVE_PATH.touch()
 
         # Act - Run the Kubernetes-style liveness probe check

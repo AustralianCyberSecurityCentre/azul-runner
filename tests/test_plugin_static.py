@@ -74,9 +74,7 @@ class QuickFailPlugin(sup.DummyPlugin):
 
 
 class TestBasePluginStatic(unittest.TestCase):
-    """
-    Test cases for base plugin class - cases that don't require mock server
-    """
+    """Test cases for base plugin class - cases that don't require mock server"""
 
     class DPFeatureInheritanceInstance(sup.DummyPluginFeatureInheritance):
         def execute(self, job):

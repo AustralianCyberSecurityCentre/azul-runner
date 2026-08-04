@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from azul_runner.git_sync import GitSync, GitError
-
+from azul_runner.git_sync import GitError, GitSync
 
 # ============================================================================
 # Helpers and Fixtures

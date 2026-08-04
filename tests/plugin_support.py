@@ -1,20 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import datetime
 import logging
-from multiprocessing import shared_memory
 import pickle
 import time
-from typing import Any, Callable
+from multiprocessing import shared_memory
+from typing import Any
 
 import httpx
 
 from azul_runner import Feature, FeatureType, Job, Plugin, add_settings
-from azul_runner.models import FV, State
-from azul_bedrock import models_network as azm
-from . import mock_dispatcher as md
 from azul_runner.test_utils.test_template import TestPlugin
+
+from . import mock_dispatcher as md
 
 # Example instances of every feature type in azul.runner.models.VALID_FEATURE_TYPES
 VALID_FEATURE_EXAMPLES = (101, 55.5, "string", b"BYTES1011", datetime.datetime.now(datetime.timezone.utc))
@@ -65,9 +63,7 @@ class DummyLogHandler(logging.Handler):
 
 
 class DummyPluginMinimum(Plugin):
-    """
-    Test class that will register successfully but has no execute method.
-    """
+    """Test class that will register successfully but has no execute method."""
 
     SECURITY = None
     VERSION = "none"
@@ -76,9 +72,7 @@ class DummyPluginMinimum(Plugin):
 
 # noinspection PyAbstractClass
 class DummyPluginNoExecute(Plugin):
-    """
-    Test class that will register successfully but has no execute method.
-    """
+    """Test class that will register successfully but has no execute method."""
 
     SETTINGS = add_settings(request_retry_count=0)  # Don't retry failed requests when testing
     SECURITY = None
@@ -87,9 +81,7 @@ class DummyPluginNoExecute(Plugin):
 
 
 class DummyPluginNotReady(DummyPluginNoExecute):
-    """
-    Test class that will always report the plugin is not ready for jobs and raise if given any.
-    """
+    """Test class that will always report the plugin is not ready for jobs and raise if given any."""
 
     def is_ready(self):
         return False

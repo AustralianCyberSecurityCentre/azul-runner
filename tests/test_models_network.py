@@ -1,8 +1,8 @@
 import datetime
 import unittest
 
-from azul_bedrock import models_network as azm
 from azul_bedrock import exceptions_bedrock
+from azul_bedrock import models_network as azm
 
 
 class TestFeatureValue(unittest.TestCase):

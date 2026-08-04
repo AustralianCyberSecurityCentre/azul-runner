@@ -21,9 +21,7 @@ from azul_runner.storage import ProxyFileNotFoundError
 
 
 class PluginNoData(BinaryPlugin):
-    """
-    Test class that will register successfully but has no execute method.
-    """
+    """Test class that will register successfully but has no execute method."""
 
     FEATURES = [
         Feature("sample_feature", "An output feature for the test plugin", type=FeatureType.String),
