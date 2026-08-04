@@ -13,7 +13,9 @@ import urllib3
 import uvicorn
 from azul_bedrock import models_api as azapi
 from azul_bedrock import models_network as azm
-from azul_bedrock.mock import MockDispatcher, dp
+
+# NOTE - must import editor here even though it is un-used for tests to work.
+from azul_bedrock.mock import Editor, MockDispatcher, dp
 from fastapi import APIRouter, Request, Response
 
 router = APIRouter()
