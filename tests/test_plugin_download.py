@@ -177,6 +177,7 @@ class TestBaseDownloadPlugin(unittest.TestCase):
                         "max_value_length": "4000",
                         "max_values_per_feature": "1000",
                         "mem_poll_frequency_milliseconds": "1000",
+                        "graceful_shutdown": "false",
                         "name_remove_prefix": '"AzulPlugin"',
                         "name_suffix": '""',
                         "not_ready_backoff": "5",

@@ -165,6 +165,8 @@ class Settings(BaseSettings):
     cur_mem_summary_file_path: str = "/sys/fs/cgroup/memory.stat"
     # How often to check if the process is out of memory (milliseconds).
     mem_poll_frequency_milliseconds: int = 1000
+    # Graceful shutdown is disabled by default as it's useful in docker but not during testing
+    graceful_shutdown: bool = False
 
     #
     # these options affect what events your plugin will receive to process
