@@ -56,7 +56,9 @@ def _proxy_run_loop_coordinator(server: str, dummy_queue, dummy_log_handler):
     """Raise a termination signal"""
     monitor._start_loop_coordinator(
         DummySleepPlugin,
-        settings.Settings(events_url=server + "/test_data", data_url=server, delay=1, delay_after_exception=0),
+        settings.Settings(
+            events_url=server + "/test_data", data_url=server, delay=1, delay_after_exception=0, graceful_shutdown=True
+        ),
         None,
         "DEBUG",
         dummy_queue,
