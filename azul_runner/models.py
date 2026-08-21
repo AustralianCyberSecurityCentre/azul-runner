@@ -591,8 +591,8 @@ class TaskExitCodeEnum(Enum):
     """Exit code enum."""
 
     COMPLETED = 0  # Process has completed nicely (probably job_limit reached).
-    TERMINATE = 10  # An error has occurred that isn't fixing and the process should fully exit.
-    RECREATE_PLUGIN = 20  # Process needs to be re-created (probably a git change detected).
+    TERMINATE = 110  # An error has occurred that isn't fixing and the process should fully exit.
+    RECREATE_PLUGIN = 120  # Process needs to be re-created (probably a git change detected).
 
 
 class TaskModel(BaseModelStrict):

@@ -32,7 +32,9 @@ from .storage import StorageError, StorageProxyFile
 logger = logging.getLogger(__name__)
 
 QUEUE_PUT_TIMEOUT = 0.5
-RESTART_SIGNAL = signal.SIGUSR1
+# Restart signal for custom restart signalling, SIGUSR2 (12) is used instead of SIGUSR1 as 10 used to collide with
+# a custom exitcode and made it unclear what caused the exit.
+RESTART_SIGNAL = signal.SIGUSR2
 
 
 class CriticalError(Exception):
@@ -145,9 +147,9 @@ class Coordinator:
         self._cfg = config
 
         self.is_signalled_to_exit = False
-        signal.signal(signal.SIGINT, self.set_signal_exit)
-        signal.signal(signal.SIGTERM, self.set_signal_exit)
-
+        if config.graceful_shutdown:
+            signal.signal(signal.SIGINT, self.set_signal_exit)
+            signal.signal(signal.SIGTERM, self.set_signal_exit)
         self.is_signalled_to_restart = False
         signal.signal(RESTART_SIGNAL, self.set_signal_restart)
 

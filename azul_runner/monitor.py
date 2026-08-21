@@ -488,9 +488,11 @@ class Monitor:
                         start_child_process_func, job_limit, queue, logging_queue
                     )
                     concurrent_task_list.append(MonitorTask(child_process, queue))
-                # Ensure SIGINT and SIGTERM cause the child process to terminate.
-                self.propagate_termination_signal(concurrent_task_list, signal.SIGINT)
-                self.propagate_termination_signal(concurrent_task_list, signal.SIGTERM)
+                # Propagate terminations if required
+                if self._plugin.cfg.graceful_shutdown:
+                    # Ensure SIGINT and SIGTERM cause the child process to terminate.
+                    self.propagate_termination_signal(concurrent_task_list, signal.SIGINT)
+                    self.propagate_termination_signal(concurrent_task_list, signal.SIGTERM)
 
                 while True:
                     # Sleep only if the job_limit isn't set and if the limit is set start waiting once you have
@@ -505,7 +507,6 @@ class Monitor:
                     if self._gitsync and self._gitsync.update_pending():
                         # Notify child that it is time to exit
                         self._send_signal_to_child_processes(concurrent_task_list, RESTART_SIGNAL)
-
                     # Confirm at least one task wants to be recreated and none have any active jobs.
                     if recreate_plugin_requested and not is_any_job_active:
                         self.delete_tempfiles()
@@ -525,12 +526,10 @@ class Monitor:
                             monitor_task.child_process = self._create_and_start_child_process(
                                 start_child_process_func, job_limit, monitor_task.queue, logging_queue
                             )
-
                     # Confirm at least one task wants to exit and there are no active tasks.
                     if plugin_clean_exit_requested and not is_any_job_active:
                         logger.info("Closing down successfully completed plugin.")
                         return
-
                     recreate_plugin_requested = False
                     plugin_clean_exit_requested = False
                     is_any_job_active = False
@@ -544,6 +543,13 @@ class Monitor:
                                 plugin_clean_exit_requested = True
                                 continue
                             elif monitor_task.child_process.exitcode == TaskExitCodeEnum.RECREATE_PLUGIN.value:
+                                logger.info("Restarting plugin after gitsync found new code.")
+                                recreate_plugin_requested = True
+                                continue
+                            # Handles case where git-sync has caused the child process to exit so early it
+                            # didn't manage to intercept the exitcode and send the recreate exit code.
+                            elif monitor_task.child_process.exitcode == -RESTART_SIGNAL.value:
+                                logger.info("Restarting plugin after early gitsync termination of plugin.")
                                 recreate_plugin_requested = True
                                 continue
                             elif monitor_task.child_process.exitcode == TaskExitCodeEnum.TERMINATE.value:
@@ -558,7 +564,6 @@ class Monitor:
 
                         # Get the current job in the queue (also ensures it empties out)\
                         job_count += monitor_task.set_current_job_and_count_completed_jobs()
-
                         # Still fetching a new job, or haven't got the first one yet (both have current_job of None)
                         if monitor_task.current_job is None:
                             continue
@@ -566,7 +571,6 @@ class Monitor:
                         # A job is active because it has a current_job that isn't None
                         # and the subprocess hasn't terminated for any reason.
                         is_any_job_active = True
-
                         # Perform memory checks if enabled
                         if self._cfg.enable_mem_limits:
                             if not self._are_memory_limits_good(monitor_task):
