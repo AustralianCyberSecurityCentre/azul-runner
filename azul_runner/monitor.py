@@ -316,7 +316,9 @@ class Monitor:
         """Recreate the plugin and networking for monitor."""
         version_suffix = get_git_version_suffix(self._cfg)
         if version_suffix:
-            self._cfg.version_suffix = version_suffix
+            self._cfg.git_sync_commit_hash = version_suffix
+            if self._cfg.git_sync_add_hash_to_version:
+                self._cfg.version_suffix = version_suffix
         self._plugin = self._plugin_class(config=self._cfg)
         self._network = network.Network(self._plugin)
 
