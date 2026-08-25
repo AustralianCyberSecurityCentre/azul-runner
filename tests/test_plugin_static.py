@@ -167,6 +167,8 @@ class TestBasePluginStatic(unittest.TestCase):
                 "git_sync_clone_depth": 0,
                 "git_sync_submodules": "off",
                 "git_sync_git_config": "",
+                "git_sync_add_hash_to_version": True,
+                "git_sync_commit_hash": "",
                 "enable_mem_limits": False,
                 "used_mem_warning_frac": 0.8,
                 "used_mem_force_exit_frac": 0.9,
@@ -201,7 +203,7 @@ class TestBasePluginStatic(unittest.TestCase):
         p = CustomPlugin(config={"name_suffix": "test", "custom1": 999})
         os.environ.pop("plugin_heartbeat_interval")
         os.environ.pop("plugin_myvalue2")
-        print("Actual", p.cfg.model_dump())
+        print(p.cfg.model_dump())
         self.assertEqual(
             p.cfg.model_dump(),
             {
@@ -239,6 +241,8 @@ class TestBasePluginStatic(unittest.TestCase):
                 "git_sync_clone_depth": 0,
                 "git_sync_submodules": "off",
                 "git_sync_git_config": "",
+                "git_sync_add_hash_to_version": True,
+                "git_sync_commit_hash": "",
                 "enable_mem_limits": False,
                 "used_mem_warning_frac": 0.8,
                 "used_mem_force_exit_frac": 0.9,

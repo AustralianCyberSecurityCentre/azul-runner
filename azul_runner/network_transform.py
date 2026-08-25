@@ -21,7 +21,11 @@ def get_registrations(plugin: Plugin) -> list[azm.PluginEvent]:
         now = datetime.datetime.now(datetime.timezone.utc)
         # send all config that is not prefixed with 'secret_'
         # encode as json to get the real value to allow future access to it via the registration.
-        safe_config = {x: json.dumps(y) for x, y in plugin.cfg.model_dump().items() if not x.startswith("secret_")}
+        safe_config = {
+            x: json.dumps(y)
+            for x, y in plugin.cfg.model_dump().items()
+            if not x.startswith("secret_") and x != "git_sync_password"
+        }
         mp = plugin.get_multiplugin(multiplugin)
         description = plugin.DESCRIPTION
         if mp.description is not None and len(mp.description) > 0:

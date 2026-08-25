@@ -149,6 +149,10 @@ class Settings(BaseSettings):
     git_sync_submodules: str = "off"
     # optional git config override in "key:value" format (e.g. "http.sslVerify:false")
     git_sync_git_config: str = ""
+    # add the git repos commit hash to the version of the plugin.
+    git_sync_add_hash_to_version: bool = True
+    # A copy of the git hash in case it isn't included in version.
+    git_sync_commit_hash: str = ""
 
     # Memory limits
     # Enable the memory limiting functionality (disable by default because only works in Kubernetes).
