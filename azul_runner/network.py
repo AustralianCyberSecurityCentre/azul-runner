@@ -207,7 +207,9 @@ class Network:
             )
             self.api.submit_events([status_event], model=azm.ModelType.Status)
         except Exception:
-            logger.error("Failed to encode message\n", status_event.model_dump())
+            logger.error(
+                f"Failed to encode message\n{status_event.model_dump()}",
+            )
             raise
 
         # clear file metadata after events have been submitted
