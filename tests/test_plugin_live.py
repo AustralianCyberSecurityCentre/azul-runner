@@ -117,6 +117,8 @@ class TestBasePluginLive(unittest.TestCase):
     class DPRegistrationConfigOverride(sup.DummyPlugin):
         """Hello world."""
 
+        SETTINGS = add_settings(git_sync_add_hash_to_version=False)
+
         FEATURES = [
             Feature(name="feat1", desc="", type=azm.FeatureType.String),
             Feature(name="per_stream_feat", desc="", type=azm.FeatureType.String),
@@ -144,7 +146,7 @@ class TestBasePluginLive(unittest.TestCase):
         self.assertEqual(
             out_event,
             {
-                "model_version": azm.CURRENT_MODEL_VERSION,
+                "model_version": 6,
                 "kafka_key": "runner-placeholder",
                 "author": {
                     "category": "plugin",
@@ -196,7 +198,7 @@ class TestBasePluginLive(unittest.TestCase):
                         "filter_max_content_size": "209715200",
                         "filter_min_content_size": "102400",
                         "filter_self": "false",
-                        "git_sync_add_hash_to_version": "true",
+                        "git_sync_add_hash_to_version": "false",
                         "git_sync_clone_depth": "0",
                         "git_sync_commit_hash": '""',
                         "git_sync_git_config": '""',
