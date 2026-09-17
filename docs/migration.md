@@ -2,6 +2,10 @@
 
 Note that version was reset to conform to azul-app chart versions
 
+## 12.0.0
+
+Completely removed the old Uri() and Filepath() classes.
+
 ## 10.0
 
 Removal of `use_multiprocessing_fork`

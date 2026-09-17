@@ -15,11 +15,9 @@ from azul_runner.models import (
     FV,
     Feature,
     FeatureValue,
-    Filepath,
     Job,
     JobResult,
     State,
-    Uri,
 )
 from azul_runner.plugin import Plugin
 from azul_runner.settings import add_settings
@@ -52,14 +50,12 @@ EXPORTS = append_all + [
     "Feature",
     "FeatureType",
     "FeatureValue",
-    "Filepath",
     "FV",
     "Job",
     "JobResult",
     "Plugin",
     "State",
     "StorageProxyFile",
-    "Uri",
 ]
 
 __all__ = list(EXPORTS)
