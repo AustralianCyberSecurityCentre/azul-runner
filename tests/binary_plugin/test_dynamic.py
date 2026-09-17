@@ -12,12 +12,10 @@ from azul_runner import (
     Feature,
     FeatureType,
     FeatureValue,
-    Filepath,
     Job,
     JobResult,
     State,
     TestPlugin,
-    Uri,
 )
 
 
@@ -46,30 +44,28 @@ class TestBinaryTemplateDynamic(TestPlugin):
         self.assertEqual(result.state, State())
         self.assertEqual(result.main.features, {"sample_feature": [FeatureValue("completed ok")]})
 
-    class DPLegacyStuff(BinaryTestPlugin):
+    class DpFeaturesAndUris(BinaryTestPlugin):
         FEATURES = [
-            Feature("a_filepath", "", type=Filepath),
-            Feature("a_uri", "", type=Uri),
+            Feature("a_filepath", "", type=FeatureType.Filepath),
+            Feature("a_uri", "", type=FeatureType.Uri),
         ]
 
         def execute(self, job):
-            self.add_feature_values("a_filepath", [FV(Filepath("/rootf/"))])
-            self.add_feature_values("a_uri", [FV(Uri("http://abc.com"))])
+            self.add_feature_values("a_filepath", [FV("/rootf/")])
+            self.add_feature_values("a_uri", [FV("http://abc.com")])
 
-    def test_legacy_stuff(self):
+    def test_filepath_and_uri(self):
         """Check that legacy stuff works."""
-        # legacy feature typing
-        # legacy Filepath and Uri usage in plugin and tests
         result = self.do_execution(
             data_in=[("content", b"dummy data")],
-            plugin_class=TestBinaryTemplateDynamic.DPLegacyStuff,
+            plugin_class=TestBinaryTemplateDynamic.DpFeaturesAndUris,
         )
         self.assertEqual(result.state, State())
         self.assertEqual(
             result.main.features,
             {
-                "a_filepath": [FV(Uri("/rootf/"))],
-                "a_uri": [FV(Uri("http://abc.com"))],
+                "a_filepath": [FV("/rootf/")],
+                "a_uri": [FV("http://abc.com")],
             },
         )
 

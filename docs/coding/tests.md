@@ -9,7 +9,7 @@ output to verify it meets your requirements. If you don't do this, your plugin w
 Some alteration of the output may be needed to remove timestamps, specific exception messages, etc.
 
 ```python
-from azul_runner import DATA_HASH, FV, Event, EventData, EventParent, Filepath, JobResult, State, Uri
+from azul_runner import DATA_HASH, FV, Event, EventData, EventParent, JobResult, State, Uri
 from azul_runner import TestPlugin
 
 from azul_myplugin import MyPlugin
@@ -37,7 +37,7 @@ You will need to always add the children and grandchildren in the same order for
 For this reason, if you are loading in a bunch of child files, you should sort them alphabetically first.
 
 ```python
-from azul_runner import DATA_HASH, FV, Event, EventData, EventParent, Filepath, JobResult, State, Uri
+from azul_runner import DATA_HASH, FV, Event, EventData, EventParent, JobResult, State, Uri
 from azul_runner import TestPlugin
 
 from azul_myplugin import MyPlugin
@@ -81,7 +81,7 @@ Plugin config for tests is the same as `SETTINGS` with the exception of:
 Default config can be changed per-test by passing a config dict to `do_execution()`:
 
 ```python
-from azul_runner import DATA_HASH, FV, Event, EventData, EventParent, Filepath, JobResult, State, Uri
+from azul_runner import DATA_HASH, FV, Event, EventData, EventParent, JobResult, State, Uri
 from azul_runner import TestPlugin
 
 from azul_myplugin import MyPlugin

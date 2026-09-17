@@ -40,18 +40,6 @@ class ModelError(TypeError):
     pass
 
 
-class Filepath(str):
-    """A string value that will be parsed by Elastic as a file path."""
-
-    pass
-
-
-class Uri(str):
-    """A string value that will be parsed by Elastic as a URI."""
-
-    pass
-
-
 # As inheritance for enums is impossible, this is used to override repr() and str()
 # to render a valid reference to a state, for ease-of-use of the testing harness.
 # WARNING - This directly alters the modules azm.StatusEventEnum so side effects will occur if you
@@ -120,8 +108,6 @@ class Feature(BaseModelStrict):
                     str: azm.FeatureType.String,
                     bytes: azm.FeatureType.Binary,
                     datetime.datetime: azm.FeatureType.Datetime,
-                    Filepath: azm.FeatureType.Filepath,
-                    Uri: azm.FeatureType.Uri,
                 }[kind]
             except KeyError:
                 raise ValueError(
@@ -166,9 +152,6 @@ class FeatureValue(BaseModelStrict):
 
     def __init__(self, value=None, **kwargs):
         # convert legacy types to strings
-        if isinstance(value, (Filepath, Uri)):
-            value = str(value)
-            logging.warning("Filepath(x) and Uri(x) are deprecated, use string instead.")
         kwargs["value"] = value
         super().__init__(**kwargs)
 
