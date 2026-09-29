@@ -141,12 +141,25 @@ class Feature(BaseModelStrict):
         return self._typeref
 
 
+def label_encode(label: str) -> str:
+    """A pydantic field serializer of the FV label field.
+
+    Labels need to be valid UTF-8 for json encoding. Everything printable will be valid.
+    """
+    if not label.isprintable():
+        return label.encode(errors="backslashreplace").decode(errors="backslashreplace")
+    return label
+
+
+LabelSerializer = Annotated[str, PlainSerializer(lambda v: label_encode(v), return_type=str)]
+
+
 @total_ordering
 class FeatureValue(BaseModelStrict):
     """Data class to store the value of a feature, possibly with a label, offset, and/or size."""
 
     value: Annotated[azm.VALUE_DECODED, PlainSerializer(lambda v: azm.value_encode(v), return_type=azm.VALUE_DECODED)]
-    label: str | None = None
+    label: LabelSerializer | None = None
     offset: int | None = None
     size: int | None = None
 
