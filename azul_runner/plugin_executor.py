@@ -186,6 +186,8 @@ def _process_features(plugin: mplugin.Plugin, feature_values: dict[str, list[Fea
             )
             num_values = len(feature_values[feature.name])
 
+        invalid_labels: set[str] = set()
+
         # check all values have valid type and valid length
         for v in feature_values[feature.name]:
             if not isinstance(v.value, feature.typeref):
@@ -195,6 +197,13 @@ def _process_features(plugin: mplugin.Plugin, feature_values: dict[str, list[Fea
                 )
             if isinstance(v.value, (str, bytes)) and len(v.value) > plugin.cfg.max_value_length:
                 raise ResultError(f"feature {feature.name} has value that is too long ({v.value[:100]}...)")
+            if v.label:
+                # If the feature value also has a label, validate it.
+                if not v.label.isprintable():
+                    invalid_labels.add(v.label.encode(errors="backslashreplace").decode(errors="backslashreplace"))
+
+        if invalid_labels:
+            warnings.append(f"Invalid labels ({len(invalid_labels)}) for feature '{feature.name}': {invalid_labels}")
 
         # track problematic numbers of feature values
         total_values += num_values
