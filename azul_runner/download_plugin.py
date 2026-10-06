@@ -55,11 +55,15 @@ class DownloadPlugin(Plugin):
 
     def upload_sourced_file(self, raw_file: typing.BinaryIO, filename: str = ""):
         """Upload a file and the associated events to Azul."""
+        security = self.SECURITY
+        if self._download_job.source.security:
+            security = self._download_job.source.security
+
         self.pusher.source_downloaded_file_once(
             content=raw_file,
             source_label=self._download_job.source.name,
             references=self._download_job.source.references,
-            security=self.SECURITY,
+            security=security,
             filename=filename,
         )
         self._is_download_completed = True
