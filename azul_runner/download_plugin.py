@@ -86,7 +86,8 @@ class DownloadPlugin(Plugin):
                     has_binary = True
 
                 # Binary not present so skip
-                if not has_binary:
+                if has_binary:
+                    self.logger.info("Skipping download for binary that already exists: %s", download_job.entity.hash)
                     self.network._notify_download(download_job, azm.DownloadAction.SkippedAlreadyPresent)
                     continue
             except Exception as e:
