@@ -84,7 +84,7 @@ version = "0.0.0"
 
 [dependency-groups]
 dev = [
-    "azul-bedrock[test-utils]>=9.0.32",
+    "azul-bedrock[test-utils]>=13.0.85",
     "black>=26.1.0",
     "fastapi>=0.128.0",
     "pytest>=9.0.2",

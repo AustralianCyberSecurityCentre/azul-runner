@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -12,13 +12,13 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P1W"
 
 [options.exclude-newer-package]
-azul-nsrl-lookup-server = false
 azul-bedrock = false
-azul-security = false
-azul-runner = false
 azul-metastore = false
-azul-plugin-retrohunt = false
 azul-nsrl-lookup-serve = false
+azul-nsrl-lookup-server = false
+azul-plugin-retrohunt = false
+azul-runner = false
+azul-security = false
 
 [[package]]
 name = "agent-detector"
@@ -62,7 +62,7 @@ wheels = [
 
 [[package]]
 name = "azul-bedrock"
-version = "13.0.81"
+version = "13.0.86"
 source = { registry = "https://devpi.acsc.internal/azul/stable/" }
 dependencies = [
     { name = "babel" },
@@ -80,7 +80,7 @@ dependencies = [
     { name = "yara-x" },
 ]
 wheels = [
-    { url = "https://devpi.acsc.internal/azul/stable/+f/cb4/754b8a1763e9b/azul_bedrock-13.0.81-py3-none-any.whl", hash = "sha256:cb4754b8a1763e9bf1fde87eeb8eb8daa7ff60f526d75b5588d62865c37278f9" },
+    { url = "https://devpi.acsc.internal/azul/stable/+f/5f0/21654a589403d/azul_bedrock-13.0.86-py3-none-any.whl", hash = "sha256:5f021654a589403d143dcf815ff807878d5306d684165744f02fe43179f75cea" },
 ]
 
 [package.optional-dependencies]
@@ -157,7 +157,7 @@ provides-extras = ["test-utils"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "azul-bedrock", extras = ["test-utils"], specifier = ">=9.0.32", index = "https://devpi.acsc.internal/azul/stable/" },
+    { name = "azul-bedrock", extras = ["test-utils"], specifier = ">=13.0.85", index = "https://devpi.acsc.internal/azul/stable/" },
     { name = "black", specifier = ">=26.1.0" },
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "pytest", specifier = ">=9.0.2" },
